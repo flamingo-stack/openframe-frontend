@@ -15,6 +15,7 @@ import type { AgentAiConfig, ClientView } from '../types/ai-settings';
 import { CUSTOMER_AI_ASSISTANT_FORM_ID, type CustomerAiAssistantSubmit } from '../types/customer-ai-assistant.types';
 import { AiAnswerStyleFields, AiProviderModelFields } from './ai-config-fields';
 import { AiSettingsOverview } from './ai-settings-overview';
+import { ASSISTANT_QUICK_ACTIONS_CONFIG } from './ai-settings-quick-actions';
 import { AiSettingsQuickActionsEditor } from './ai-settings-quick-actions-editor';
 import { AiSettingsPreviews } from './previews/ai-settings-previews';
 
@@ -145,7 +146,14 @@ export function CustomerAiAssistantTab({ aiConfig, view, isEditMode, onSubmit }:
 
           <AiAnswerStyleFields control={form.control} answerStyle={answerStyle} />
 
-          <AiSettingsQuickActionsEditor control={form.control} className="mt-8" />
+          <AiSettingsQuickActionsEditor
+            control={form.control}
+            title="Assistant Quick Actions"
+            agentConfig={ASSISTANT_QUICK_ACTIONS_CONFIG}
+            configActions={aiConfig.quickActions}
+            configIsDefault={aiConfig.quickActionsIsDefault}
+            className="mt-8"
+          />
         </>
       )}
     </form>

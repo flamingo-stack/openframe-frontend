@@ -13,7 +13,7 @@ import {
 } from '../types/mingo-ai-chat.types';
 import { AiAnswerStyleFields, AiProviderModelFields } from './ai-config-fields';
 import { AiSettingsAdminCard } from './ai-settings-admin-card';
-import { AiSettingsQuickActions } from './ai-settings-quick-actions';
+import { AiSettingsQuickActionsSection, MINGO_QUICK_ACTIONS_CONFIG } from './ai-settings-quick-actions';
 import { AiSettingsQuickActionsEditor } from './ai-settings-quick-actions-editor';
 
 export { MINGO_AI_CHAT_FORM_ID } from '../types/mingo-ai-chat.types';
@@ -42,7 +42,12 @@ export function MingoAiChatTab({ aiConfig, isEditMode, onSubmit }: MingoAiChatTa
     return (
       <div className="flex flex-col gap-[var(--spacing-system-l)]">
         <AiSettingsAdminCard aiConfig={aiConfig} providerModelLabel={modelLabel} />
-        <AiSettingsQuickActions actions={aiConfig.quickActions} />
+        <AiSettingsQuickActionsSection
+          title="Mingo Quick Actions"
+          actions={aiConfig.quickActions}
+          isDefault={aiConfig.quickActionsIsDefault}
+          agentConfig={MINGO_QUICK_ACTIONS_CONFIG}
+        />
       </div>
     );
   }
@@ -59,7 +64,14 @@ export function MingoAiChatTab({ aiConfig, isEditMode, onSubmit }: MingoAiChatTa
 
       <AiAnswerStyleFields control={form.control} answerStyle={answerStyle} />
 
-      <AiSettingsQuickActionsEditor control={form.control} title="Mingo Quick Actions" className="mt-8" />
+      <AiSettingsQuickActionsEditor
+        control={form.control}
+        title="Mingo Quick Actions"
+        agentConfig={MINGO_QUICK_ACTIONS_CONFIG}
+        configActions={aiConfig.quickActions}
+        configIsDefault={aiConfig.quickActionsIsDefault}
+        className="mt-8"
+      />
     </form>
   );
 }

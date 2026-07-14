@@ -6,6 +6,7 @@ const AGENT_AI_CONFIG_FIELDS = `
   providerModel
   answerStyle
   customPrompt
+  quickActionsIsDefault
   quickActions {
     id
     name

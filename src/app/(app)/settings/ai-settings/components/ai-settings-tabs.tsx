@@ -9,13 +9,13 @@ import { type TabItem, TabNavigation } from '@flamingo-stack/openframe-frontend-
 import type { ReactNode } from 'react';
 import { featureFlags } from '@/lib/feature-flags';
 
-export const AI_SETTINGS_TAB_IDS = ['customer', 'mingo', 'guardrails'] as const;
+export const AI_SETTINGS_TAB_IDS = ['mingo', 'customer', 'guardrails'] as const;
 export type AiSettingsTabId = (typeof AI_SETTINGS_TAB_IDS)[number];
 
 export const AI_SETTINGS_TABS: TabItem[] = [
-  { id: 'customer', label: 'Customer AI Assistant', icon: ChatsIcon },
   { id: 'mingo', label: 'Mingo AI Chat', icon: MingoMonochromeIcon },
-  { id: 'guardrails', label: 'Guardrails', icon: ShieldCheckIcon },
+  { id: 'customer', label: 'Default Customer AI Configuration', icon: ChatsIcon },
+  { id: 'guardrails', label: 'Default Customer AI Guardrails', icon: ShieldCheckIcon },
 ];
 
 // Tabs gated behind server feature flags until each feature ships. Guardrails

@@ -45,7 +45,7 @@ export const TAB_IDS = {
   scriptsV2Details: ['details', 'executions'],
   monitoring: ['policies', 'queries'],
   settings: ['ai-settings', 'architecture', 'company-and-users', 'api-keys', 'sso-configuration', 'profile'],
-  aiSettings: ['customer', 'mingo', 'guardrails'],
+  aiSettings: ['mingo', 'customer', 'guardrails'],
   notifications: ['history'],
 } as const;
 

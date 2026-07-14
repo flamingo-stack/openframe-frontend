@@ -22,6 +22,7 @@ interface AgentAiConfigGql {
   providerModel: string;
   answerStyle: AnswerStyle | null;
   customPrompt: string | null;
+  quickActionsIsDefault: boolean | null;
   quickActions: { id: string; name: string; instructions: string }[] | null;
   createdAt: string;
   updatedAt: string | null;
@@ -40,6 +41,8 @@ function toAgentAiConfig(raw: AgentAiConfigGql): AgentAiConfig {
     providerModel: raw.providerModel,
     answerStyle: raw.answerStyle ?? null,
     customPrompt: raw.customPrompt ?? null,
+    // BE default is true (defaults come from Product Hub until customized).
+    quickActionsIsDefault: raw.quickActionsIsDefault ?? true,
     quickActions: (raw.quickActions ?? []).map(q => ({ id: q.id, name: q.name, instructions: q.instructions })),
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt ?? null,

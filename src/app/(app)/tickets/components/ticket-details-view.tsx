@@ -87,8 +87,10 @@ import { useAddTicketNote, useDeleteTicketNote, useUpdateTicketNote } from '../h
 import { useAssigneeOptions } from '../hooks/use-ticket-options';
 import { useTicketStatus } from '../hooks/use-ticket-status';
 import { useTransitionTicket } from '../hooks/use-transition-ticket';
+import { useTicketStatusesQuery } from '../statuses/hooks/use-ticket-statuses-query';
 import { useTicketDetailsStore } from '../stores/ticket-details-store';
 import type { ClientDialogOwner, Dialog, DialogOwner } from '../types/dialog.types';
+import { isResolvedStatusId } from '../utils/is-resolved-status';
 import { ticketsQueryKeys } from '../utils/query-keys';
 import { TICKET_STATUS_KIND } from '../utils/ticket-statistics';
 import { TicketAttachmentsSection } from './ticket-attachments-section';
@@ -103,20 +105,32 @@ interface TicketDetailsViewProps {
 
 /**
  * Wrap a device-menu item so opening it also fires a dashboard-activity event.
- * `href` navigation is preserved. For a submenu parent the click only expands
- * the submenu, so tracking is attached to the leaf items that actually
- * navigate, not the parent.
+ *
+ * The built device items navigate via `href`, which the core `ActionsMenu`
+ * renders as a `<Link>`. Whether a link row also invokes the item's `onClick`
+ * is a core-lib implementation detail we must not let the analytics silently
+ * depend on (it regressed once, dropping open_remote_shell/open_remote_control
+ * events entirely). So instead of attaching an `onClick` alongside `href`, we
+ * drop `href` and drive navigation ourselves inside `onClick` (track +
+ * `navigate`). That forces the reliable button-row path whose `onClick` always
+ * fires. For a submenu parent the click only expands the submenu, so we recurse
+ * into the leaf items that actually navigate, not the parent.
  */
-function withActivityTracking(item: ActionsMenuItem, subtype: EventSubtype): ActionsMenuItem {
+function withActivityTracking(
+  item: ActionsMenuItem,
+  subtype: EventSubtype,
+  navigate: (href: string) => void,
+): ActionsMenuItem {
   if (item.submenu && item.submenu.length > 0) {
-    return { ...item, submenu: item.submenu.map(child => withActivityTracking(child, subtype)) };
+    return { ...item, submenu: item.submenu.map(child => withActivityTracking(child, subtype, navigate)) };
   }
-  const originalOnClick = item.onClick;
+  const { href, onClick: originalOnClick, ...rest } = item;
   return {
-    ...item,
+    ...rest,
     onClick: () => {
       trackDashboardActivity(subtype);
       originalOnClick?.();
+      if (href) navigate(href);
     },
   };
 }
@@ -252,6 +266,9 @@ export function TicketDetailsView({ ticketId }: TicketDetailsViewProps) {
 
   const { activate, archive, isUpdating } = useTicketStatus();
   const transitionTicket = useTransitionTicket();
+  // Target-status kinds, to recognize a resolve at click time (availableTransitions
+  // carries no `kind`). Cached/shared with the board & table, so no extra fetch.
+  const { data: statusesData } = useTicketStatusesQuery();
   const { handleApproveRequest, handleRejectRequest } = useApprovalRequests();
 
   // Time tracker lives in a global host provider (mounted when the feature flag
@@ -407,9 +424,17 @@ export function TicketDetailsView({ ticketId }: TicketDetailsViewProps) {
   const handleTransition = useCallback(
     (toStatusId: string) => {
       if (!dialog || transitionTicket.isPending) return;
+      // Resolve is the inline status changer moving the ticket into a
+      // RESOLVED-kind status — there is no dedicated "resolve" button. Track
+      // optimistically on click (like the other activity events): losing one
+      // event on a failed transition is fine; missing real resolves because a
+      // success callback didn't land is not.
+      if (isResolvedStatusId(toStatusId, statusesData?.snapshot)) {
+        trackDashboardActivity(EVENT_SUBTYPE.RESOLVE_TICKET);
+      }
       transitionTicket.mutate({ ticketId, toStatusId });
     },
-    [dialog, ticketId, transitionTicket],
+    [dialog, ticketId, transitionTicket, statusesData],
   );
 
   const handleApprovalAction = useCallback(
@@ -542,8 +567,10 @@ export function TicketDetailsView({ ticketId }: TicketDetailsViewProps) {
     if (deviceDetails || isDeviceLoading) {
       infoItems.push(deviceMenuItems.deviceDetails, deviceMenuItems.deviceLogs);
       remoteItems.push(
-        withActivityTracking(deviceMenuItems.remoteShell, EVENT_SUBTYPE.OPEN_REMOTE_SHELL),
-        withActivityTracking(deviceMenuItems.remoteControl, EVENT_SUBTYPE.OPEN_REMOTE_CONTROL),
+        withActivityTracking(deviceMenuItems.remoteShell, EVENT_SUBTYPE.OPEN_REMOTE_SHELL, href => router.push(href)),
+        withActivityTracking(deviceMenuItems.remoteControl, EVENT_SUBTYPE.OPEN_REMOTE_CONTROL, href =>
+          router.push(href),
+        ),
         deviceMenuItems.manageFiles,
         deviceMenuItems.runScript,
       );

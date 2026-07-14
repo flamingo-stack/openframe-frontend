@@ -53,8 +53,13 @@ centralized in `EVENT_SUBTYPE`, so renaming later is a one‑file change.
 ## Fire‑timing policy
 
 - **Navigation/intent buttons** (no meaningful success state) → fire on click.
-- **Mutation buttons** (send/approve/reject/resolve/start) → fire on **success**
-  only, so failed/cancelled attempts don't pollute activation metrics.
+- **Mutation buttons** (send/approve/reject/start) → fire on **success** only, so
+  failed/cancelled attempts don't pollute activation metrics.
+- **Resolve ticket** → fire **optimistically on click** (when a RESOLVED-kind
+  status is chosen), *not* on success. A resolve can happen via two mutations
+  (the status changer and the Edit form), and success callbacks proved
+  unreliable to observe; losing one event on a rare failed transition is
+  acceptable, missing real resolves is not.
 - **Skip onboarding** → fire when the walkthrough is dismissed.
 
 ## Tracked events
@@ -67,9 +72,9 @@ centralized in `EVENT_SUBTYPE`, so renaming later is a one‑file change.
 | 4 | Send Mingo message | `SEND_MINGO_MESSAGE` | `send_mingo_message_mingo` | mingo | `mingo/page.tsx` → `handleSendMessage` | send **success** (`success === true`, both draft & existing branches) |
 | 5 | Approve Mingo command | `APPROVE_MINGO_COMMAND` | `approve_mingo_command_mingo` | mingo | `mingo/hooks/use-mingo-dialog-selection.ts` → `handleApprove` | approve mutation **success** |
 | 6 | Reject Mingo command *(added per request)* | `REJECT_MINGO_COMMAND` | `reject_mingo_command_mingo` | mingo | `mingo/hooks/use-mingo-dialog-selection.ts` → `handleReject` | reject mutation **success** |
-| 7 | Open Remote Shell | `OPEN_REMOTE_SHELL` | `open_remote_shell_ticket_detail` | ticket detail | `tickets/components/ticket-details-view.tsx` → `menuActions` memo wraps the `remoteShell` item (and its Windows submenu leaves) with an `onClick` | menu item click |
-| 8 | Open Remote Control | `OPEN_REMOTE_CONTROL` | `open_remote_control_ticket_detail` | ticket detail | `tickets/components/ticket-details-view.tsx` → `menuActions` memo wraps the `remoteControl` item with an `onClick` | menu item click |
-| 9 | Resolve ticket | `RESOLVE_TICKET` | `resolve_ticket_ticket_detail` | ticket detail | `tickets/components/ticket-details-view.tsx` → `handleResolve` | resolve **success** (`nextStatus` truthy) |
+| 7 | Open Remote Shell | `OPEN_REMOTE_SHELL` | `open_remote_shell_ticket_detail` | ticket detail | `tickets/components/ticket-details-view.tsx` → `menuActions` memo wraps the `remoteShell` item (and its Windows submenu leaves) via `withActivityTracking` | menu item click |
+| 8 | Open Remote Control | `OPEN_REMOTE_CONTROL` | `open_remote_control_ticket_detail` | ticket detail | `tickets/components/ticket-details-view.tsx` → `menuActions` memo wraps the `remoteControl` item via `withActivityTracking` | menu item click |
+| 9 | Resolve ticket | `RESOLVE_TICKET` | `resolve_ticket_ticket_detail` | ticket detail | `handleTransition` (detail-view status changer) **and** `useCreateTicketForm.handleSave` (Edit Ticket form), both via `isResolvedStatusId` | click, when target status kind is RESOLVED (optimistic, before the mutation) |
 | 10 | Start Direct Chat | `START_DIRECT_CHAT` | `start_direct_chat_ticket_detail` | ticket detail | `tickets/hooks/use-direct-chat.ts` → `createDialogMutation.onSuccess` | dialog create **success** |
 
 > The Approve/Reject buttons themselves and the onboarding buttons render inside
@@ -81,13 +86,18 @@ centralized in `EVENT_SUBTYPE`, so renaming later is a one‑file change.
 ### Remote Shell / Remote Control nuance
 
 `buildDeviceMenuItems` (`devices/utils/device-menu-items.tsx`) returns
-`ActionsMenuItem`s that navigate via `href`. `ActionsMenuItem` supports `href`
-**and** `onClick` together, so in the `menuActions` memo we shallow‑wrap the
-built `remoteShell` / `remoteControl` items adding an `onClick` that calls
-`trackDashboardActivity(...)` while leaving `href` untouched. On Windows,
-`remoteShell` is a `type: 'submenu'` whose leaf children carry the `href`; the
-wrapper maps those leaves too so the event fires on the actual shell choice.
-`iconAction` (open‑in‑new‑tab secondary button) is left as‑is.
+`ActionsMenuItem`s that navigate via `href`, which the core `ActionsMenu`
+renders as a `<Link>`. Whether a link row also invokes the item's `onClick` is a
+core‑lib implementation detail we must **not** let the analytics silently depend
+on — it regressed once and dropped these two events entirely. So
+`withActivityTracking` (in `ticket-details-view.tsx`) **drops `href`** and drives
+navigation itself: the wrapped `onClick` calls `trackDashboardActivity(...)` then
+`router.push(href)`. That forces the reliable button‑row path whose `onClick`
+always fires. On Windows, `remoteShell` is a `type: 'submenu'` whose leaf
+children carry the `href`; the wrapper recurses into those leaves so the event
+fires on the actual shell choice. Trade‑off: the row is no longer a native anchor,
+so cmd/middle‑click "open in new tab" on the row is gone (the ticket menu has no
+`iconAction` new‑tab button anyway).
 
 ## Non‑functional requirements
 

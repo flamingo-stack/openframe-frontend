@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useApplyAssignmentsDiff, useAssignedItems } from '@/components/assignments';
+import { EVENT_SUBTYPE, trackDashboardActivity } from '@/lib/analytics';
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS, CREATION_SOURCE } from '../constants';
 import { GET_TICKET_QUERY } from '../queries/ticket-queries';
@@ -13,6 +14,7 @@ import { type CreateTicketFormData, createTicketSchema } from '../types/create-t
 import type { Ticket } from '../types/ticket.types';
 import type { GraphQlResponse } from '../utils/graphql';
 import { extractGraphQlData } from '../utils/graphql';
+import { isResolvedStatusId } from '../utils/is-resolved-status';
 import { ticketsQueryKeys } from '../utils/query-keys';
 import { resolveCurrentStatus } from '../utils/resolve-current-status';
 import { useCreateTicket } from './use-create-ticket';
@@ -119,6 +121,12 @@ export function useCreateTicketForm({ ticketId }: UseCreateTicketFormOptions = {
       // Transition first: updateTicket's onSuccess navigates away, so a failed
       // transition afterwards would strand the user on the next page mid-error.
       if (data.statusId && data.statusId !== currentStatus?.id) {
+        // Editing a ticket into a RESOLVED-kind status is also a "resolve".
+        // Track optimistically before the mutation, same as the detail-view
+        // status changer (see isResolvedStatusId).
+        if (isResolvedStatusId(data.statusId, statusesQuery.data?.snapshot)) {
+          trackDashboardActivity(EVENT_SUBTYPE.RESOLVE_TICKET);
+        }
         await transitionTicketMutation.mutateAsync({ ticketId, toStatusId: data.statusId });
       }
 

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "enabledManagers": ["npm", "github-actions"],
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 3,
+  "prCreation": "immediate",
+  "rangeStrategy": "replace",
+  "timezone": "UTC",
+  "commitMessageAction": "",
+  "commitMessageExtra": "to {{{newVersion}}}",
+
+  "packageRules": [
+    {
+      "description": "Updates for OpenFrame frontend core npm package",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["@flamingo-stack/openframe-frontend-core"],
+      "groupName": "openframe-frontend-core",
+      "groupSlug": "openframe-frontend-core",
+      "commitMessageTopic": "OpenFrame frontend core",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps",
+      "labels": ["dependencies", "openframe-libs"],
+      "prPriority": 10,
+      "enabled": true,
+      "ignoreUnstable": true
+    },
+    {
+      "description": "Disable all other npm dependencies - only update openframe-frontend-core",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["!@flamingo-stack/openframe-frontend-core"],
+      "enabled": false
+    },
+    {
+      "description": "GitHub Actions versions in workflows",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "groupSlug": "github-actions",
+      "labels": ["dependencies", "ci"]
+    },
+    {
+      "description": "Let upstream releases settle before offering them",
+      "matchManagers": ["github-actions"],
+      "minimumReleaseAge": "3 days"
+    }
+  ]
+}

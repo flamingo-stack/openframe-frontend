@@ -31,7 +31,6 @@ export default function SignupPage() {
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  // Optional dev-only field linking the registration to a git PR (NEXT_PUBLIC_PR_NUMBER_ENABLED).
   const [prNumber, setPrNumber] = useState('');
   const showPrNumber = runtimeEnv.prNumberEnabled();
 

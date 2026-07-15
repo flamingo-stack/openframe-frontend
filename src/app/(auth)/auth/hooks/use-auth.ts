@@ -8,7 +8,6 @@ import { authApiClient } from '@/lib/auth-api-client';
 import { nativeLogin } from '@/lib/native-login';
 import { unregisterNativePush } from '@/lib/native-push';
 import { isNativeShell } from '@/lib/native-shell';
-import { markPersonalOnboardingRedirectPending } from '@/lib/onboarding-login-redirect';
 import { routes } from '@/lib/routes';
 import { runtimeEnv } from '@/lib/runtime-config';
 import { isBearerAuthMode } from '@/lib/token-store';
@@ -215,11 +214,6 @@ export function useAuth() {
     try {
       if (tenantInfo?.tenantId) {
         setTenantId(tenantInfo.tenantId);
-
-        // Queue a one-shot post-login redirect to personal onboarding. Set before
-        // the SSO round trip (or native push) so it survives the full-page return
-        // to /dashboard; the redirect gate consumes it once progress has loaded.
-        markPersonalOnboardingRedirectPending();
 
         if (isNativeShell()) {
           const { tenantHostChanged } = await nativeLogin({

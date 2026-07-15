@@ -38,7 +38,6 @@ import { OnboardingCoachMark } from './onboarding-coach-mark';
 import { OnboardingProgressHydrator } from './onboarding-progress-hydrator';
 import { OnboardingTourBar } from './onboarding-tour-bar';
 import { OpenframeEmbeddableChatEntry } from './openframe-embeddable-chat-entry';
-import { PersonalOnboardingRedirectGate } from './personal-onboarding-redirect-gate';
 import { SubscriptionGuard } from './subscription-lock/subscription-guard';
 import { SubscriptionLockContent } from './subscription-lock/subscription-lock-content';
 import { useSubscriptionLock } from './subscription-lock/subscription-lock-context';
@@ -338,7 +337,6 @@ function AppShell({ children, mainClassName }: { children: React.ReactNode; main
       {newOnboardingEnabled && (
         <Suspense fallback={null}>
           <OnboardingProgressHydrator />
-          <PersonalOnboardingRedirectGate />
           <OnboardingCoachMark />
         </Suspense>
       )}

@@ -98,6 +98,12 @@ function SecuritySectionBlock({ title, cards }: Omit<SecuritySection, 'id'>) {
   );
 }
 
+/** Agent version usable for display — sources report "unknown" (Fleet) or empty strings for missing data. */
+function normalizeVersion(version: string | undefined): string | undefined {
+  const trimmed = version?.trim();
+  return trimmed && trimmed.toLowerCase() !== 'unknown' ? trimmed : undefined;
+}
+
 /**
  * Build the posture sections from the data we actually have on the normalized device.
  * Sections with no real data are omitted entirely (no "Unknown/N/A" filler), so the
@@ -158,8 +164,12 @@ function buildSections(device: Device): SecuritySection[] {
   }
 
   // Security agents — one card per agent that reports a version.
+  // Versions come from the OpenFrame agent registry (installedAgents) first — Fleet's own
+  // host fields (orbit_version) report "unknown" for the Flamingo fleetmdm fork agent.
   const agentCards: SecurityCard[] = [];
-  const openframeVersion = device.version || device.agentVersion;
+  const installedVersion = (agentType: string): string | undefined =>
+    normalizeVersion(device.installedAgents?.find(agent => agent.agentType === agentType)?.version);
+  const openframeVersion = installedVersion('openframe-client') || normalizeVersion(device.agentVersion);
   if (openframeVersion) {
     agentCards.push({
       title: 'OpenFrame Agent',
@@ -178,11 +188,12 @@ function buildSections(device: Device): SecuritySection[] {
       ],
     });
   }
-  if (device.orbit_version && device.orbit_version !== 'unknown') {
+  const orbitVersion = installedVersion('fleetmdm-agent') || normalizeVersion(device.orbit_version);
+  if (orbitVersion) {
     agentCards.push({
       title: 'Orbit',
       rows: [
-        { label: 'Version', value: device.orbit_version },
+        { label: 'Version', value: orbitVersion },
         { label: 'Status', value: 'Active', status: 'success' },
       ],
     });

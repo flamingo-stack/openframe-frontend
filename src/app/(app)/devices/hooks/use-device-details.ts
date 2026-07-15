@@ -238,8 +238,8 @@ function createDevice(
     orbit_version: fleetData?.orbit_version,
     fleet_desktop_version: fleetData?.fleet_desktop_version,
     scripts_enabled: fleetData?.scripts_enabled,
-    agentVersion: node.agentVersion || fleetData?.osquery_version,
-    version: node.agentVersion || fleetData?.osquery_version,
+    agentVersion: node.agentVersion,
+    version: node.agentVersion,
 
     // Unified Arrays (NO NESTING)
     software,

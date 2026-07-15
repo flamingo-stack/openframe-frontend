@@ -1,16 +1,17 @@
 'use client';
 
 import { CreateOrganizationForm } from '@flamingo-stack/openframe-frontend-core/components/features';
-import { Button } from '@flamingo-stack/openframe-frontend-core/components/ui';
+import { Button, Input } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { useToast } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { useState } from 'react';
 import { AUTH_ERROR_CODE } from '@/app/(auth)/auth/constants/auth-error-codes';
 import { useDomainAvailability, useEmailAvailability } from '@/app/(auth)/auth/hooks/use-registration-availability';
 import { isSaasSharedMode } from '@/lib/app-mode';
 import { authApiClient, SAAS_DOMAIN_SUFFIX } from '@/lib/auth-api-client';
+import { runtimeEnv } from '@/lib/runtime-config';
 
 interface CreateOrganizationSectionProps {
-  onCreateOrganization: (orgName: string, domain: string, email: string) => void;
+  onCreateOrganization: (orgName: string, domain: string, email: string, prNumber?: number) => void;
   isLoading?: boolean;
 }
 
@@ -30,6 +31,9 @@ export function CreateOrganizationSection({ onCreateOrganization, isLoading }: C
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isCheckingDomain, setIsCheckingDomain] = useState(false);
   const [suggestedDomains, setSuggestedDomains] = useState<string[]>([]);
+  // Optional field linking the registration to a git PR (dev environments only).
+  const [prNumber, setPrNumber] = useState('');
+  const showPrNumber = runtimeEnv.prNumberEnabled();
 
   const orgNameRegex = /^[\p{L}\p{M}0-9&\.,'"()\- ]{2,100}$/u;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -59,11 +63,13 @@ export function CreateOrganizationSection({ onCreateOrganization, isLoading }: C
     setSuggestedDomains([]);
   };
 
+  const parsedPrNumber = showPrNumber && prNumber ? Number(prNumber) : undefined;
+
   const handleSubmit = async () => {
     if (!isValid || isCheckingDomain) return;
 
     if (!isSaasShared) {
-      onCreateOrganization(organizationName.trim(), domain.trim(), email.trim());
+      onCreateOrganization(organizationName.trim(), domain.trim(), email.trim(), parsedPrNumber);
       return;
     }
 
@@ -76,7 +82,12 @@ export function CreateOrganizationSection({ onCreateOrganization, isLoading }: C
       if (response.ok && response.data) {
         const { available, suggestedUrl } = response.data as { available: boolean; suggestedUrl?: string[] };
         if (available) {
-          onCreateOrganization(organizationName.trim(), `${subdomain}.${SAAS_DOMAIN_SUFFIX}`, email.trim());
+          onCreateOrganization(
+            organizationName.trim(),
+            `${subdomain}.${SAAS_DOMAIN_SUFFIX}`,
+            email.trim(),
+            parsedPrNumber,
+          );
         } else {
           toast({
             title: 'Domain Not Available',
@@ -184,6 +195,18 @@ export function CreateOrganizationSection({ onCreateOrganization, isLoading }: C
         organizationName:
           organizationName.trim() && !isOrgNameValid ? 'Organization Name must be 2-100 characters' : undefined,
       }}
-    />
+    >
+      {showPrNumber && (
+        <Input
+          label="PR Number (optional)"
+          placeholder="Enter PR Number"
+          inputMode="numeric"
+          value={prNumber}
+          disabled={isLoading || isCheckingDomain}
+          // Digits only — typing or pasting anything else (minus sign included) is stripped.
+          onChange={event => setPrNumber(event.target.value.replace(/\D/g, ''))}
+        />
+      )}
+    </CreateOrganizationForm>
   );
 }

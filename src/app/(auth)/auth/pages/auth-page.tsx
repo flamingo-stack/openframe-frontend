@@ -19,11 +19,16 @@ export default function AuthPage() {
     }
   }, [isAuthenticated, router]);
 
-  const handleCreateOrganization = (orgName: string, domain: string, email: string) => {
+  const handleCreateOrganization = (orgName: string, domain: string, email: string, prNumber?: number) => {
     // Store org details and navigate to signup screen
     sessionStorage.setItem('auth:org_name', orgName);
     sessionStorage.setItem('auth:domain', domain);
     sessionStorage.setItem('auth:email', email);
+    if (prNumber !== undefined) {
+      sessionStorage.setItem('auth:pr_number', String(prNumber));
+    } else {
+      sessionStorage.removeItem('auth:pr_number');
+    }
     router.push('/auth/signup/');
   };
 

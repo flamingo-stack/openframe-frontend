@@ -13,14 +13,14 @@ export function TicketsOverviewSection() {
   }
 
   return (
-    <div className="space-y-4">
+    <div>
       <TitleBlock
         title="Tickets Overview"
         subtitle={`${tickets.total.toLocaleString()} Tickets in Total`}
-        className="pt-0 mb-0 [&_p]:hidden lg:[&_p]:block"
+        className="[&_p]:hidden lg:[&_p]:block"
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[var(--spacing-system-mf)]">
         <DashboardInfoCard
           titleSlot={<TicketStatusTag status="AI_ASSISTANCE" />}
           value={tickets.aiAssistance}

@@ -1,5 +1,6 @@
 'use client';
 
+import { PageLayout } from '@flamingo-stack/openframe-frontend-core';
 import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
 import { Suspense } from 'react';
 import { InitialSetupCard, InitialSetupSkeleton } from '@/app/(app)/onboarding/components/initial-setup-card';
@@ -10,6 +11,11 @@ import { CustomersOverviewSection } from './customers-overview';
 import { DevicesOverviewSection } from './devices-overview';
 import { OnboardingSection } from './onboarding-section';
 import { TicketsOverviewSection } from './tickets-overview';
+
+/** Padded wrapper for the onboarding blocks that live OUTSIDE the PageLayout chrome.
+ *  `empty:hidden` collapses the wrapper (padding included) when the inner component
+ *  renders `null` (dismissed walkthrough / completed setup). */
+const ONBOARDING_WRAPPER_CLASS = 'px-[var(--spacing-system-l)] pt-[var(--spacing-system-l)] empty:hidden';
 
 /**
  * Dashboard content component - extracted for dynamic import with loading skeleton
@@ -33,8 +39,13 @@ export default function DashboardContent() {
   const dimDashboard = newOnboardingEnabled && onboardingLoaded && !initialSetupComplete;
 
   return (
-    <div className="space-y-10 p-[var(--spacing-system-l)]">
-      {showLegacyOnboarding && <OnboardingSection />}
+    <>
+      {/* Onboarding — deliberately OUTSIDE the PageLayout below. */}
+      {showLegacyOnboarding && (
+        <div className={ONBOARDING_WRAPPER_CLASS}>
+          <OnboardingSection />
+        </div>
+      )}
       {/* Local Suspense so the setup card's suspending queries (e.g. DeviceSetupStep's
           `useDeviceOrganizations`, a `useSuspenseQuery`) are caught here instead of
           bubbling to the route-level `loading.tsx` and re-flashing the whole dashboard
@@ -42,21 +53,30 @@ export default function DashboardContent() {
           flash an empty gap between the card's own count-loading skeleton and its
           content — the same skeleton carries through. */}
       {newOnboardingEnabled && (
-        <Suspense fallback={<InitialSetupSkeleton />}>
-          <InitialSetupCard />
+        <Suspense
+          fallback={
+            <div className={ONBOARDING_WRAPPER_CLASS}>
+              <InitialSetupSkeleton />
+            </div>
+          }
+        >
+          <div className={ONBOARDING_WRAPPER_CLASS}>
+            <InitialSetupCard />
+          </div>
         </Suspense>
       )}
       <div
-        className={cn(
-          'space-y-10 transition-opacity duration-300',
-          dimDashboard && 'pointer-events-none select-none opacity-40',
-        )}
+        className={cn('transition-opacity duration-300', dimDashboard && 'pointer-events-none select-none opacity-40')}
         aria-hidden={dimDashboard || undefined}
       >
-        <DevicesOverviewSection />
-        {showTickets && <TicketsOverviewSection />}
-        <CustomersOverviewSection />
+        {/* Standard page chrome: PageLayout supplies the gap between sections; each
+            section renders its own TitleBlock header (with the TitleBlock's own pt/mb). */}
+        <PageLayout className="px-[var(--spacing-system-l)] pb-[var(--spacing-system-l)]">
+          <DevicesOverviewSection />
+          {showTickets && <TicketsOverviewSection />}
+          <CustomersOverviewSection />
+        </PageLayout>
       </div>
-    </div>
+    </>
   );
 }

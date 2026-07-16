@@ -81,7 +81,15 @@ export function useMingoDialogs(options: UseMingoDialogsOptions = {}) {
     },
     initialPageParam: undefined as string | undefined,
     enabled,
-    staleTime: 30 * 1000,
+    // The Mingo drawer UNMOUNTS on close, so this query remounts on every open.
+    // A short staleTime made each reopen refetch (and, once the cache was GC'd,
+    // re-flash the loading skeleton). Keep the list cached for the session so
+    // reopening is instant: a long staleTime means reopen-within-window doesn't
+    // refetch on mount, and a long gcTime keeps the data (no skeleton) across
+    // closed periods. Freshness still comes from the 60s poll while open, the
+    // realtime subscription, and mutation invalidations (rename/archive/new).
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchInterval: 60 * 1000,
     // Keep the current list visible while a new `search` term refetches, so
     // typing doesn't flash an empty list / "No chats found" between keystrokes.

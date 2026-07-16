@@ -45,6 +45,7 @@ import { useMingoQuickActions } from '../(app)/mingo/hooks/use-mingo-quick-actio
 import { DialogSubscription } from '../(app)/mingo/hooks/use-mingo-realtime-subscription';
 import { useMingoUnifiedChatState } from '../(app)/mingo/hooks/use-mingo-unified-chat-state';
 import { useMingoLauncherStore } from '../(app)/mingo/stores/mingo-launcher-store';
+import { useAuthStore } from '../(auth)/auth/stores/auth-store';
 
 /** The two transports the in-panel toggle switches between. Mirrors the lib's
  *  `ChatMode` (not re-exported from the chat barrel) — structurally identical,
@@ -68,6 +69,16 @@ interface OpenframeEmbeddableChatEntryProps {
 export function OpenframeEmbeddableChatEntry({ open, onOpenChange }: OpenframeEmbeddableChatEntryProps) {
   const { state, subscription, sendInNewDialog, searchQuery, setSearchQuery, fetchArchivedDialogs, unarchiveDialog } =
     useMingoUnifiedChatState();
+
+  // Signed-in user's display name for the chat header sub-line. The lib prefers
+  // its server-resolved chat identity; this is the reliable host fallback (the
+  // tenant identity route may not return a name) sourced from the auth store.
+  const authUser = useAuthStore(s => s.user);
+  const userDisplayName = useMemo(() => {
+    if (!authUser) return undefined;
+    const full = [authUser.firstName, authUser.lastName].filter(Boolean).join(' ').trim();
+    return full || authUser.email?.trim() || undefined;
+  }, [authUser]);
 
   // A queued launcher prompt (set by `askMingo(source)` from an EmptyState
   // "Ask Mingo about X" button) opens the drawer and asks Mingo's GUIDE mode for
@@ -176,6 +187,10 @@ export function OpenframeEmbeddableChatEntry({ open, onOpenChange }: OpenframeEm
         shell="none"
         open={open}
         onOpenChange={onOpenChange}
+        // Signed-in user's name for the header sub-line under the chat title.
+        // Fallback for the lib's server identity when the tenant identity route
+        // returns no name — sourced from the host auth store.
+        userDisplayName={userDisplayName}
         // Doc-source citations from the Guide RAG (over `openframe-docs`) are the
         // same knowledge base we host in-app at `/help-center/knowledge-base`. Point
         // doc chips at that `[...path]` route so a cited doc opens the in-app viewer

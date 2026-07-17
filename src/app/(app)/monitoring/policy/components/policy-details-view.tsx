@@ -152,7 +152,7 @@ export function PolicyDetailsView({ policyId }: PolicyDetailsViewProps) {
       {policyDetails.query && (
         <div className="mt-6">
           <div className="">
-            <h3 className="font-mono text-ods-text-secondary text-xs font-semibold uppercase tracking-wider">QUERY</h3>
+            <h3 className="text-h5 text-ods-text-secondary">QUERY</h3>
           </div>
           <ScriptEditor value={policyDetails.query} shell="sql" readOnly height="300px" />
         </div>
@@ -160,7 +160,7 @@ export function PolicyDetailsView({ policyId }: PolicyDetailsViewProps) {
 
       {/* Policy Devices */}
       <div className="mt-6">
-        <h1 className="text-h2 tracking-[-0.64px] text-ods-text-primary pt-6">Devices</h1>
+        <h1 className="text-h2 text-ods-text-primary pt-6">Devices</h1>
         <div className="pt-4">
           <PolicyDevicesTable policyId={numericId} assignedHostIds={policyDetails.hosts_include_any} />
         </div>

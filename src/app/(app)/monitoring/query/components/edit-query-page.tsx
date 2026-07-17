@@ -382,7 +382,7 @@ export function EditQueryPage({ queryId }: EditQueryPageProps) {
             href="https://osquery.io/schema"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm text-ods-text-secondary hover:text-ods-text-primary transition-colors"
+            className="inline-flex items-center gap-1.5 text-h6 text-ods-text-secondary hover:text-ods-text-primary transition-colors"
           >
             <InfoCircleIcon size={16} />
             Osquery Documentation
@@ -391,7 +391,7 @@ export function EditQueryPage({ queryId }: EditQueryPageProps) {
 
         {/* Devices */}
         <div className="space-y-1">
-          <h2 className="text-h2 tracking-[-0.64px] text-ods-text-primary">Devices</h2>
+          <h2 className="text-h2 text-ods-text-primary">Devices</h2>
           <DeviceSelector
             devices={queryDevices}
             loading={isLoadingDevices}

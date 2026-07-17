@@ -17,7 +17,7 @@ export function SettingsSubPageHeader({ title }: SettingsSubPageHeaderProps) {
       >
         <ArrowLeft className="size-5" />
       </Link>
-      <h1 className="font-mono font-semibold text-[32px] leading-10 text-ods-text-primary tracking-tight">{title}</h1>
+      <h1 className="text-h2 text-ods-text-primary">{title}</h1>
     </div>
   );
 }

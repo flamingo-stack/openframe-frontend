@@ -137,7 +137,7 @@ export function CustomersTable({ status }: CustomersTableProps) {
       contentClassName="flex flex-col"
     >
       {error ? (
-        <div className="text-ods-attention-red-error">{error}</div>
+        <div className="text-ods-error">{error}</div>
       ) : showEmptyState ? (
         <EmptyState
           icon={<IdCardIcon />}

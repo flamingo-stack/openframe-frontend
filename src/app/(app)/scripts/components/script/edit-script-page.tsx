@@ -66,7 +66,7 @@ export function EditScriptPage({ scriptId }: EditScriptPageProps) {
       <div className="min-h-screen bg-ods-bg p-6">
         <div className="max-w-7xl mx-auto">
           <Card className="bg-ods-error/20 border border-ods-error p-6">
-            <h2 className="text-ods-error text-xl font-semibold mb-2">Error Loading Script</h2>
+            <h2 className="text-h3 text-ods-error mb-2">Error Loading Script</h2>
             <p className="text-ods-error">{scriptError}</p>
             <Button onClick={handleBackToList} variant="destructive" className="mt-4">
               <ArrowLeft className="w-4 h-4" />

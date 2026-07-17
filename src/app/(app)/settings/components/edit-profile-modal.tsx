@@ -106,7 +106,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave, isSaving }: Ed
             variant="outline"
             onClick={onClose}
             disabled={isSaving}
-            className="flex-1 h-12 bg-ods-card border-ods-border text-ods-text-primary font-bold text-lg hover:bg-ods-bg"
+            className="flex-1 h-12 bg-ods-card border-ods-border text-ods-text-primary text-h3 hover:bg-ods-bg"
           >
             Cancel
           </Button>
@@ -114,7 +114,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave, isSaving }: Ed
             variant="accent"
             onClick={handleSave}
             disabled={isSaving}
-            className="flex-1 h-12 bg-ods-accent text-ods-card font-bold text-lg hover:bg-ods-accent/90"
+            className="flex-1 h-12 bg-ods-accent text-ods-text-on-accent text-h3 hover:bg-ods-accent/90"
           >
             {isSaving ? 'Saving...' : 'Update Profile'}
           </Button>
@@ -135,7 +135,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave, isSaving }: Ed
 
       <div className="grid grid-cols-2 gap-6">
         <div className="space-y-1">
-          <Label htmlFor="edit-firstName" className="text-ods-text-primary text-lg font-medium">
+          <Label htmlFor="edit-firstName" className="text-h4 text-ods-text-primary">
             First Name
           </Label>
           <Input
@@ -147,7 +147,7 @@ export function EditProfileModal({ isOpen, onClose, user, onSave, isSaving }: Ed
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="edit-lastName" className="text-ods-text-primary text-lg font-medium">
+          <Label htmlFor="edit-lastName" className="text-h4 text-ods-text-primary">
             Last Name
           </Label>
           <Input
@@ -162,11 +162,11 @@ export function EditProfileModal({ isOpen, onClose, user, onSave, isSaving }: Ed
 
       <div className="grid grid-cols-2 gap-6">
         <div className="space-y-1">
-          <Label className="text-ods-text-primary text-lg font-medium">Email</Label>
+          <Label className="text-h4 text-ods-text-primary">Email</Label>
           <Input id="edit-email" value={user?.email || ''} disabled placeholder="Email" />
         </div>
         <div className="space-y-1">
-          <Label className="text-ods-text-primary text-lg font-medium">Role</Label>
+          <Label className="text-h4 text-ods-text-primary">Role</Label>
           <Input id="edit-roles" value={primaryRole} disabled placeholder="Role" />
         </div>
       </div>

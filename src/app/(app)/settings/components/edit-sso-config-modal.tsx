@@ -209,23 +209,19 @@ export function SsoConfigModal({
           <div className="bg-ods-card border border-ods-border rounded-lg p-4 space-y-3">
             <Label>Authorized redirect URL for your SSO provider settings:</Label>
             <div className="bg-ods-bg border border-ods-border rounded-lg p-3 flex items-center gap-3">
-              <code className="flex-1 text-sm text-ods-text-primary font-mono truncate" title={redirectUrl}>
+              <code className="flex-1 text-code text-ods-text-primary truncate" title={redirectUrl}>
                 {redirectUrl}
               </code>
               <Button
                 variant="transparent"
                 size="small-legacy"
                 leftIcon={
-                  copied ? (
-                    <CheckIcon className="h-4 w-4 text-[var(--ods-attention-green-success)]" />
-                  ) : (
-                    <Copy02Icon className="h-4 w-4" />
-                  )
+                  copied ? <CheckIcon className="h-4 w-4 text-ods-success" /> : <Copy02Icon className="h-4 w-4" />
                 }
                 onClick={handleCopyRedirectUrl}
               />
             </div>
-            <p className="text-sm text-ods-text-secondary">
+            <p className="text-h6 text-ods-text-secondary">
               The callback URL must match exactly. Authentication will fail if not properly configured in your SSO
               provider.
             </p>
@@ -294,7 +290,7 @@ export function SsoConfigModal({
 
         {/* Right Column: Domain Allowlist */}
         <div className="space-y-4 lg:border-l lg:border-ods-border lg:pl-8">
-          <h3 className="font-['DM_Sans'] font-semibold text-lg text-ods-text-primary">Domain Allowlist</h3>
+          <h3 className="text-h3 text-ods-text-primary">Domain Allowlist</h3>
 
           <CheckboxWithDescription
             id="auto-provision-users"

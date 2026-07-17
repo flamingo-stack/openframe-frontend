@@ -56,7 +56,7 @@ export const openframeConfig: AppConfig = {
       getElement: () => (
         <span className="flex items-center gap-3">
           <OpenFrameLogo className="h-8 w-8" />
-          <span className="font-heading text-heading-5 font-semibold text-ods-text-primary">OpenFrame</span>
+          <span className="text-code font-semibold text-ods-text-primary">OpenFrame</span>
         </span>
       ),
     },
@@ -122,9 +122,7 @@ export const openframeConfig: AppConfig = {
       getElement: () => <OpenFrameLogo width={32} height={32} className="flex-shrink-0 w-8 h-8" />,
     },
     name: {
-      getElement: () => (
-        <span className="font-heading text-heading-5 font-semibold text-ods-text-primary">OpenFrame</span>
-      ),
+      getElement: () => <span className="text-code font-semibold text-ods-text-primary">OpenFrame</span>,
     },
     sections: [
       {

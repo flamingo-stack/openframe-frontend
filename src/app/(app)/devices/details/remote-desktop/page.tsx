@@ -486,7 +486,7 @@ export default function RemoteDesktopPage() {
   if (!legacyDeviceData && deviceError) {
     return (
       <div className="p-[var(--spacing-system-l)] h-full flex flex-col items-center justify-center gap-[var(--spacing-system-mf)]">
-        <div className="text-ods-attention-red-error text-lg">Error: {deviceError}</div>
+        <div className="text-ods-error text-h4">Error: {deviceError}</div>
         <Button onClick={safeBackToDevices}>Back</Button>
       </div>
     );
@@ -495,9 +495,7 @@ export default function RemoteDesktopPage() {
   if (!meshcentralAgentId) {
     return (
       <div className="p-[var(--spacing-system-l)] h-full flex flex-col items-center justify-center gap-[var(--spacing-system-mf)]">
-        <div className="text-ods-attention-red-error text-lg">
-          Error: MeshCentral Agent ID not available for this device
-        </div>
+        <div className="text-ods-error text-h4">Error: MeshCentral Agent ID not available for this device</div>
         <p className="text-ods-text-secondary">Remote desktop requires MeshCentral agent to be connected.</p>
         <Button onClick={safeBackToDevice}>Back</Button>
       </div>
@@ -510,8 +508,8 @@ export default function RemoteDesktopPage() {
         <MonitorIcon className="w-4 h-4 text-ods-text-primary" />
       </div>
       <div className="flex flex-col min-w-0">
-        <h1 className="text-ods-text-primary text-lg font-medium truncate">{hostname || `Device ${deviceId}`}</h1>
-        <p className="text-ods-text-secondary text-sm truncate">Desktop • {organizationName || 'Unknown Customer'}</p>
+        <h1 className="text-ods-text-primary text-h4 truncate">{hostname || `Device ${deviceId}`}</h1>
+        <p className="text-ods-text-secondary text-h6 truncate">Desktop • {organizationName || 'Unknown Customer'}</p>
       </div>
     </div>
   );
@@ -565,7 +563,7 @@ export default function RemoteDesktopPage() {
       {!firstFrameReceived && state >= 1 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-[var(--spacing-system-sf)]">
           <Loader2 className="w-8 h-8 text-ods-text-secondary animate-spin" />
-          <span className="text-ods-text-secondary text-sm">
+          <span className="text-ods-text-secondary text-h6">
             {state === 3 ? 'Waiting for desktop stream...' : 'Connecting to desktop...'}
           </span>
         </div>

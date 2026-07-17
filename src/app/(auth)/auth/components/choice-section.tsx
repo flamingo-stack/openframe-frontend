@@ -134,12 +134,8 @@ export function AuthChoiceSection({ onCreateOrganization, onSignIn, isLoading }:
         <div className="flex flex-col gap-6">
           {/* Header */}
           <div className="flex flex-col gap-2">
-            <h1 className="font-heading text-[32px] font-semibold text-ods-text-primary leading-10 tracking-[-0.64px]">
-              Create Organization
-            </h1>
-            <p className="font-body text-[18px] font-medium text-ods-text-secondary leading-6">
-              Start your journey with OpenFrame.
-            </p>
+            <h1 className="text-h2 text-ods-text-primary">Create Organization</h1>
+            <p className="text-h4 text-ods-text-secondary">Start your journey with OpenFrame.</p>
           </div>
 
           {/* Email and Organization Name Fields - Side by Side */}
@@ -152,7 +148,7 @@ export function AuthChoiceSection({ onCreateOrganization, onSignIn, isLoading }:
                 onChange={e => setOrgEmail(e.target.value)}
                 placeholder="username@mail.com"
                 disabled={isLoading}
-                className="bg-ods-card border-ods-border text-ods-text-secondary font-body text-[18px] font-medium leading-6 placeholder:text-ods-text-secondary p-3"
+                className="bg-ods-card border-ods-border text-ods-text-secondary text-h4 placeholder:text-ods-text-secondary p-3"
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !isLoading && isOrgEmailValid && isOrgNameValid) {
                     handleCreateOrganization();
@@ -160,16 +156,16 @@ export function AuthChoiceSection({ onCreateOrganization, onSignIn, isLoading }:
                 }}
               />
               {orgEmail.trim() && !isOrgEmailValid && (
-                <p className="text-xs text-ods-error mt-1">Enter a valid email address</p>
+                <p className="text-h6 text-ods-error mt-1">Enter a valid email address</p>
               )}
               {isOrgEmailValid && emailStatus === 'checking' && (
-                <p className="text-xs text-ods-text-secondary mt-1">Checking availability…</p>
+                <p className="text-h6 text-ods-text-secondary mt-1">Checking availability…</p>
               )}
               {isOrgEmailValid && emailStatus === 'taken' && (
-                <p className="text-xs text-ods-error mt-1">This email is already registered. Sign in instead.</p>
+                <p className="text-h6 text-ods-error mt-1">This email is already registered. Sign in instead.</p>
               )}
               {isOrgEmailValid && emailStatus === 'available' && (
-                <p className="text-xs text-ods-success mt-1">Email is available</p>
+                <p className="text-h6 text-ods-success mt-1">Email is available</p>
               )}
             </div>
             <div className="flex-1 flex flex-col gap-1">
@@ -179,7 +175,7 @@ export function AuthChoiceSection({ onCreateOrganization, onSignIn, isLoading }:
                 onChange={e => setOrgName(e.target.value)}
                 placeholder="Your Company Name"
                 disabled={isLoading}
-                className="bg-ods-card border-ods-border text-ods-text-secondary font-body text-[18px] font-medium leading-6 placeholder:text-ods-text-secondary p-3"
+                className="bg-ods-card border-ods-border text-ods-text-secondary text-h4 placeholder:text-ods-text-secondary p-3"
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !isLoading && isOrgNameValid) {
                     handleCreateOrganization();
@@ -187,7 +183,7 @@ export function AuthChoiceSection({ onCreateOrganization, onSignIn, isLoading }:
                 }}
               />
               {orgName.trim() && !isOrgNameValid && (
-                <p className="text-xs text-ods-error mt-1">
+                <p className="text-h6 text-ods-error mt-1">
                   Organization Name must be 2-100 characters and may include letters, numbers, spaces, and
                   &.,&apos;&quot;()-
                 </p>
@@ -214,9 +210,9 @@ export function AuthChoiceSection({ onCreateOrganization, onSignIn, isLoading }:
                   }}
                   placeholder="company-name"
                   disabled={isLoading}
-                  className="bg-ods-card border-ods-border text-ods-text-secondary font-body text-[18px] font-medium leading-6 placeholder:text-ods-text-secondary p-3"
+                  className="bg-ods-card border-ods-border text-ods-text-secondary text-h4 placeholder:text-ods-text-secondary p-3"
                   endAdornment={
-                    <span className="text-ods-text-secondary font-body text-[14px] font-medium whitespace-nowrap select-none">
+                    <span className="text-h6 text-ods-text-secondary whitespace-nowrap select-none">
                       .{SAAS_DOMAIN_SUFFIX}
                     </span>
                   }
@@ -235,20 +231,20 @@ export function AuthChoiceSection({ onCreateOrganization, onSignIn, isLoading }:
                   }}
                   placeholder="company-name"
                   disabled={isLoading}
-                  className="bg-ods-card border-ods-border text-ods-text-secondary font-body text-[18px] font-medium leading-6 placeholder:text-ods-text-secondary p-3"
+                  className="bg-ods-card border-ods-border text-ods-text-secondary text-h4 placeholder:text-ods-text-secondary p-3"
                 />
               )}
               {isSaasShared && domain.trim() && domainStatus === 'checking' && (
-                <p className="text-xs text-ods-text-secondary">Checking availability…</p>
+                <p className="text-h6 text-ods-text-secondary">Checking availability…</p>
               )}
               {isSaasShared && domain.trim() && domainStatus === 'taken' && (
-                <p className="text-xs text-ods-error">This domain is already taken. Please try another one.</p>
+                <p className="text-h6 text-ods-error">This domain is already taken. Please try another one.</p>
               )}
               {isSaasShared && domain.trim() && domainStatus === 'available' && (
-                <p className="text-xs text-ods-success">Domain is available</p>
+                <p className="text-h6 text-ods-success">Domain is available</p>
               )}
               {domainSuggestions.length > 0 && (
-                <div className="text-sm text-ods-text-secondary">
+                <div className="text-h6 text-ods-text-secondary">
                   <p className="mb-1">Available suggestions:</p>
                   <div className="flex flex-wrap gap-2">
                     {domainSuggestions.map((suggestion, index) => (
@@ -303,12 +299,8 @@ export function AuthChoiceSection({ onCreateOrganization, onSignIn, isLoading }:
         <div className="flex flex-col gap-6">
           {/* Header */}
           <div className="flex flex-col gap-2">
-            <h1 className="font-heading text-[32px] font-semibold text-ods-text-primary leading-10 tracking-[-0.64px]">
-              Already Have an Account?
-            </h1>
-            <p className="font-body text-[18px] font-medium text-ods-text-secondary leading-6">
-              Enter you email to access your organization.
-            </p>
+            <h1 className="text-h2 text-ods-text-primary">Already Have an Account?</h1>
+            <p className="text-h4 text-ods-text-secondary">Enter you email to access your organization.</p>
           </div>
 
           {/* Email Field */}
@@ -325,10 +317,10 @@ export function AuthChoiceSection({ onCreateOrganization, onSignIn, isLoading }:
               }}
               placeholder="username@mail.com"
               disabled={isLoading}
-              className="bg-ods-card border-ods-border text-ods-text-secondary font-body text-[18px] font-medium leading-6 placeholder:text-ods-text-secondary p-3 w-full"
+              className="bg-ods-card border-ods-border text-ods-text-secondary text-h4 placeholder:text-ods-text-secondary p-3 w-full"
             />
             {signInEmail.trim() && !isSignInEmailValid && (
-              <p className="text-xs text-ods-error mt-1">Enter a valid email address</p>
+              <p className="text-h6 text-ods-error mt-1">Enter a valid email address</p>
             )}
           </div>
 

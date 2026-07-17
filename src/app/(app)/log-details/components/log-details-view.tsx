@@ -76,13 +76,11 @@ export function LogDetailsView({ logId, ingestDay, toolType, eventType, timestam
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <h2 className="font-['Azeret_Mono'] font-semibold text-[24px] leading-[32px] text-ods-text-primary mb-2">
-            Log Not Found
-          </h2>
+          <h2 className="text-h2 text-ods-text-primary mb-2">Log Not Found</h2>
           <p className="text-ods-text-secondary mb-4">{error || `Could not find log with ID: ${logId}`}</p>
           <Button
             onClick={handleBackToLogs}
-            className="bg-ods-card border border-ods-border hover:bg-ods-bg-hover text-ods-text-primary px-4 py-3 rounded-[6px] font-['DM_Sans'] font-bold text-[16px]"
+            className="bg-ods-card border border-ods-border hover:bg-ods-bg-hover text-ods-text-primary px-4 py-3 rounded-[6px] text-h6 font-bold"
             leftIcon={<ChevronLeft className="h-4 w-4" />}
           >
             Back
@@ -104,11 +102,7 @@ export function LogDetailsView({ logId, ingestDay, toolType, eventType, timestam
           label: 'Copy Log Details',
           onClick: handleCopyLogDetails,
           variant: 'outline' as const,
-          icon: copied ? (
-            <CheckIcon className="w-6 h-6 text-[var(--ods-attention-green-success)]" />
-          ) : (
-            <Copy02Icon className="w-6 h-6" />
-          ),
+          icon: copied ? <CheckIcon className="w-6 h-6 text-ods-success" /> : <Copy02Icon className="w-6 h-6" />,
         },
       ]}
       className="px-[var(--spacing-system-l)] pb-[var(--spacing-system-l)]"
@@ -117,16 +111,14 @@ export function LogDetailsView({ logId, ingestDay, toolType, eventType, timestam
         {/* Status and Timestamp */}
         <div className="flex flex-col md:flex-row gap-3 md:gap-4 items-start md:items-center">
           <Tag label={logDetails.severity} variant={getSeverityVariant(logDetails.severity)} />
-          <span className="font-['DM_Sans'] font-medium text-[16px] md:text-[18px] leading-[22px] md:leading-[24px] text-ods-text-primary">
-            {formatDateTime(logDetails.timestamp)}
-          </span>
+          <span className="text-h4 text-ods-text-primary">{formatDateTime(logDetails.timestamp)}</span>
         </div>
 
         {/* Log Summary Card */}
         <div className="bg-ods-card border border-ods-border rounded-[8px] w-full">
           <div className="flex flex-col gap-4 items-start p-4 md:p-6">
             <div className="flex flex-col gap-2 w-full">
-              <div className="font-['DM_Sans'] font-medium text-[16px] md:text-[18px] leading-[22px] md:leading-[24px] text-ods-text-primary break-words">
+              <div className="text-h4 text-ods-text-primary break-words">
                 {logDetails.message || 'No message available'}
               </div>
               <div className="flex items-center gap-2 text-h6 text-ods-text-secondary">

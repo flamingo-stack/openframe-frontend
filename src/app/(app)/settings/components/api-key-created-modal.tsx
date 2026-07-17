@@ -52,13 +52,7 @@ export function ApiKeyCreatedModal({ isOpen, fullKey, onClose }: ApiKeyCreatedMo
           <Button
             variant="outline"
             onClick={() => copy(localKey)}
-            leftIcon={
-              copied ? (
-                <CheckIcon className="h-4 w-4 text-[var(--ods-attention-green-success)]" />
-              ) : (
-                <Copy02Icon className="h-4 w-4" />
-              )
-            }
+            leftIcon={copied ? <CheckIcon className="h-4 w-4 text-ods-success" /> : <Copy02Icon className="h-4 w-4" />}
           >
             Copy API Key
           </Button>
@@ -76,7 +70,7 @@ export function ApiKeyCreatedModal({ isOpen, fullKey, onClose }: ApiKeyCreatedMo
       <div className="space-y-2">
         <Label>Your API Key</Label>
         <div className="bg-ods-bg border border-ods-border rounded-lg p-4">
-          <code className="block text-sm font-mono text-ods-text-primary break-all">{localKey}</code>
+          <code className="block text-code text-ods-text-primary break-all">{localKey}</code>
         </div>
       </div>
     </SimpleModal>

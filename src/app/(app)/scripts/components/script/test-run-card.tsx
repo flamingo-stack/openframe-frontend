@@ -47,7 +47,7 @@ function getStatusColor(status: TestRunData['status']): string {
     case 'running':
       return 'text-ods-accent';
     case 'completed':
-      return 'text-[#5ea62e]';
+      return 'text-ods-success';
     case 'aborted':
     case 'error':
       return 'text-ods-error';
@@ -70,33 +70,29 @@ export function TestRunCard({ run, onStop, onTestAgain, onClose }: TestRunCardPr
         <div className="flex-1 flex flex-col justify-center overflow-hidden">
           <div className="flex gap-1 items-center">
             <Monitor className="size-4 text-ods-text-secondary flex-shrink-0" />
-            <span className="text-lg font-medium text-ods-text-primary truncate" title={run.deviceName}>
+            <span className="text-h4 text-ods-text-primary truncate" title={run.deviceName}>
               {run.deviceName}
             </span>
           </div>
-          <span className="text-sm font-medium text-ods-text-secondary truncate">Device</span>
+          <span className="text-h6 text-ods-text-secondary truncate">Device</span>
         </div>
 
         <div className="flex-1 flex flex-col justify-center overflow-hidden">
-          <span className="text-lg font-medium text-ods-text-primary truncate" title={run.startedAt}>
+          <span className="text-h4 text-ods-text-primary truncate" title={run.startedAt}>
             {run.startedAt}
           </span>
-          <span className="text-sm font-medium text-ods-text-secondary">Started</span>
+          <span className="text-h6 text-ods-text-secondary">Started</span>
         </div>
 
         <div className="flex-1 flex flex-col justify-center overflow-hidden md:hidden lg:flex">
-          <span className="text-lg font-medium text-ods-text-primary tabular-nums">
-            {formatDuration(run.elapsedSeconds)}
-          </span>
-          <span className="text-sm font-medium text-ods-text-secondary">Duration</span>
+          <span className="text-h4 text-ods-text-primary tabular-nums">{formatDuration(run.elapsedSeconds)}</span>
+          <span className="text-h6 text-ods-text-secondary">Duration</span>
         </div>
 
         <div className="hidden lg:flex flex-1 items-center gap-4">
           <div className="flex-1 flex flex-col justify-center overflow-hidden">
-            <span className={`text-lg font-medium ${getStatusColor(run.status)} truncate`}>
-              {getStatusLabel(run.status)}
-            </span>
-            <span className="text-sm font-medium text-ods-text-secondary">Status</span>
+            <span className={`text-h4 ${getStatusColor(run.status)} truncate`}>{getStatusLabel(run.status)}</span>
+            <span className="text-h6 text-ods-text-secondary">Status</span>
           </div>
 
           {run.status === 'running' ? (
@@ -123,16 +119,14 @@ export function TestRunCard({ run, onStop, onTestAgain, onClose }: TestRunCardPr
 
       <div className="flex lg:hidden gap-4 items-center px-4 py-3 border-b border-ods-border">
         <div className="hidden md:flex flex-1 flex-col justify-center overflow-hidden">
-          <span className="text-lg font-medium text-ods-text-primary tabular-nums">
-            {formatDuration(run.elapsedSeconds)}
-          </span>
-          <span className="text-sm font-medium text-ods-text-secondary">Duration</span>
+          <span className="text-h4 text-ods-text-primary tabular-nums">{formatDuration(run.elapsedSeconds)}</span>
+          <span className="text-h6 text-ods-text-secondary">Duration</span>
         </div>
 
         <div className="flex-1 flex items-center gap-4">
           <div className="flex-1 flex flex-col justify-center">
-            <span className={`text-lg font-medium ${getStatusColor(run.status)}`}>{getStatusLabel(run.status)}</span>
-            <span className="text-sm font-medium text-ods-text-secondary">Status</span>
+            <span className={`text-h4 ${getStatusColor(run.status)}`}>{getStatusLabel(run.status)}</span>
+            <span className="text-h6 text-ods-text-secondary">Status</span>
           </div>
 
           {run.status === 'running' ? (
@@ -153,7 +147,7 @@ export function TestRunCard({ run, onStop, onTestAgain, onClose }: TestRunCardPr
       </div>
 
       <div ref={logRef} className="h-[240px] overflow-y-auto p-4 border-b border-ods-border">
-        <div className="font-medium text-sm leading-5 text-ods-text-secondary whitespace-pre-wrap">
+        <div className="text-code text-ods-text-secondary whitespace-pre-wrap">
           {run.output.map((line, i) => {
             const isError = line.toLowerCase().startsWith('error');
             const isSuccess =
@@ -161,7 +155,7 @@ export function TestRunCard({ run, onStop, onTestAgain, onClose }: TestRunCardPr
               line.toLowerCase().includes('passed') ||
               line.toLowerCase().includes('completed');
             return (
-              <div key={i} className={isError ? 'text-ods-error' : isSuccess ? 'text-[#5ea62e]' : ''}>
+              <div key={i} className={isError ? 'text-ods-error' : isSuccess ? 'text-ods-success' : ''}>
                 {line}
               </div>
             );

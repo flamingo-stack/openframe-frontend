@@ -124,7 +124,7 @@ export function AddUsersModal({ isOpen, onClose, onInvited, invite }: AddUsersMo
               </Select>
               {rows.length > 1 && (
                 <Button variant="outline" size="icon" onClick={() => removeRow(idx)} className="shrink-0">
-                  <TrashIcon className="size-5 text-[var(--ods-attention-red-error-action)]" />
+                  <TrashIcon className="size-5 text-ods-error" />
                 </Button>
               )}
             </div>

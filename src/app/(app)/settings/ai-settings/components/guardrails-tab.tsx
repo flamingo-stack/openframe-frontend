@@ -501,7 +501,7 @@ export function GuardrailsTab({ isEditMode, onSaved }: GuardrailsTabProps) {
             <Skeleton className="h-64 w-full" />
           </div>
         ) : templateOptions.length === 0 ? (
-          <Alert className="bg-ods-system-greys-soft-grey border-ods-border">
+          <Alert className="bg-ods-bg-surface border-ods-border">
             <AlertCircle className="h-4 w-4 text-ods-text-secondary" />
             <AlertDescription className="text-ods-text-secondary">No policy templates available.</AlertDescription>
           </Alert>
@@ -581,7 +581,7 @@ export function GuardrailsTab({ isEditMode, onSaved }: GuardrailsTabProps) {
             {isPolicyTemplateLoading ? (
               <Skeleton className="h-64 w-full" />
             ) : policyGroups.size === 0 ? (
-              <Alert className="bg-ods-system-greys-soft-grey border-ods-border">
+              <Alert className="bg-ods-bg-surface border-ods-border">
                 <AlertCircle className="h-4 w-4 text-ods-text-secondary" />
                 <AlertDescription className="text-ods-text-secondary">
                   This policy template has no rules.
@@ -591,7 +591,7 @@ export function GuardrailsTab({ isEditMode, onSaved }: GuardrailsTabProps) {
               <div className="space-y-6">
                 {Array.from(policyGroups.entries()).map(([policyGroupName, categories]) => (
                   <div key={policyGroupName} className="space-y-2">
-                    <Label className="text-sm font-medium text-ods-text-secondary">{policyGroupName}</Label>
+                    <Label className="text-h6 text-ods-text-secondary">{policyGroupName}</Label>
                     <PolicyConfigurationPanel
                       categories={categories}
                       editMode={canEditPolicyRules}

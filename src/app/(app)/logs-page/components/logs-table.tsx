@@ -471,10 +471,7 @@ function LogsTableContent({
         accessorKey: 'description',
         header: 'Log Details',
         cell: ({ row }: { row: Row<UiLogEntry> }) => (
-          <TruncateText
-            lines={3}
-            className="font-['DM_Sans'] font-medium text-[16px] leading-[20px] text-ods-text-secondary"
-          >
+          <TruncateText lines={3} className="text-h6 text-ods-text-secondary">
             {row.original.description.title}
           </TruncateText>
         ),

@@ -217,7 +217,7 @@ export default function RemoteShellPage() {
   const statusText = state === 3 ? 'Connected' : state === 2 ? 'Open' : state === 1 ? 'Connecting' : 'Idle';
   const statusColor =
     state === 3
-      ? 'text-ods-attention-green-success'
+      ? 'text-ods-success'
       : state === 1 || state === 2
         ? 'text-ods-text-secondary'
         : 'text-ods-text-secondary';
@@ -228,7 +228,7 @@ export default function RemoteShellPage() {
   if (isDeviceLoading) {
     return (
       <div className="p-4 md:p-6 h-full flex flex-col overflow-hidden animate-pulse">
-        <div className="bg-ods-system-greys-background py-2 flex-shrink-0">
+        <div className="bg-ods-bg py-2 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-ods-border rounded" />
             <div className="w-28 h-5 bg-ods-border rounded" />
@@ -264,7 +264,7 @@ export default function RemoteShellPage() {
   if (deviceError) {
     return (
       <div className="p-4 md:p-6 h-full flex flex-col items-center justify-center gap-4">
-        <div className="text-ods-attention-red-error text-lg">Error: {deviceError}</div>
+        <div className="text-ods-error text-h4">Error: {deviceError}</div>
         <Button onClick={safeBackToDevices}>Back</Button>
       </div>
     );
@@ -274,9 +274,7 @@ export default function RemoteShellPage() {
   if (!meshcentralAgentId) {
     return (
       <div className="p-4 md:p-6 h-full flex flex-col items-center justify-center gap-4">
-        <div className="text-ods-attention-red-error text-lg">
-          Error: MeshCentral Agent ID not available for this device
-        </div>
+        <div className="text-ods-error text-h4">Error: MeshCentral Agent ID not available for this device</div>
         <p className="text-ods-text-secondary">Remote shell requires MeshCentral agent to be connected.</p>
         <Button onClick={safeBackToDevice}>Back</Button>
       </div>
@@ -300,8 +298,8 @@ export default function RemoteShellPage() {
             <TerminalSquare className="w-4 h-4 text-ods-text-primary" />
           </div>
           <div className="flex flex-col">
-            <h1 className="text-ods-text-primary text-lg font-medium">{hostname || `Device ${deviceId}`}</h1>
-            <p className="text-ods-text-secondary text-sm">
+            <h1 className="text-ods-text-primary text-h4">{hostname || `Device ${deviceId}`}</h1>
+            <p className="text-ods-text-secondary text-h6">
               {shellLabel} {organizationName ? `\u2022 ${organizationName}` : ''}
             </p>
           </div>
@@ -309,7 +307,7 @@ export default function RemoteShellPage() {
 
         {/* Action buttons */}
         <div className="flex items-center gap-4">
-          <span className={`text-sm ${statusColor}`}>
+          <span className={`text-h6 ${statusColor}`}>
             {statusText}
             {connecting ? '\u2026' : ''}
           </span>

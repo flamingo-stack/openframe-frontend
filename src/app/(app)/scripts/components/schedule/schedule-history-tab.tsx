@@ -181,7 +181,7 @@ export function ScheduleHistoryTab({ schedule, scheduleId }: ScheduleHistoryTabP
           <Button variant="outline" onClick={handlePrevPage} disabled={offset === 0}>
             Previous
           </Button>
-          <span className="text-[14px] text-ods-text-secondary">
+          <span className="text-h6 text-ods-text-secondary">
             Page {Math.floor(offset / limit) + 1} of {Math.ceil(total / limit)}
           </span>
           <Button variant="outline" onClick={handleNextPage} disabled={offset + limit >= total}>

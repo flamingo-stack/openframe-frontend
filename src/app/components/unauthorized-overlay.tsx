@@ -32,7 +32,7 @@ export function UnauthorizedOverlay({ onRetry }: UnauthorizedOverlayProps) {
   return (
     <div className="min-h-screen bg-ods-bg flex items-center justify-center p-6">
       <div className="max-w-md w-full space-y-6 text-center">
-        <h1 className="text-2xl font-bold text-ods-text-primary">Sign in required</h1>
+        <h1 className="text-h2 text-ods-text-primary">Sign in required</h1>
         <p className="text-ods-text-secondary">You need to sign in to access this page.</p>
         <div className="flex justify-center">
           <Button onClick={handleLogin}>Sign in</Button>

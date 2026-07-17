@@ -121,21 +121,21 @@ export function ProfileTab() {
         {/* Name and Email */}
         <div className="flex-1 min-w-0 overflow-hidden">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-medium text-ods-text-primary truncate" title={displayName}>
+            <span className="text-h4 text-ods-text-primary truncate" title={displayName}>
               {displayName}
             </span>
             {/* Role badges */}
             {user.roles?.map(role => (
               <span
                 key={role}
-                className="shrink-0 inline-flex items-center px-2 py-1 rounded-md text-xs font-mono font-medium uppercase bg-ods-card border border-ods-border text-ods-text-primary"
+                className="shrink-0 inline-flex items-center px-2 py-1 rounded-md text-h5 bg-ods-card border border-ods-border text-ods-text-primary"
               >
                 {role}
               </span>
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <p className="text-sm text-ods-text-secondary truncate" title={user.email}>
+            <p className="text-h6 text-ods-text-secondary truncate" title={user.email}>
               {user.email}
             </p>
             {user.emailVerified === false && (
@@ -145,7 +145,7 @@ export function ProfileTab() {
                 title="Email not verified - click to resend verification"
               >
                 <AlertCircle className="w-4 h-4" />
-                <span className="text-xs font-medium">Not verified</span>
+                <span className="text-h6">Not verified</span>
               </button>
             )}
           </div>

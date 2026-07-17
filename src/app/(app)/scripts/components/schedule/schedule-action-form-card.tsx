@@ -99,7 +99,7 @@ export function ScheduleActionFormCard({
           size="icon"
           onClick={onRemove}
           disabled={!canRemove}
-          className="text-[var(--ods-attention-red-error,#f36666)] disabled:opacity-30"
+          className="text-ods-error disabled:opacity-30"
         >
           <TrashIcon size={20} />
         </Button>
@@ -117,7 +117,7 @@ export function ScheduleActionFormCard({
               className="w-full"
               value={field.value}
               onChange={e => field.onChange(e.target.value ? Number(e.target.value) : '')}
-              endAdornment={<span className="text-ods-text-secondary text-sm">Seconds</span>}
+              endAdornment={<span className="text-h6 text-ods-text-secondary">Seconds</span>}
               error={fieldState.error?.message}
               invalid={!!fieldState.error}
             />
@@ -154,7 +154,7 @@ export function ScheduleActionFormCard({
                 placeholder="90"
                 value={field.value}
                 onChange={e => field.onChange(e.target.value ? Number(e.target.value) : '')}
-                endAdornment={<span className="text-ods-text-secondary text-sm">Seconds</span>}
+                endAdornment={<span className="text-h6 text-ods-text-secondary">Seconds</span>}
                 error={fieldState.error?.message}
                 invalid={!!fieldState.error}
               />
@@ -169,7 +169,7 @@ export function ScheduleActionFormCard({
             size="icon"
             onClick={onRemove}
             disabled={!canRemove}
-            className="text-[var(--ods-attention-red-error,#f36666)] disabled:opacity-30"
+            className="text-ods-error disabled:opacity-30"
           >
             <TrashIcon size={20} />
           </Button>

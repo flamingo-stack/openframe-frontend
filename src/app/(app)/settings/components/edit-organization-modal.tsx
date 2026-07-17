@@ -109,7 +109,7 @@ export function EditOrganizationModal({ isOpen, onClose, organization, onSave, i
             variant="outline"
             onClick={onClose}
             disabled={isSaving}
-            className="flex-1 h-12 bg-ods-card border-ods-border text-ods-text-primary font-bold text-lg hover:bg-ods-bg"
+            className="flex-1 h-12 bg-ods-card border-ods-border text-ods-text-primary text-h3 hover:bg-ods-bg"
           >
             Cancel
           </Button>
@@ -117,7 +117,7 @@ export function EditOrganizationModal({ isOpen, onClose, organization, onSave, i
             variant="accent"
             onClick={handleSave}
             disabled={isSaving}
-            className="flex-1 h-12 bg-ods-accent text-ods-card font-bold text-lg hover:bg-ods-accent/90"
+            className="flex-1 h-12 bg-ods-accent text-ods-text-on-accent text-h3 hover:bg-ods-accent/90"
           >
             {isSaving ? 'Saving...' : 'Update Organization'}
           </Button>
@@ -137,7 +137,7 @@ export function EditOrganizationModal({ isOpen, onClose, organization, onSave, i
       />
 
       <div className="space-y-1">
-        <Label htmlFor="edit-org-name" className="text-ods-text-primary text-lg font-medium">
+        <Label htmlFor="edit-org-name" className="text-h4 text-ods-text-primary">
           Company Name
         </Label>
         <Input
@@ -150,7 +150,7 @@ export function EditOrganizationModal({ isOpen, onClose, organization, onSave, i
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="edit-org-website" className="text-ods-text-primary text-lg font-medium">
+        <Label htmlFor="edit-org-website" className="text-h4 text-ods-text-primary">
           Company Website
         </Label>
         <Input

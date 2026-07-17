@@ -143,8 +143,8 @@ export function QueryDetailsView({ queryId }: QueryDetailsViewProps) {
       <div className="bg-ods-card border border-ods-border rounded-lg p-6">
         {queryDetails.description && (
           <div className="mb-6">
-            <p className="text-ods-text-primary font-medium">{queryDetails.description}</p>
-            <p className="text-ods-text-secondary text-sm mt-1">Description</p>
+            <p className="text-h4 text-ods-text-primary">{queryDetails.description}</p>
+            <p className="text-h6 text-ods-text-secondary mt-1">Description</p>
           </div>
         )}
 
@@ -152,8 +152,8 @@ export function QueryDetailsView({ queryId }: QueryDetailsViewProps) {
           className={`grid grid-cols-2 md:grid-cols-4 gap-6 ${queryDetails.description ? 'border-t border-ods-border pt-4' : ''}`}
         >
           <div>
-            <p className="text-ods-text-primary font-medium">{formatInterval(queryDetails.interval)}</p>
-            <p className="text-ods-text-secondary text-xs mt-1">Frequency</p>
+            <p className="text-h4 text-ods-text-primary">{formatInterval(queryDetails.interval)}</p>
+            <p className="text-h6 text-ods-text-secondary mt-1">Frequency</p>
           </div>
         </div>
       </div>
@@ -162,7 +162,7 @@ export function QueryDetailsView({ queryId }: QueryDetailsViewProps) {
       {queryDetails.query && (
         <div className="mt-6">
           <div className="">
-            <h3 className="font-mono text-ods-text-secondary text-xs font-semibold uppercase tracking-wider">QUERY</h3>
+            <h3 className="text-h5 text-ods-text-secondary">QUERY</h3>
           </div>
           <ScriptEditor value={queryDetails.query} shell="sql" readOnly height="300px" />
         </div>

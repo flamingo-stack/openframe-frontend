@@ -289,7 +289,7 @@ export function DevicesPanel({
         {noOrganizations && (
           // Core Alert restyled to the ODS warning tokens. The icon is wrapped in a
           // span so Alert's `[&>svg]` absolute-positioning rules don't apply.
-          <Alert className="flex items-start gap-[var(--spacing-system-m)] mb-[var(--spacing-system-l)] rounded-[6px] border-0 bg-[var(--ods-attention-yellow-warning-secondary)] text-[var(--ods-attention-yellow-warning)]">
+          <Alert className="flex items-start gap-[var(--spacing-system-m)] mb-[var(--spacing-system-l)] rounded-[6px] border-0 bg-ods-warning-secondary text-ods-warning">
             <span className="shrink-0">
               <AlertTriangle className="w-6 h-6" />
             </span>

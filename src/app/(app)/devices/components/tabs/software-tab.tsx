@@ -144,9 +144,7 @@ export function SoftwareTab({ device }: SoftwareTabProps) {
         accessorKey: 'last_opened_at',
         header: 'LAST USED',
         cell: ({ row }: { row: Row<Software> }) => (
-          <div className="font-['DM_Sans'] font-medium text-ods-text-primary">
-            {formatLastUsed(row.original.last_opened_at)}
-          </div>
+          <div className="text-h6 text-ods-text-primary">{formatLastUsed(row.original.last_opened_at)}</div>
         ),
         enableSorting: true,
         meta: { width: 'w-[140px] shrink-0', hideAt: 'md' },

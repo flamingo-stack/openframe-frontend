@@ -1211,9 +1211,7 @@ export function TicketDetailsView({ ticketId }: TicketDetailsViewProps) {
                               <MessageCircleIcon className="h-8 w-8 text-ods-text-secondary" />
                             </div>
                           </div>
-                          <p className="font-['DM_Sans'] font-medium text-[14px] text-ods-text-secondary max-w-xs">
-                            Start a technician conversation
-                          </p>
+                          <p className="text-h6 text-ods-text-secondary max-w-xs">Start a technician conversation</p>
                         </div>
                       </div>
                     ) : (

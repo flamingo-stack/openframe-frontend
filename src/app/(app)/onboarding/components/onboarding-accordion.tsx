@@ -87,15 +87,8 @@ export function OnboardingAccordionItem({
 
         {/* Title + description */}
         <div className="flex min-w-0 flex-1 flex-col justify-center">
-          <p className={cn('text-h3 font-bold', isDisabled ? 'text-ods-border' : 'text-ods-text-primary')}>{title}</p>
-          <p
-            className={cn(
-              'text-[14px] font-medium leading-5',
-              isDisabled ? 'text-ods-border' : 'text-ods-text-secondary',
-            )}
-          >
-            {description}
-          </p>
+          <p className={cn('text-h3', isDisabled ? 'text-ods-border' : 'text-ods-text-primary')}>{title}</p>
+          <p className={cn('text-h6', isDisabled ? 'text-ods-border' : 'text-ods-text-secondary')}>{description}</p>
         </div>
 
         {/* Trailing: skeleton (loading) / requirement hint (disabled) / complete tag + chevron / chevron.
@@ -104,9 +97,7 @@ export function OnboardingAccordionItem({
           <Skeleton className="h-11 w-11 shrink-0 rounded-md md:h-12 md:w-12" />
         ) : isDisabled ? (
           requirementHint ? (
-            <p className="shrink-0 whitespace-nowrap text-right text-[14px] font-medium leading-5 text-ods-text-secondary">
-              {requirementHint}
-            </p>
+            <p className="shrink-0 whitespace-nowrap text-right text-h6 text-ods-text-secondary">{requirementHint}</p>
           ) : null
         ) : (
           <div className="flex shrink-0 items-center gap-[var(--spacing-system-s)]">

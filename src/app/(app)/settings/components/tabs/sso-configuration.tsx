@@ -210,7 +210,7 @@ export function SsoConfigurationTab() {
       accessorKey: 'hasConfig',
       header: 'CONFIGURATION',
       cell: ({ row }: { row: Row<UiProviderRow> }) => (
-        <span className="font-['DM_Sans'] text-[14px] leading-[18px] text-ods-text-secondary">
+        <span className="text-h6 text-ods-text-secondary">
           {row.original.hasConfig ? 'Configured' : 'Not configured'}
         </span>
       ),
@@ -308,8 +308,8 @@ export function SsoConfigurationTab() {
                   <MicrosoftIcon className="h-6 w-6" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-ods-text-primary">OpenFrame Google & Microsoft SSO</h2>
-                  <p className="text-sm text-ods-text-secondary">
+                  <h2 className="text-h3 text-ods-text-primary">OpenFrame Google & Microsoft SSO</h2>
+                  <p className="text-h6 text-ods-text-secondary">
                     Allow any account from {tenantDomain.domain} domain to access OpenFrame via shared SSO providers.
                     Accounts will be auto provisioned upon first sign-in.
                   </p>

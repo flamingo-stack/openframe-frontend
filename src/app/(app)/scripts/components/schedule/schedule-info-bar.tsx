@@ -18,23 +18,23 @@ export function ScheduleInfoBar({ schedule }: ScheduleInfoBarProps) {
         <span className="text-h4 text-ods-text-primary truncate" title={date}>
           {date}
         </span>
-        <span className="font-medium text-[14px] leading-[20px] text-ods-text-secondary">Date</span>
+        <span className="text-h6 text-ods-text-secondary">Date</span>
       </div>
       <div className="flex flex-col items-start justify-center min-w-0 px-4 py-3 md:py-0 md:h-[80px] border-b md:border-b-0 border-ods-border">
         <span className="text-h4 text-ods-text-primary truncate" title={time}>
           {time}
         </span>
-        <span className="font-medium text-[14px] leading-[20px] text-ods-text-secondary">Time</span>
+        <span className="text-h6 text-ods-text-secondary">Time</span>
       </div>
       <div className="flex flex-col items-start justify-center min-w-0 px-4 py-3 md:py-0 md:h-[80px]">
         <span className="text-h4 text-ods-text-primary truncate" title={repeat}>
           {repeat}
         </span>
-        <span className="font-medium text-[14px] leading-[20px] text-ods-text-secondary">Repeat</span>
+        <span className="text-h6 text-ods-text-secondary">Repeat</span>
       </div>
       <div className="flex flex-col items-start justify-center min-w-0 px-4 py-3 md:py-0 md:h-[80px]">
         <OSTypeBadgeGroup osTypes={schedule.task_supported_platforms} iconSize="w-5 h-5" />
-        <span className="font-medium text-[14px] leading-[20px] text-ods-text-secondary">Supported Platform</span>
+        <span className="text-h6 text-ods-text-secondary">Supported Platform</span>
       </div>
     </div>
   );
@@ -57,13 +57,13 @@ export function ScheduleInfoBarFromData({ name, note, date, time, repeat, platfo
           <span className="text-h4 text-ods-text-primary truncate" title={name}>
             {name}
           </span>
-          <span className="font-medium text-[14px] leading-[20px] text-ods-text-secondary">Schedule Name</span>
+          <span className="text-h6 text-ods-text-secondary">Schedule Name</span>
         </div>
         <div className="flex flex-col items-start justify-center min-w-0 px-4 py-3 md:py-0 md:h-[80px]">
           <span className="text-h4 text-ods-text-primary truncate" title={note || '—'}>
             {note || '—'}
           </span>
-          <span className="font-medium text-[14px] leading-[20px] text-ods-text-secondary">Note</span>
+          <span className="text-h6 text-ods-text-secondary">Note</span>
         </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4">
@@ -71,23 +71,23 @@ export function ScheduleInfoBarFromData({ name, note, date, time, repeat, platfo
           <span className="text-h4 text-ods-text-primary truncate" title={date}>
             {date}
           </span>
-          <span className="font-medium text-[14px] leading-[20px] text-ods-text-secondary">Date</span>
+          <span className="text-h6 text-ods-text-secondary">Date</span>
         </div>
         <div className="flex flex-col items-start justify-center min-w-0 px-4 py-3 md:py-0 md:h-[80px] border-b md:border-b-0 border-ods-border">
           <span className="text-h4 text-ods-text-primary truncate" title={time}>
             {time}
           </span>
-          <span className="font-medium text-[14px] leading-[20px] text-ods-text-secondary">Time</span>
+          <span className="text-h6 text-ods-text-secondary">Time</span>
         </div>
         <div className="flex flex-col items-start justify-center min-w-0 px-4 py-3 md:py-0 md:h-[80px]">
           <span className="text-h4 text-ods-text-primary truncate" title={repeat}>
             {repeat}
           </span>
-          <span className="font-medium text-[14px] leading-[20px] text-ods-text-secondary">Repeat</span>
+          <span className="text-h6 text-ods-text-secondary">Repeat</span>
         </div>
         <div className="flex flex-col items-start justify-center min-w-0 px-4 py-3 md:py-0 md:h-[80px]">
           <OSTypeBadgeGroup osTypes={platforms} iconSize="w-5 h-5" />
-          <span className="font-medium text-[14px] leading-[20px] text-ods-text-secondary">Supported Platform</span>
+          <span className="text-h6 text-ods-text-secondary">Supported Platform</span>
         </div>
       </div>
     </div>

@@ -34,6 +34,7 @@ export const TAB_IDS = {
     'custom-ai-assistant',
     'customer-ai-guardrails',
   ],
+  customerEdit: ['details', 'ai-configuration', 'guardrails'],
   deviceDetails: [
     'overview',
     'vulnerabilities',
@@ -59,6 +60,7 @@ export const TAB_IDS = {
 
 export type CustomerListTab = (typeof TAB_IDS.customersList)[number];
 export type CustomerDetailTab = (typeof TAB_IDS.customerDetails)[number];
+export type CustomerEditTab = (typeof TAB_IDS.customerEdit)[number];
 export type DeviceDetailTab = (typeof TAB_IDS.deviceDetails)[number];
 export type ScriptsTab = (typeof TAB_IDS.scripts)[number];
 export type ScheduleDetailTab = (typeof TAB_IDS.scheduleDetails)[number];
@@ -115,7 +117,7 @@ export const routes = {
     details: (id: string | number, o?: { tab?: CustomerDetailTab }) =>
       withQuery('/customers/details', { id, tab: o?.tab }),
     new: '/customers/new',
-    edit: (id: string | number) => withQuery('/customers/edit', { id }),
+    edit: (id: string | number, o?: { tab?: CustomerEditTab }) => withQuery('/customers/edit', { id, tab: o?.tab }),
   },
 
   devices: {

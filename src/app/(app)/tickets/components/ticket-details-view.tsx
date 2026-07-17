@@ -47,6 +47,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation } from 'react-relay';
 import type { startTimerMutation as StartTimerMutationType } from '@/__generated__/startTimerMutation.graphql';
+import { useOrganizationClientAiConfig } from '@/app/(app)/settings/ai-settings/hooks/use-organization-ai-config';
+import { getProviderModelLabel, useSupportedModels } from '@/app/(app)/settings/ai-settings/hooks/use-supported-models';
 import { ConfirmDialog } from '@/app/components/shared/confirm-dialog';
 import { useAiModel } from '@/app/hooks/use-ai-model';
 import { useSafeBack } from '@/app/hooks/use-safe-back';
@@ -91,6 +93,7 @@ import { useTicketStatusesQuery } from '../statuses/hooks/use-ticket-statuses-qu
 import { useTicketDetailsStore } from '../stores/ticket-details-store';
 import type { ClientDialogOwner, Dialog, DialogOwner } from '../types/dialog.types';
 import { isResolvedStatusId } from '../utils/is-resolved-status';
+import { latestAssistantModel } from '../utils/latest-assistant-model';
 import { ticketsQueryKeys } from '../utils/query-keys';
 import { TICKET_STATUS_KIND } from '../utils/ticket-statistics';
 import { TicketAttachmentsSection } from './ticket-attachments-section';
@@ -147,7 +150,9 @@ export function TicketDetailsView({ ticketId }: TicketDetailsViewProps) {
   const isTechnicianChatEnabled = !featureFlags.mingoSidebarContext.enabled();
   const isSidebarLayout = !isTechnicianChatEnabled;
   const assignedItems = useAssignedItems({ itemId: ticketId, itemType: 'TICKET', enabled: isSidebarLayout });
-  const initialAiModel = useAiModel();
+  // Tenant-wide ADMIN (Mingo) model — the admin agent has no per-org override.
+  const initialAdminModel = useAiModel();
+  const { modelsByProvider } = useSupportedModels();
   const [currentClientModel, setCurrentClientModel] = useState<{ provider: string; displayName: string } | null>(null);
   const [currentAdminModel, setCurrentAdminModel] = useState<{ provider: string; displayName: string } | null>(null);
   const isClientOwner = useCallback((owner: ClientDialogOwner | DialogOwner): owner is ClientDialogOwner => {
@@ -380,11 +385,33 @@ export function TicketDetailsView({ ticketId }: TicketDetailsViewProps) {
     };
   }, [ticketId, clearChatState]);
 
-  useEffect(() => {
-    if (!initialAiModel) return;
-    setCurrentClientModel(prev => prev ?? initialAiModel);
-    setCurrentAdminModel(prev => prev ?? initialAiModel);
-  }, [initialAiModel]);
+  // Model badge sources, in order of truth: live stream metadata (state set by
+  // the chunk processors) → the newest assistant message's provenance from
+  // history → what the NEXT reply would use. For the client side that is the
+  // customer's effective org config; the admin side is tenant-wide by design.
+  const historyClientModel = useMemo(
+    () => latestAssistantModel(clientChat.rawPages, modelsByProvider),
+    [clientChat.rawPages, modelsByProvider],
+  );
+  const historyAdminModel = useMemo(
+    () => latestAssistantModel(adminChat.rawPages, modelsByProvider),
+    [adminChat.rawPages, modelsByProvider],
+  );
+  const { config: orgAiConfig } = useOrganizationClientAiConfig(dialog?.organizationId ?? '', {
+    enabled: !!dialog?.organizationId,
+  });
+  const orgClientModel = useMemo(
+    () =>
+      orgAiConfig?.llmProvider && orgAiConfig.providerModel
+        ? {
+            provider: orgAiConfig.llmProvider,
+            displayName: getProviderModelLabel(modelsByProvider, orgAiConfig.llmProvider, orgAiConfig.providerModel),
+          }
+        : null,
+    [orgAiConfig, modelsByProvider],
+  );
+  const displayClientModel = currentClientModel ?? historyClientModel ?? orgClientModel;
+  const displayAdminModel = currentAdminModel ?? historyAdminModel ?? initialAdminModel;
 
   // Admin-owned tickets have no client chat, so the default 'client' tab is
   // empty. Redirect to the technician chat when it's available, otherwise to
@@ -834,11 +861,11 @@ export function TicketDetailsView({ ticketId }: TicketDetailsViewProps) {
           className="mt-[var(--spacing-system-xsf)] bg-ods-card rounded-lg !max-w-full"
         />
       )}
-      {showTokenMemory && (currentClientModel || clientTokenUsage) && (
+      {showTokenMemory && (displayClientModel || clientTokenUsage) && (
         <div className="mt-[var(--spacing-system-xsf)]">
           <ModelDisplay
-            provider={currentClientModel?.provider}
-            modelName={currentClientModel?.displayName}
+            provider={displayClientModel?.provider}
+            modelName={displayClientModel?.displayName}
             usedTokens={clientTokenUsage?.totalTokensSize ?? undefined}
             contextWindow={clientTokenUsage?.contextSize ?? undefined}
           />
@@ -1179,11 +1206,11 @@ export function TicketDetailsView({ ticketId }: TicketDetailsViewProps) {
                       className="mt-[var(--spacing-system-xsf)] bg-ods-card rounded-lg !max-w-full"
                     />
                   )}
-                  {showTokenMemory && (currentClientModel || clientTokenUsage) && (
+                  {showTokenMemory && (displayClientModel || clientTokenUsage) && (
                     <div className="mt-[var(--spacing-system-xsf)]">
                       <ModelDisplay
-                        provider={currentClientModel?.provider}
-                        modelName={currentClientModel?.displayName}
+                        provider={displayClientModel?.provider}
+                        modelName={displayClientModel?.displayName}
                         usedTokens={clientTokenUsage?.totalTokensSize ?? undefined}
                         contextWindow={clientTokenUsage?.contextSize ?? undefined}
                       />
@@ -1244,11 +1271,11 @@ export function TicketDetailsView({ ticketId }: TicketDetailsViewProps) {
                       className="mt-[var(--spacing-system-xsf)] bg-ods-card rounded-lg !max-w-full"
                     />
                   )}
-                  {showTokenMemory && (currentAdminModel || adminTokenUsage) && (
+                  {showTokenMemory && (displayAdminModel || adminTokenUsage) && (
                     <div className="mt-[var(--spacing-system-xsf)]">
                       <ModelDisplay
-                        provider={currentAdminModel?.provider}
-                        modelName={currentAdminModel?.displayName}
+                        provider={displayAdminModel?.provider}
+                        modelName={displayAdminModel?.displayName}
                         usedTokens={adminTokenUsage?.totalTokensSize ?? undefined}
                         contextWindow={adminTokenUsage?.contextSize ?? undefined}
                       />

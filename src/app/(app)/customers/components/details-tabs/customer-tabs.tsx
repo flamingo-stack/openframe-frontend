@@ -6,7 +6,7 @@ import {
   ClockHistoryIcon,
   FileContentIcon,
   MonitorIcon,
-  RewardBadgeCheckIcon,
+  ShieldCheckIcon,
   TagIcon,
 } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import type { TabItem } from '@flamingo-stack/openframe-frontend-core/components/ui';
@@ -54,8 +54,8 @@ function CustomAiAssistantTab({ organization }: CustomerTabProps) {
   return <CustomerCustomAiAssistantTab organizationId={organization.organizationId} />;
 }
 
-function GuardrailsTab(_props: CustomerTabProps) {
-  return <CustomerGuardrailsTab />;
+function GuardrailsTab({ organization }: CustomerTabProps) {
+  return <CustomerGuardrailsTab organizationId={organization.organizationId} />;
 }
 
 export const CUSTOM_AI_ASSISTANT_TAB_ID = 'custom-ai-assistant';
@@ -71,7 +71,7 @@ const BASE_CUSTOMER_TABS: TabItem[] = [
 
 const CUSTOM_AI_ASSISTANT_TAB: TabItem = {
   id: CUSTOM_AI_ASSISTANT_TAB_ID,
-  label: 'Custom AI Assistant',
+  label: 'Customer AI Configuration',
   icon: ChatsIcon,
   component: CustomAiAssistantTab,
 };
@@ -79,7 +79,7 @@ const CUSTOM_AI_ASSISTANT_TAB: TabItem = {
 const CUSTOMER_GUARDRAILS_TAB: TabItem = {
   id: CUSTOMER_GUARDRAILS_TAB_ID,
   label: 'Customer AI Guardrails',
-  icon: RewardBadgeCheckIcon,
+  icon: ShieldCheckIcon,
   component: GuardrailsTab,
 };
 

@@ -3,7 +3,8 @@
 import type { ApprovalLevel } from '@flamingo-stack/openframe-frontend-core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { buildPolicyGroups } from './build-policy-groups';
-import { CUSTOM_CREATION_TEMPLATE_ID, CUSTOM_POLICY_TYPE } from './guardrails.types';
+import { CUSTOM_CREATION_TEMPLATE_ID, CUSTOM_POLICY_DESCRIPTION, CUSTOM_POLICY_TYPE } from './guardrails.types';
+import type { GuardrailsTemplateOption } from './guardrails-template-picker';
 import {
   useActivateGuardrailsTemplate,
   useGuardrailsTemplate,
@@ -25,13 +26,6 @@ type GuardrailsDraft =
   | { kind: 'template'; templateId: string }
   | { kind: 'existing-custom'; edits: Map<string, ApprovalLevel> }
   | { kind: 'new-custom'; baseTemplateId: string; edits: Map<string, ApprovalLevel> };
-
-export interface GuardrailsTemplateOption {
-  id: string;
-  label: string;
-  description?: string;
-  isCustom: boolean;
-}
 
 interface UseGuardrailsEditorArgs {
   /** Edit session driver: entering builds a draft, leaving discards it. */
@@ -112,16 +106,26 @@ export function useGuardrailsEditor({ isEditMode }: UseGuardrailsEditorArgs) {
     const basedOnLabel = templates.find(t => t.id === basedOnId)?.displayName;
     const suffix = basedOnLabel ? ` (based on ${basedOnLabel})` : '';
 
-    const options: GuardrailsTemplateOption[] = templates.map(t => ({
-      id: t.id,
-      label: t.type === CUSTOM_POLICY_TYPE ? `${t.displayName}${suffix}` : t.displayName,
-      description: t.description,
-      isCustom: t.type === CUSTOM_POLICY_TYPE,
-    }));
+    const options: GuardrailsTemplateOption[] = templates.map(t => {
+      const isCustom = t.type === CUSTOM_POLICY_TYPE;
+      return {
+        id: t.id,
+        label: isCustom ? `${t.displayName}${suffix}` : t.displayName,
+        // Custom policies carry no backend description — use the shared copy
+        // so the row reads the same as on the customer edit page.
+        description: isCustom ? t.description || CUSTOM_POLICY_DESCRIPTION : t.description,
+        isCustom,
+      };
+    });
 
     // No custom policy saved yet: the one being drafted gets a synthetic row.
     if (draft?.kind === 'new-custom' && !customTemplate) {
-      options.push({ id: CUSTOM_CREATION_TEMPLATE_ID, label: `Custom Policy${suffix}`, isCustom: true });
+      options.push({
+        id: CUSTOM_CREATION_TEMPLATE_ID,
+        label: `Custom Policy${suffix}`,
+        description: CUSTOM_POLICY_DESCRIPTION,
+        isCustom: true,
+      });
     }
 
     return options;

@@ -1,7 +1,6 @@
 'use client';
 
 import { OSTypeBadgeGroup } from '@flamingo-stack/openframe-frontend-core/components';
-import { MingoIcon } from '@flamingo-stack/openframe-frontend-core/components/icons';
 import {
   ArrowRightUpIcon,
   HourglassClockIcon,
@@ -29,8 +28,7 @@ import {
 import { useApiParams } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useAskMingo } from '@/app/(app)/mingo/hooks/use-ask-mingo';
-import { EmptyState } from '@/app/components/shared';
+import { askMingoButton, EmptyState } from '@/app/components/shared';
 import { useSearchParam } from '@/app/hooks/use-search-param';
 import { useStickyToolbar } from '@/app/hooks/use-sticky-toolbar';
 import { openInNewTab } from '@/lib/open-in-new-tab';
@@ -57,7 +55,6 @@ function getRepeatLabelFromTaskType(taskType: ScriptScheduleTaskType): string {
 
 export function ScriptSchedulesTable() {
   const router = useRouter();
-  const askMingo = useAskMingo();
 
   const { params, setParam } = useApiParams({
     search: { type: 'string', default: '' },
@@ -271,15 +268,7 @@ export function ScriptSchedulesTable() {
             { icon: <RadarIcon />, label: 'Target specific devices, Customers, or tags' },
             { icon: <ListBulletIcon />, label: 'View execution history and success rates' },
           ]}
-          buttonLabel="Ask Mingo about Script Schedules"
-          buttonIcon={
-            <MingoIcon
-              className="size-5"
-              eyesColor="var(--ods-flamingo-cyan-base)"
-              cornerColor="var(--ods-flamingo-cyan-base)"
-            />
-          }
-          onButtonClick={() => askMingo('script-schedules')}
+          {...askMingoButton('script-schedules', 'Ask Mingo about Script Schedules')}
         />
       ) : (
         <div className="flex flex-col" style={containerStyle}>

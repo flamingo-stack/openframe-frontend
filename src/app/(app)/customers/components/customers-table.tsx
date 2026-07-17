@@ -1,6 +1,5 @@
 'use client';
 
-import { MingoIcon } from '@flamingo-stack/openframe-frontend-core/components/icons';
 import {
   BuildingsIcon,
   Filter02Icon,
@@ -21,8 +20,7 @@ import { useApiParams } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAskMingo } from '@/app/(app)/mingo/hooks/use-ask-mingo';
-import { EmptyState } from '@/app/components/shared';
+import { askMingoButton, EmptyState } from '@/app/components/shared';
 import { useSearchParam } from '@/app/hooks/use-search-param';
 import { useStickyToolbar } from '@/app/hooks/use-sticky-toolbar';
 import { dateRangeFromParams, dateRangeToInstantBounds, toDayParam } from '@/lib/date-filter-params';
@@ -39,7 +37,6 @@ interface CustomersTableProps {
 
 export function CustomersTable({ status }: CustomersTableProps) {
   const router = useRouter();
-  const askMingo = useAskMingo();
 
   const { params, setParam, setParams } = useApiParams({
     search: { type: 'string', default: '' },
@@ -148,15 +145,7 @@ export function CustomersTable({ status }: CustomersTableProps) {
             { icon: <GraphMixSquareIcon />, label: 'Track tickets, SLAs, and activity per Customer' },
             { icon: <ShieldCheckIcon />, label: 'Monitor security posture per Customer' },
           ]}
-          buttonLabel="Ask Mingo about Customers"
-          buttonIcon={
-            <MingoIcon
-              className="size-5"
-              eyesColor="var(--ods-flamingo-cyan-base)"
-              cornerColor="var(--ods-flamingo-cyan-base)"
-            />
-          }
-          onButtonClick={() => askMingo('customers')}
+          {...askMingoButton('customers', 'Ask Mingo about Customers')}
         />
       ) : (
         <div style={containerStyle}>

@@ -62,9 +62,9 @@ function AppShell({ children, mainClassName }: { children: React.ReactNode; main
   // (not the chat) owns the panel chrome.
   //
   // Lifted into a global store (`mingo-launcher-store`) so pages can open the
-  // drawer from anywhere — e.g. the EmptyState "Ask Mingo about X" buttons call
-  // `askMingo(source)`, which flips `isOpen` here and queues a prompt the chat
-  // embedder auto-sends on open.
+  // drawer from anywhere — e.g. the onboarding "Meet Mingo" chips call
+  // `sendToMingo(prompt)`, which flips `isOpen` here and queues a prompt the
+  // chat embedder auto-sends on open.
   const chatOpen = useMingoLauncherStore(state => state.isOpen);
   const setChatOpen = useMingoLauncherStore(state => state.setOpen);
   const toggleChat = useMingoLauncherStore(state => state.toggle);

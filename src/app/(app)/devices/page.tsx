@@ -1,19 +1,16 @@
 'use client';
 
-import { MingoIcon } from '@flamingo-stack/openframe-frontend-core/components/icons';
 import {
   ActivityIcon,
   BracketCurlyIcon,
   MonitorIcon,
   TerminalIcon,
 } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
-import { useAskMingo } from '@/app/(app)/mingo/hooks/use-ask-mingo';
-import { DevicesPanel, EmptyState } from '@/app/components/shared';
+import { askMingoButton, DevicesPanel, EmptyState } from '@/app/components/shared';
 import { routes } from '@/lib/routes';
 import { useHasOrganizations } from './hooks/use-has-organizations';
 
 export default function Devices() {
-  const askMingo = useAskMingo();
   const { hasOrganizations, isLoading } = useHasOrganizations();
 
   return (
@@ -35,15 +32,7 @@ export default function Devices() {
             { icon: <BracketCurlyIcon />, label: 'Run scripts, policies, and queries across one or many devices' },
             { icon: <TerminalIcon />, label: 'Launch remote sessions and view full software inventory' },
           ]}
-          buttonLabel="Ask Mingo about Devices"
-          buttonIcon={
-            <MingoIcon
-              className="size-5"
-              eyesColor="var(--ods-flamingo-cyan-base)"
-              cornerColor="var(--ods-flamingo-cyan-base)"
-            />
-          }
-          onButtonClick={() => askMingo('devices')}
+          {...askMingoButton('devices', 'Ask Mingo about Devices')}
         />
       }
     />

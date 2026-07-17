@@ -7,7 +7,6 @@ import {
   type BoardColumnDef,
   type BoardTicket,
 } from '@flamingo-stack/openframe-frontend-core/components/features';
-import { MingoIcon } from '@flamingo-stack/openframe-frontend-core/components/icons';
 import {
   ArcheryTargetIcon,
   Filter02Icon,
@@ -18,8 +17,7 @@ import { Button, PageError, PageLayout } from '@flamingo-stack/openframe-fronten
 import { useDebounce, useToast } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { type InfiniteData, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
-import { useAskMingo } from '@/app/(app)/mingo/hooks/use-ask-mingo';
-import { EmptyState } from '@/app/components/shared';
+import { askMingoButton, EmptyState } from '@/app/components/shared';
 import { appendImageHash } from '@/lib/image-url';
 import { routes } from '@/lib/routes';
 import { useApprovalRequests } from '../hooks/use-approval-requests';
@@ -102,7 +100,6 @@ export function TicketsBoard({
 }: TicketsBoardProps) {
   const debouncedSearch = useDebounce(search, 300);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const askMingo = useAskMingo();
 
   const { data: statusesData, isLoading: statusesLoading, error: statusesError } = useTicketStatusesQuery();
   const { data: transitionRules } = useTicketStatusTransitionRules();
@@ -357,15 +354,7 @@ export function TicketsBoard({
               { icon: <Filter02Icon />, label: 'Filter by client, status, priority, or assignee' },
               { icon: <UserPlusIcon />, label: 'Assign, prioritize, and reply in one place' },
             ]}
-            buttonLabel="Ask Mingo about Tickets"
-            buttonIcon={
-              <MingoIcon
-                className="size-5"
-                eyesColor="var(--ods-flamingo-cyan-base)"
-                cornerColor="var(--ods-flamingo-cyan-base)"
-              />
-            }
-            onButtonClick={() => askMingo('tickets')}
+            {...askMingoButton('tickets', 'Ask Mingo about Tickets')}
           />
         ) : (
           <div aria-busy={isLoading || movingIds.size > 0} className="flex-1 min-h-0 -mx-[var(--spacing-system-l)]">

@@ -41,9 +41,8 @@ import type {
 } from '@/__generated__/scriptsTableRelayQuery.graphql';
 import type { scriptTagsRelayFilterQuery as ScriptTagsFilterQueryType } from '@/__generated__/scriptTagsRelayFilterQuery.graphql';
 import type { unarchiveScriptMutation as UnarchiveScriptMutationType } from '@/__generated__/unarchiveScriptMutation.graphql';
-import { useAskMingo } from '@/app/(app)/mingo/hooks/use-ask-mingo';
 import { employeeDetailHref } from '@/app/(app)/settings/employees/routes';
-import { EmptyState } from '@/app/components/shared';
+import { askMingoButton, EmptyState } from '@/app/components/shared';
 import { useDeferredQuery } from '@/app/hooks/use-deferred-query';
 import { useSafeBack } from '@/app/hooks/use-safe-back';
 import { useSearchParam } from '@/app/hooks/use-search-param';
@@ -119,7 +118,6 @@ function ScriptsTableContent({
   stickyHeaderOffset,
   archived,
 }: ScriptsTableContentProps) {
-  const askMingo = useAskMingo();
   const { toast } = useToast();
   const environment = useRelayEnvironment();
 
@@ -555,15 +553,7 @@ function ScriptsTableContent({
             label: 'Let Mingo suggest or generate scripts for you',
           },
         ]}
-        buttonLabel="Ask Mingo about Scripts"
-        buttonIcon={
-          <MingoIcon
-            className="size-5"
-            eyesColor="var(--ods-flamingo-cyan-base)"
-            cornerColor="var(--ods-flamingo-cyan-base)"
-          />
-        }
-        onButtonClick={() => askMingo('scripts')}
+        {...askMingoButton('scripts', 'Ask Mingo about Scripts')}
       />
     );
   }

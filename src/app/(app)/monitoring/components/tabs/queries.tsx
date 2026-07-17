@@ -1,6 +1,5 @@
 'use client';
 
-import { MingoIcon } from '@flamingo-stack/openframe-frontend-core/components/icons';
 import {
   BracketCurlyEllipsisVrIcon,
   DatabaseIcon,
@@ -12,8 +11,13 @@ import { DataTable, Input, PageError, PageLayout } from '@flamingo-stack/openfra
 import { useApiParams } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
-import { useAskMingo } from '@/app/(app)/mingo/hooks/use-ask-mingo';
-import { EmptyState, formatQueryInterval, QueriesTable, type QueryTableRow } from '@/app/components/shared';
+import {
+  askMingoButton,
+  EmptyState,
+  formatQueryInterval,
+  QueriesTable,
+  type QueryTableRow,
+} from '@/app/components/shared';
 import { useSearchParam } from '@/app/hooks/use-search-param';
 import { useStickyToolbar } from '@/app/hooks/use-sticky-toolbar';
 import { routes } from '@/lib/routes';
@@ -25,7 +29,6 @@ const PAGE_SIZE = 20;
 
 export function Queries() {
   const router = useRouter();
-  const askMingo = useAskMingo();
 
   const { params, setParams } = useApiParams({
     search: { type: 'string', default: '' },
@@ -135,15 +138,7 @@ export function Queries() {
             { icon: <DatabaseIcon />, label: 'Use SQL-like syntax or natural language via Mingo' },
             { icon: <HourglassClockIcon />, label: 'Save queries to rerun later or schedule them' },
           ]}
-          buttonLabel="Ask Mingo about Queries"
-          buttonIcon={
-            <MingoIcon
-              className="size-5"
-              eyesColor="var(--ods-flamingo-cyan-base)"
-              cornerColor="var(--ods-flamingo-cyan-base)"
-            />
-          }
-          onButtonClick={() => askMingo('queries')}
+          {...askMingoButton('queries', 'Ask Mingo about Queries')}
         />
       ) : (
         <div className="flex flex-col gap-[var(--spacing-system-l)]" style={containerStyle}>

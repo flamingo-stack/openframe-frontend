@@ -25,7 +25,15 @@
 
 export const TAB_IDS = {
   customersList: ['active', 'archived'],
-  customerDetails: ['devices', 'tickets', 'logs', 'worktime', 'details', 'custom-ai-assistant'],
+  customerDetails: [
+    'devices',
+    'tickets',
+    'logs',
+    'worktime',
+    'details',
+    'custom-ai-assistant',
+    'customer-ai-guardrails',
+  ],
   deviceDetails: [
     'overview',
     'vulnerabilities',

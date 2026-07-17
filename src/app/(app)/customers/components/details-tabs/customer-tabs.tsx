@@ -6,6 +6,7 @@ import {
   ClockHistoryIcon,
   FileContentIcon,
   MonitorIcon,
+  RewardBadgeCheckIcon,
   TagIcon,
 } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import type { TabItem } from '@flamingo-stack/openframe-frontend-core/components/ui';
@@ -14,6 +15,7 @@ import type { CustomerDetails } from '../../hooks/use-customer-details';
 import { CustomerCustomAiAssistantTab } from './customer-custom-ai-assistant-tab';
 import { CustomerDetailsTab } from './customer-details-tab';
 import { CustomerDevicesTab } from './customer-devices-tab';
+import { CustomerGuardrailsTab } from './customer-guardrails-tab';
 import { CustomerLogsTab } from './customer-logs-tab';
 import { CustomerTicketsTab } from './customer-tickets-tab';
 import { CustomerWorktimeTab } from './customer-worktime-tab';
@@ -52,7 +54,12 @@ function CustomAiAssistantTab({ organization }: CustomerTabProps) {
   return <CustomerCustomAiAssistantTab organizationId={organization.organizationId} />;
 }
 
+function GuardrailsTab(_props: CustomerTabProps) {
+  return <CustomerGuardrailsTab />;
+}
+
 export const CUSTOM_AI_ASSISTANT_TAB_ID = 'custom-ai-assistant';
+export const CUSTOMER_GUARDRAILS_TAB_ID = 'customer-ai-guardrails';
 
 const BASE_CUSTOMER_TABS: TabItem[] = [
   { id: 'devices', label: 'Devices', icon: MonitorIcon, component: DevicesTab },
@@ -69,15 +76,29 @@ const CUSTOM_AI_ASSISTANT_TAB: TabItem = {
   component: CustomAiAssistantTab,
 };
 
-// Superset used to resolve the active tab's component regardless of visibility.
-const ALL_CUSTOMER_TABS: TabItem[] = [...BASE_CUSTOMER_TABS, CUSTOM_AI_ASSISTANT_TAB];
+const CUSTOMER_GUARDRAILS_TAB: TabItem = {
+  id: CUSTOMER_GUARDRAILS_TAB_ID,
+  label: 'Customer AI Guardrails',
+  icon: RewardBadgeCheckIcon,
+  component: GuardrailsTab,
+};
 
-/**
- * Tabs shown for a customer. The Custom AI Assistant tab is appended only when
- * the customer has a custom appearance override (`showCustomAiAssistant`).
- */
-export const getCustomerTabs = (showCustomAiAssistant: boolean): TabItem[] =>
-  showCustomAiAssistant ? ALL_CUSTOMER_TABS : BASE_CUSTOMER_TABS;
+// Superset used to resolve the active tab's component regardless of visibility.
+const ALL_CUSTOMER_TABS: TabItem[] = [...BASE_CUSTOMER_TABS, CUSTOM_AI_ASSISTANT_TAB, CUSTOMER_GUARDRAILS_TAB];
+
+interface CustomerTabsVisibility {
+  /** Appended only when the customer has a custom appearance override. */
+  showCustomAiAssistant: boolean;
+  /** Read-only guardrails defaults view (saas-tenant, flag-gated). */
+  showGuardrails: boolean;
+}
+
+/** Tabs shown for a customer — base tabs plus the visibility-gated AI tabs. */
+export const getCustomerTabs = ({ showCustomAiAssistant, showGuardrails }: CustomerTabsVisibility): TabItem[] => [
+  ...BASE_CUSTOMER_TABS,
+  ...(showCustomAiAssistant ? [CUSTOM_AI_ASSISTANT_TAB] : []),
+  ...(showGuardrails ? [CUSTOMER_GUARDRAILS_TAB] : []),
+];
 
 export const getCustomerTab = (tabId: string): TabItem | undefined => ALL_CUSTOMER_TABS.find(tab => tab.id === tabId);
 

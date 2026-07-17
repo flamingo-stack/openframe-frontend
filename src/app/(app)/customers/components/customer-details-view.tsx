@@ -69,7 +69,13 @@ export function CustomerDetailsView({ id }: CustomerDetailsViewProps) {
   const isSaasTenant = runtimeEnv.appMode() === 'saas-tenant';
   const { view: clientView } = useClientView(id, { enabled: isCustomerAiEnabled && isSaasTenant && !!id });
   const showCustomAiAssistant = isCustomerAiEnabled && isSaasTenant && !!clientView;
-  const tabs = useMemo(() => getCustomerTabs(showCustomAiAssistant), [showCustomAiAssistant]);
+  // Guardrails are tenant-wide defaults shown read-only per customer; no
+  // per-customer override exists backend-side yet, so no data precondition.
+  const showGuardrails = isCustomerAiEnabled && isSaasTenant;
+  const tabs = useMemo(
+    () => getCustomerTabs({ showCustomAiAssistant, showGuardrails }),
+    [showCustomAiAssistant, showGuardrails],
+  );
   const activeTab = tabs.some(tab => tab.id === requestedTab) ? requestedTab : 'devices';
 
   // Register this organization as the Mingo "open view".

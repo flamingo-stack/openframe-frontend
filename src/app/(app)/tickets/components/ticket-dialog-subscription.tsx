@@ -23,6 +23,10 @@ interface TicketDialogSubscriptionProps {
   isInitialOptStartSeqReady: boolean;
   /** Gates the ADMIN (technician) topic consumer; off when the technician chat is hidden. */
   subscribeAdmin: boolean;
+  /** Fired once per NATS reconnect. The CHAT_CHUNKS stream retains ~10
+   *  minutes, so an outage longer than that leaves a gap JetStream replay
+   *  cannot fill — the parent must refetch persisted history to cover it. */
+  onReconnected?: () => void;
 }
 
 export function TicketDialogSubscription({
@@ -32,6 +36,7 @@ export function TicketDialogSubscription({
   adminInitialOptStartSeq,
   isInitialOptStartSeqReady,
   subscribeAdmin,
+  onReconnected,
 }: TicketDialogSubscriptionProps) {
   const { getWsUrl, onBeforeReconnect } = useNatsAppConfig();
 
@@ -69,7 +74,7 @@ export function TicketDialogSubscription({
     dispatchRef.current(chunk, NATS_TOPICS.ADMIN_MESSAGE);
   }, []);
 
-  useJetStreamDialogSubscription({
+  const { reconnectionCount: clientReconnectionCount } = useJetStreamDialogSubscription({
     enabled: !!dialogId && isInitialOptStartSeqReady,
     dialogId,
     streamName: CHAT_CHUNKS_STREAM,
@@ -80,7 +85,7 @@ export function TicketDialogSubscription({
     getNatsWsUrl: getWsUrl,
   });
 
-  useJetStreamDialogSubscription({
+  const { reconnectionCount: adminReconnectionCount } = useJetStreamDialogSubscription({
     enabled: !!dialogId && isInitialOptStartSeqReady && subscribeAdmin,
     dialogId,
     streamName: CHAT_CHUNKS_STREAM,
@@ -90,6 +95,21 @@ export function TicketDialogSubscription({
     onBeforeReconnect,
     getNatsWsUrl: getWsUrl,
   });
+
+  const onReconnectedRef = useRef(onReconnected);
+  useEffect(() => {
+    onReconnectedRef.current = onReconnected;
+  }, [onReconnected]);
+
+  // Both subscriptions share one NATS connection, so a reconnect bumps both
+  // counters together — collapse to a single parent notification per event.
+  const lastNotifiedReconnectRef = useRef(0);
+  const reconnectTotal = Math.max(clientReconnectionCount, adminReconnectionCount);
+  useEffect(() => {
+    if (reconnectTotal <= lastNotifiedReconnectRef.current) return;
+    lastNotifiedReconnectRef.current = reconnectTotal;
+    onReconnectedRef.current?.();
+  }, [reconnectTotal]);
 
   return null;
 }

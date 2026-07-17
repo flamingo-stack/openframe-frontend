@@ -425,6 +425,16 @@ export function TicketDetailsView({ ticketId }: TicketDetailsViewProps) {
   const adminInitialOptStartSeq = useMemo(() => maxPersistedStreamSeq(adminChat.rawPages), [adminChat.rawPages]);
   const isInitialOptStartSeqReady = clientChat.isFetched && (!isTechnicianChatEnabled || adminChat.isFetched);
 
+  // NATS reconnect: JetStream replays only ~10 minutes of CHAT_CHUNKS, so an
+  // outage longer than that leaves a gap the resume-by-seq cannot fill.
+  // Refetch persisted history — the merge layer dedupes what replay covers.
+  const refetchClientChat = clientChat.refetch;
+  const refetchAdminChat = adminChat.refetch;
+  const handleNatsReconnected = useCallback(() => {
+    void refetchClientChat();
+    if (isTechnicianChatEnabled) void refetchAdminChat();
+  }, [refetchClientChat, refetchAdminChat, isTechnicianChatEnabled]);
+
   const applyStatus = useCallback(
     (nextStatus: Dialog['status']) => {
       queryClient.setQueryData<Dialog | null>(ticketsQueryKeys.detail(ticketId), prev =>
@@ -932,6 +942,7 @@ export function TicketDetailsView({ ticketId }: TicketDetailsViewProps) {
         adminInitialOptStartSeq={adminInitialOptStartSeq}
         isInitialOptStartSeqReady={isInitialOptStartSeqReady}
         subscribeAdmin={isTechnicianChatEnabled}
+        onReconnected={handleNatsReconnected}
       />
       {isSidebarLayout ? (
         <PageLayout

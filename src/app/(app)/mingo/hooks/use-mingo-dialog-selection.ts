@@ -344,6 +344,9 @@ export function useMingoDialogSelection() {
       createdAt: msg.createdAt,
       owner: msg.owner,
       messageData: msg.messageData,
+      // Feed the merge's per-role seq coverage so a post-reload live synthetic
+      // isn't dropped by an unrelated row's seq (message-loss on stop/reload).
+      lastChunkStreamSeq: msg.lastChunkStreamSeq,
     }));
 
     const assistantConfig = ASSISTANT_CONFIG.MINGO;
@@ -355,6 +358,11 @@ export function useMingoDialogSelection() {
       onReject: handleRejectRef.current,
       approvalStatuses: Object.fromEntries(Object.entries(approvalStatusesRef.current).map(([k, v]) => [k, v as any])),
       batchApprovalsEnabled: featureFlags.batchApproval.enabled(),
+      // Must match the realtime processor (use-mingo-realtime-subscription):
+      // an omitted option is not guaranteed to include ADMIN, and a history
+      // reprocess (reopen, reconnect invalidation, pagination) would silently
+      // drop pending ADMIN approval cards that rendered live.
+      displayApprovalTypes: ['CLIENT', 'ADMIN'],
     });
     const allProcessedMessages = foldPendingApprovalsEnvelope(rawProcessedMessages as Message[]);
 

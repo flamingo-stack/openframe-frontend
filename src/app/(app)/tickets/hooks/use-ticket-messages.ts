@@ -44,6 +44,10 @@ export function useTicketMessages(dialogId: string | null, chatType: ChatType) {
     hasNextPage: messagesQuery.hasNextPage ?? false,
     isFetchingNextPage: messagesQuery.isFetchingNextPage,
     fetchNextPage: messagesQuery.fetchNextPage,
+    /** Re-fetch the loaded pages. Used after a NATS reconnect: the JetStream
+     *  CHAT_CHUNKS stream retains only ~10 minutes, so a longer outage leaves
+     *  a gap only the persisted history can fill (the merge dedupes). */
+    refetch: messagesQuery.refetch,
     error: messagesQuery.error?.message || null,
   };
 }

@@ -17,7 +17,7 @@ import { Button, PageError, PageLayout } from '@flamingo-stack/openframe-fronten
 import { useDebounce, useToast } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { type InfiniteData, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
-import { EmptyState } from '@/app/components/shared';
+import { askMingoButton, EmptyState } from '@/app/components/shared';
 import { appendImageHash } from '@/lib/image-url';
 import { routes } from '@/lib/routes';
 import { useApprovalRequests } from '../hooks/use-approval-requests';
@@ -354,6 +354,7 @@ export function TicketsBoard({
               { icon: <Filter02Icon />, label: 'Filter by client, status, priority, or assignee' },
               { icon: <UserPlusIcon />, label: 'Assign, prioritize, and reply in one place' },
             ]}
+            {...askMingoButton('tickets', 'Ask Mingo about Tickets')}
           />
         ) : (
           <div aria-busy={isLoading || movingIds.size > 0} className="flex-1 min-h-0 -mx-[var(--spacing-system-l)]">

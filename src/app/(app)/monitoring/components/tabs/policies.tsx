@@ -20,7 +20,13 @@ import { useApiParams } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
-import { EmptyState, PoliciesTable, type PolicyTableRow, type PolicyTableStatus } from '@/app/components/shared';
+import {
+  askMingoButton,
+  EmptyState,
+  PoliciesTable,
+  type PolicyTableRow,
+  type PolicyTableStatus,
+} from '@/app/components/shared';
 import { useSearchParam } from '@/app/hooks/use-search-param';
 import { useStickyToolbar } from '@/app/hooks/use-sticky-toolbar';
 import { routes } from '@/lib/routes';
@@ -219,6 +225,7 @@ export function Policies() {
             { icon: <RadarIcon />, label: 'Target devices by Customer, OS, or tag' },
             { icon: <BellCheckIcon />, label: 'Get alerts when devices fall out of compliance' },
           ]}
+          {...askMingoButton('policies', 'Ask Mingo about Policies')}
         />
       ) : (
         <div className="flex flex-col gap-[var(--spacing-system-l)]" style={containerStyle}>

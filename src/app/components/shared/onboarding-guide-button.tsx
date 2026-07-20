@@ -45,7 +45,7 @@ export function onboardingGuideButton(source: OnboardingGuideSource, label: stri
   if (!slug) return {};
   return {
     buttonLabel: label,
-    buttonIcon: <BookOpenIcon className="size-5 text-ods-text-secondary" />,
+    buttonIcon: <BookOpenIcon className="text-ods-text-secondary" />,
     buttonProps: { href: routes.helpCenter.onboardingGuide(slug) },
   };
 }

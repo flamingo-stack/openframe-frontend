@@ -33,6 +33,7 @@ import {
   type DeltaEvent,
   type EvictedReducerState,
   type InitializeExtras,
+  type PendingEcho,
   type ProcessedMessage,
   type StreamingPhase,
   type UnifiedChatMessage,
@@ -359,6 +360,7 @@ interface ParkedReducerState {
   messages: ChatMessage[];
   approvalStatuses: EvictedReducerState['approvalStatuses'];
   lastAppliedSeq: number;
+  pendingEchoes: readonly PendingEcho[];
 }
 
 export function createReducerMirror<K extends string>(config: ReducerMirrorConfig<K>): ReducerMirror<K> {
@@ -398,13 +400,24 @@ export function createReducerMirror<K extends string>(config: ReducerMirrorConfi
       // possibly while another key is being resolved). The mirror's own
       // `getReducer` does the seeding.
       //
-      // UNCONDITIONAL — see the EVICTION note. The approval statuses and the
-      // seq cursor are worth parking even when the thread is empty, so the
-      // length check narrows to the messages field alone.
+      // UNCONDITIONAL — see the EVICTION note. The approval statuses, the seq
+      // cursor and the armed optimistic echoes are worth parking even when the
+      // thread is empty, so the length check narrows to the messages field
+      // alone.
+      //
+      // `parked.messages` is DELIBERATELY discarded in favour of the mirror's
+      // own already-converted copy: every write path (`apply` / `mutate`) ends
+      // in `sync`, which refreshes `lastConvertedThread` from the very snapshot
+      // `parked.messages` was taken from, so the two hold the same thread and
+      // the app-shape one survives replay without a needless round-trip through
+      // `fromUnifiedMessage` (which would defeat the identity caches).
+      // `parked.pendingEchoes` has no such app-shape twin and is passed through
+      // verbatim — the reducer drops expired entries and re-caps on restore.
       reseedByKey.set(key, {
         messages: lastConvertedThread.get(key)?.out ?? [],
         approvalStatuses: parked.approvalStatuses,
         lastAppliedSeq: parked.lastAppliedSeq,
+        pendingEchoes: parked.pendingEchoes,
       });
       // Bump BEFORE dropping the memoized handle: the next `bind(key)` builds
       // a fresh `BoundMirror` carrying the new epoch, which is what re-arms
@@ -464,10 +477,14 @@ export function createReducerMirror<K extends string>(config: ReducerMirrorConfi
     if (parked !== undefined) {
       reseedByKey.delete(key);
       // `null` keeps the fresh reducer's (empty) thread — the parked one had
-      // nothing to restore, and the statuses/cursor still must be.
+      // nothing to restore, and the statuses/cursor/echoes still must be.
       reducer.initializeWithState(parked.messages.length > 0 ? parked.messages.map(m => toUnifiedMessage(m)) : null, {
         approvalStatuses: parked.approvalStatuses,
         lastAppliedSeq: parked.lastAppliedSeq,
+        // Re-arms own-echo suppression for a send that was still in flight at
+        // eviction time; without it the pending `MESSAGE_REQUEST` echo renders
+        // a SECOND copy of the user's bubble. Expiry/cap are the reducer's job.
+        pendingEchoes: parked.pendingEchoes,
       });
     }
     return reducer;

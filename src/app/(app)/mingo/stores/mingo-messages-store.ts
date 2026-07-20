@@ -67,7 +67,7 @@ const mirror = createReducerMirror<string>({
     const usage = snap.dialogTokenUsage ?? null;
     useMingoMessagesStore.setState(state => {
       const newMessagesMap = new Map(state.messagesByDialog);
-      newMessagesMap.set(dialogId, messages as Message[]);
+      newMessagesMap.set(dialogId, messages);
       const newPhaseMap = new Map(state.phaseByDialog);
       newPhaseMap.set(dialogId, phase);
       const newStreamingMap = new Map(state.streamingIdByDialog);
@@ -78,6 +78,10 @@ const mirror = createReducerMirror<string>({
         phaseByDialog: newPhaseMap,
         streamingIdByDialog: newStreamingMap,
       };
+      // ADDITIVE ON PURPOSE: a post-eviction re-seed restores `messages` only,
+      // so the replacement reducer's first snapshot carries no token usage. A
+      // blanking write here would drop counters the host still legitimately
+      // holds — an empty/absent `usage` must never clear `tokenUsageByDialog`.
       if (usage && state.tokenUsageByDialog.get(dialogId) !== usage) {
         const newUsageMap = new Map(state.tokenUsageByDialog);
         newUsageMap.set(dialogId, usage as TokenUsageData);
@@ -109,11 +113,6 @@ export function bindMingoDialog(dialogId: string): BoundMirror {
 /** Run reducer commands (non-wire mutations) against a dialog, then mirror. */
 export function mutateMingoDialog<T>(dialogId: string, fn: (reducer: ChatStreamReducer) => T): T {
   return mirror.mutate(dialogId, fn);
-}
-
-/** Read-modify-write on the app-shape thread, delegated to the reducer. */
-function mutateThread(dialogId: string, op: (messages: Message[]) => Message[]): void {
-  mirror.mutateThread(dialogId, current => op(current as Message[]));
 }
 
 function dropDialogCaches(dialogId: string): void {
@@ -248,8 +247,9 @@ export const useMingoMessagesStore = create<MingoMessagesStore>()(
         // The active dialog is the only DISPLAYED thread, so it is the only
         // one pinned against the reducer LRU. Every other visited dialog
         // falls back to protection-by-recency (plus the store's own
-        // mid-stream guard); if one is evicted, the mirror suppresses its
-        // empty snapshot and the selection effect re-seeds it from history.
+        // mid-stream guard); if one is evicted, the store PUBLISHES that via
+        // `onEvict` and the mirror parks the key's last converted thread,
+        // re-seeding the replacement reducer with it on the next `getReducer`.
         mirror.setActiveKeys(dialogId ? [dialogId] : []);
         set({ activeDialogId: dialogId });
       },
@@ -296,7 +296,7 @@ export const useMingoMessagesStore = create<MingoMessagesStore>()(
       },
 
       removeWelcomeMessages: (dialogId: string) => {
-        mutateThread(dialogId, current => {
+        mirror.mutateThread(dialogId, current => {
           const filtered = current.filter(m => !m.id.startsWith('welcome-'));
           return filtered.length === current.length ? current : filtered;
         });

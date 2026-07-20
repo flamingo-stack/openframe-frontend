@@ -159,13 +159,16 @@ export interface ReducerMirrorConfig<K extends string> {
    *
    * INVARIANT: a key must ALWAYS map to the SAME `(dialogId, side)` for the
    * mirror's lifetime. Everything keyed by `K` here — the retain handles in
-   * `setActiveKeys`, the snapshot/conversion caches, the recreation
-   * bookkeeping — is looked up by key and resolved through this function
-   * lazily. `setActiveKeys` in particular short-circuits on a key that is
-   * already retained, so a key whose identity later changed would keep the
-   * retain (and the caches) pinned to its STALE `(dialogId, side)` forever.
-   * Encode any varying part in the key itself (mingo keys by dialogId;
-   * tickets keys by side over a constant thread key).
+   * `setActiveKeys`, the snapshot/conversion caches, the reseed parking — is
+   * looked up by key and resolved through this function lazily. The reseed
+   * path is the sharpest case: `keyForIdentity` translates the store's
+   * eviction signal back to `K` by re-running this function, and the thread
+   * `onEvict` parks in `reseedByKey` (taken from `lastConvertedThread`) is
+   * replayed into whatever `(dialogId, side)` the key resolves to LATER — so
+   * a key whose identity changed would park one thread and re-seed a
+   * different reducer with it, or never match at all and silently lose the
+   * re-seed. Encode any varying part in the key itself (mingo keys by
+   * dialogId; tickets keys by side over a constant thread key).
    */
   identityFor: (key: K) => {
     dialogId: string;
@@ -288,10 +291,12 @@ export interface ReducerMirror<K extends string> {
  * store with `messages: []`, blanking a visible thread. But pinning every key
  * the mirror has ever SEEN makes memory track dialogs-visited and defeats the
  * cap outright, so hosts declare the displayed key(s) via `setActiveKeys`
- * (mingo: its `activeDialogId`; tickets: both sides of the open ticket) and
- * everything else falls back to LRU protection-by-recency plus the store's
- * own `streamingPhase !== 'idle'` guard, which already refuses to evict a
- * live stream.
+ * (mingo: its `activeDialogId`; the ticket host deliberately declares NOTHING
+ * — see the retention note in `ticket-details-store.ts`: two sides against a
+ * cap of ten means eviction can never fire there) and everything else falls
+ * back to LRU protection-by-recency plus the store's own
+ * `streamingPhase !== 'idle'` guard, which already refuses to evict a live
+ * stream.
  *
  * EVICTION OF A NON-DISPLAYED KEY IS THEN SAFE because the store PUBLISHES
  * it: the mirror injects `onEvict` when it builds the store (hence
@@ -374,6 +379,15 @@ export function createReducerMirror<K extends string>(config: ReducerMirrorConfi
       if (key === undefined) return;
       flushedKey = key;
       const { dialogId, side } = identityFor(key);
+      // Through the MIRROR's `getReducer`, not `store.apply`'s implicit one:
+      // that is the call that consumes a parked re-seed. A buffered key is by
+      // definition still 'idle' (its deltas have not landed), hence evictable,
+      // so a later `apply(otherKey, …)` can evict it and then replay this
+      // buffer into a fresh EMPTY reducer — after which `onFlushed` → `sync`
+      // WOULD find the parked thread and `setMessages` right over the delta
+      // just applied. Seeding first makes "no store write for a key precedes
+      // its re-seed" hold by construction rather than by call ordering.
+      getReducer(key);
       store.apply(dialogId, side, delta);
     },
     onFlushed: () => {
@@ -625,10 +639,11 @@ export function createReducerMirror<K extends string>(config: ReducerMirrorConfi
     knownKeys.delete(key);
   }
 
-  // `getReducer` / `sync` / `apply` stay module-private: no host calls them,
-  // and an EXTERNAL `getReducer` would silently mutate the recreation
-  // bookkeeping (arming the post-eviction suppression) without the `sync`
-  // that is supposed to follow it.
+  // `getReducer` and `sync` stay module-private (`apply` is reachable only
+  // pre-curried, via `bind`). An EXTERNAL `getReducer` would CONSUME a parked
+  // post-eviction re-seed — `reseedByKey.delete` + `setMessages` — without the
+  // `sync` that is supposed to follow it, so the host store would keep showing
+  // its pre-eviction thread with no snapshot ever republishing it.
   return {
     store,
     setActiveKeys,

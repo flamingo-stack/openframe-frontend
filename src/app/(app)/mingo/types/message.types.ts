@@ -1,5 +1,4 @@
-import type { AssistantType, AuthorType, MessageContent } from '@flamingo-stack/openframe-frontend-core';
-import type { ChatContextItem } from '@flamingo-stack/openframe-frontend-core/components/chat';
+import type { Message as LibMessage } from '@flamingo-stack/openframe-frontend-core';
 import type { ChatType, OwnerType } from '../../tickets/constants';
 
 export interface GraphQlMessage {
@@ -16,22 +15,15 @@ export interface GraphQlMessage {
   messageData: any;
 }
 
-export interface CoreMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'error';
-  content: MessageContent;
-  authorType?: AuthorType;
-  name?: string;
-  assistantType?: AssistantType;
-  timestamp?: Date;
-  avatar?: string | null;
-  /** Highest content chunk streamSeq that composed this message; stamped on
-   *  realtime synthetics for per-message history-coverage dedup. */
-  streamSeq?: number;
-  /** Entity-context items attached to this (user) message via the composer's
-   *  context picker. Rendered as read-only chips under the bubble. */
-  contextItems?: ChatContextItem[];
-}
+/**
+ * THE lib `Message`, not a copy of it. This used to be a hand-rolled,
+ * slightly-narrower re-declaration (no `chatRefs` / `scrollAnchor` /
+ * `hidden`), which made every mirror seam — where the shared
+ * `createReducerMirror` hands back lib-shaped rows — need a cast, plus a
+ * wrapper whose only job was performing one. Aliasing keeps the mingo-facing
+ * name while making the two shapes the SAME type by construction.
+ */
+export type CoreMessage = LibMessage;
 
 export type Message = CoreMessage;
 

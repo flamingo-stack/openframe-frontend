@@ -593,7 +593,7 @@ export const useMyStore = create<MyState>()(
 
 ### Code Quality with Biome
 
-**Biome 2.4.4** is the primary linter and formatter (configured in `biome.json`).
+**Biome 2.4.4** is the primary linter and formatter (configured in `biome.jsonc`).
 
 **Key rules:**
 - `useConst` — always use `const` when possible

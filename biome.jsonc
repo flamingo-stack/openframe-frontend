@@ -125,9 +125,61 @@
       }
     },
     {
+      // Next.js MANDATES CONSTANT_CASE route-handler export names (GET/POST/…).
+      // Only the `function` selector is widened for that — locals, params, types
+      // and members in route files stay under the repo-wide convention.
       "includes": ["**/src/app/**/route.ts"],
       "linter": {
-        "rules": { "style": { "useNamingConvention": "off" } }
+        "rules": {
+          "style": {
+            "useNamingConvention": {
+              "level": "error",
+              "options": {
+                "strictCase": true,
+                "conventions": [
+                  {
+                    "selector": { "kind": "function" },
+                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": { "kind": "variable" },
+                    "formats": ["camelCase", "CONSTANT_CASE", "PascalCase"]
+                  },
+                  { "selector": { "kind": "class" }, "formats": ["PascalCase"] },
+                  {
+                    "selector": { "kind": "interface" },
+                    "formats": ["PascalCase"]
+                  },
+                  {
+                    "selector": { "kind": "typeAlias" },
+                    "formats": ["PascalCase"]
+                  },
+                  { "selector": { "kind": "enum" }, "formats": ["PascalCase"] },
+                  {
+                    "selector": { "kind": "enumMember" },
+                    "formats": ["PascalCase"]
+                  },
+                  {
+                    "selector": { "kind": "objectLiteralMember" },
+                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": { "kind": "typeMember" },
+                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": { "kind": "importAlias" },
+                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": { "kind": "exportAlias" },
+                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
+                  }
+                ]
+              }
+            }
+          }
+        }
       }
     }
   ]

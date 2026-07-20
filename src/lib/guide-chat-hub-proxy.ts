@@ -22,6 +22,8 @@
  *   - App cookies / Authorization are NOT forwarded to the hub (the service
  *     token IS the identity), and the token never reaches the browser (no
  *     NEXT_PUBLIC_ prefix).
+ *   - The VISITOR's IP is forwarded as `x-chat-ip`. See
+ *     `visitorIpFrom()` for why this is load-bearing, not optional.
  */
 
 import { NextResponse } from 'next/server';
@@ -31,6 +33,56 @@ function hubOrigin(): string | null {
   const raw = process.env.HUB_CHAT_BASE_URL?.trim();
   if (!raw) return null;
   return raw.replace(/\/+$/, '');
+}
+
+/** Emitted once per process — a deployed misconfiguration must not be silent. */
+let warnedMissingServiceToken = false;
+
+// Deliberately shape-only (not a full RFC-compliant validator): the point is
+// to reject anything that could smuggle CR/LF or extra header material into
+// the forwarded value. Anything that isn't recognisably an address is dropped.
+const IPV4_SHAPE = /^(\d{1,3}\.){3}\d{1,3}$/;
+const IPV6_SHAPE = /^[0-9a-fA-F:]{2,45}$/;
+
+function isPlausibleIp(value: string): boolean {
+  if (IPV4_SHAPE.test(value)) {
+    return value.split('.').every(part => Number(part) <= 255);
+  }
+  return value.includes(':') && IPV6_SHAPE.test(value);
+}
+
+/**
+ * Extract the end user's IP from the incoming request.
+ *
+ * WHY THIS MATTERS — do not "simplify" this away: without a forwarded
+ * visitor identity the hub can only bucket by this app server's single
+ * egress IP, so (a) the hub's guide-mode rate limit (5 req/min) is shared by
+ * EVERY user of this deployment — the 6th guide request in a minute 429s for
+ * everyone — and (b) every guide conversation persists under the same
+ * pseudo-visitor, destroying per-user conversation attribution.
+ *
+ * The hub honors `x-chat-ip` only on requests that also carry a valid
+ * `x-chat-service-token`; the service token IS the trust proof. We must NOT
+ * forward the impersonation-grade `CHAT_PROXY_SECRET` here — this proxy
+ * speaks for anonymous visitors and must not hold that power.
+ *
+ * `x-forwarded-for` FIRST hop is the client as seen by the edge; later hops
+ * are proxies. Values are validated for IP shape before forwarding so a
+ * hostile header can't inject anything into the upstream request.
+ */
+function visitorIpFrom(request: Request): string | null {
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  const candidates = [
+    ...(forwardedFor ? forwardedFor.split(',') : []),
+    request.headers.get('x-real-ip') ?? '',
+    // Vercel's connection IP (set by the platform, not client-controllable).
+    request.headers.get('x-vercel-forwarded-for') ?? '',
+  ];
+  for (const raw of candidates) {
+    const candidate = raw.trim().replace(/^\[|\]$/g, '');
+    if (candidate && isPlausibleIp(candidate)) return candidate;
+  }
+  return null;
 }
 
 /**
@@ -56,7 +108,22 @@ export async function proxyGuideChatToHub(request: Request, upstreamPath: string
   if (accept) headers.set('accept', accept);
   headers.set('x-openframe-chat-source', 'openframe');
   const token = process.env.CHAT_SERVICE_TOKEN?.trim();
-  if (token) headers.set('x-chat-service-token', token);
+  if (token) {
+    headers.set('x-chat-service-token', token);
+  } else if (!warnedMissingServiceToken) {
+    // Dev ergonomics keep the anonymous fallback, but in a deployed
+    // environment it turns a missing env var into a confusing partial
+    // outage (public sources answer, guide sources 401) with nothing in the
+    // logs. Say it once.
+    warnedMissingServiceToken = true;
+    console.warn('[guide-chat-proxy] CHAT_SERVICE_TOKEN unset — forwarding anonymously');
+  }
+
+  // Visitor identity for rate-limit bucketing + conversation attribution.
+  // Only meaningful alongside the service token (the hub gates `x-chat-ip`
+  // on it), but harmless to send either way. See `visitorIpFrom`.
+  const visitorIp = visitorIpFrom(request);
+  if (visitorIp) headers.set('x-chat-ip', visitorIp);
 
   let upstream: Response;
   try {

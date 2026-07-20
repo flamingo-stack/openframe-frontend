@@ -319,6 +319,7 @@ export function TicketDetailsView({ ticketId }: TicketDetailsViewProps) {
     undefined;
 
   const processClientChunk = useSideChunkProcessor('client', {
+    ticketId,
     userDisplayName: clientDisplayName,
     isDirectMode,
     onMetadata: useCallback((metadata: { modelDisplayName: string; providerName: string }) => {
@@ -327,6 +328,7 @@ export function TicketDetailsView({ ticketId }: TicketDetailsViewProps) {
   });
 
   const processAdminChunk = useSideChunkProcessor('admin', {
+    ticketId,
     onMetadata: useCallback((metadata: { modelDisplayName: string; providerName: string }) => {
       setCurrentAdminModel({ provider: metadata.providerName, displayName: metadata.modelDisplayName });
     }, []),

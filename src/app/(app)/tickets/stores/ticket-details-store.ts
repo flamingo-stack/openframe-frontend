@@ -3,12 +3,10 @@ import type { ChatStreamEvent } from '@flamingo-stack/openframe-frontend-core/ch
 import {
   type ChatApprovalStatus,
   type ChatStreamReducer,
-  type ChatStreamReducerOptions,
   createChatDialogStore,
-  type UnifiedChatMessage,
 } from '@flamingo-stack/openframe-frontend-core/components/chat';
 import { create } from 'zustand';
-import { fromUnifiedMessage, toUnifiedMessage } from '@/lib/chat-stream-thread';
+import { createReducerMirror, toUnifiedMessage } from '@/lib/chat-stream-thread';
 import { featureFlags } from '@/lib/feature-flags';
 
 export type ChatSide = 'client' | 'admin';
@@ -40,11 +38,16 @@ const approvalHandlersBySide = new Map<
   ChatSide,
   { onApprove?: (requestId?: string) => void | Promise<void>; onReject?: (requestId?: string) => void | Promise<void> }
 >();
-const lastSyncedSnapshot: Partial<Record<ChatSide, unknown>> = {};
-const lastConvertedThread: Partial<Record<ChatSide, { source: UnifiedChatMessage[]; out: ChatMessage[] }>> = {};
 
-function reducerOptions(side: ChatSide): ChatStreamReducerOptions {
-  return {
+/** All reducer-mirror scaffolding (create-or-get, snapshot change detection,
+ *  conversion cache, thread RMW, delta batching) lives in the shared
+ *  `createReducerMirror` factory — this host supplies only the key mapping
+ *  and the zustand patch. Mirror key = the chat SIDE (the thread key is
+ *  constant: only one ticket dialog is open at a time). */
+const mirror = createReducerMirror<ChatSide>({
+  store: ticketChatDialogStore,
+  identityFor: side => ({ dialogId: TICKET_THREAD_KEY, side, defaults: SIDE_IDENTITY[side] }),
+  options: side => ({
     transport: 'nats',
     displayApprovalTypes: ['CLIENT', 'ADMIN'],
     batchApprovalsEnabled: featureFlags.batchApproval.enabled(),
@@ -52,69 +55,49 @@ function reducerOptions(side: ChatSide): ChatStreamReducerOptions {
       onApprove: id => approvalHandlersBySide.get(side)?.onApprove?.(id),
       onReject: id => approvalHandlersBySide.get(side)?.onReject?.(id),
     },
-  };
-}
+  }),
+  onSnapshot: (side, { messages, phase, streamingId, state: snap }) => {
+    useTicketDetailsStore.setState(state => {
+      const nextSide: SideState = {
+        ...state[side],
+        messages,
+        isTyping: phase !== 'idle',
+        streamingId,
+      };
 
-function getSideReducer(side: ChatSide): ChatStreamReducer {
-  return ticketChatDialogStore.getReducer(TICKET_THREAD_KEY, side, () => reducerOptions(side));
-}
-
-/** Mirror one side's reducer snapshot into zustand (no-op when unchanged). */
-function syncSide(side: ChatSide): void {
-  getSideReducer(side);
-  const snap = ticketChatDialogStore.getSnapshot(TICKET_THREAD_KEY, side);
-  if (lastSyncedSnapshot[side] === snap) return;
-  lastSyncedSnapshot[side] = snap;
-
-  const prevConverted = lastConvertedThread[side];
-  const messages =
-    prevConverted && prevConverted.source === snap.messages
-      ? prevConverted.out
-      : snap.messages.map(u => fromUnifiedMessage(u, SIDE_IDENTITY[side]));
-  lastConvertedThread[side] = { source: snap.messages, out: messages };
-
-  const phase = snap.streamingPhase;
-  const last = messages[messages.length - 1];
-  const streamingId = phase === 'streaming' && last?.role === 'assistant' ? last.id : null;
-
-  useTicketDetailsStore.setState(state => {
-    const nextSide: SideState = {
-      ...state[side],
-      messages,
-      isTyping: phase !== 'idle',
-      streamingId,
-    };
-
-    // Approval resolutions the reducer learned from stream events flow
-    // back into the shared status map (history processing + pending-card
-    // extraction read it).
-    let approvalStatuses = state.approvalStatuses;
-    for (const [id, status] of Object.entries(snap.approvalStatuses)) {
-      if ((status === 'approved' || status === 'rejected') && approvalStatuses[id] !== status) {
-        if (approvalStatuses === state.approvalStatuses) approvalStatuses = { ...approvalStatuses };
-        approvalStatuses[id] = status;
+      // Approval resolutions the reducer learned from stream events flow
+      // back into the shared status map (history processing + pending-card
+      // extraction read it).
+      let approvalStatuses = state.approvalStatuses;
+      for (const [id, status] of Object.entries(snap.approvalStatuses)) {
+        if ((status === 'approved' || status === 'rejected') && approvalStatuses[id] !== status) {
+          if (approvalStatuses === state.approvalStatuses) approvalStatuses = { ...approvalStatuses };
+          approvalStatuses[id] = status;
+        }
       }
-    }
 
-    return side === 'client' ? { client: nextSide, approvalStatuses } : { admin: nextSide, approvalStatuses };
-  });
-}
+      return side === 'client' ? { client: nextSide, approvalStatuses } : { admin: nextSide, approvalStatuses };
+    });
+  },
+});
 
 /** Apply one decoded stream event to a side. The dialog store fans the
  *  cross-side projections out to the other side, so both mirrors resync. */
 export function applyTicketChatEvent(side: ChatSide, event: ChatStreamEvent): void {
-  getSideReducer('client');
-  getSideReducer('admin');
-  ticketChatDialogStore.apply(TICKET_THREAD_KEY, side, event);
-  syncSide('client');
-  syncSide('admin');
+  // Both reducers must exist before `apply` so the cross-side projections
+  // have a target even when the other side has never streamed.
+  mirror.getReducer('client');
+  mirror.getReducer('admin');
+  mirror.apply(side, event);
+  // Cross-side projections land on the OTHER side's reducer; re-sync both.
+  // No-ops when a side's snapshot is unchanged.
+  mirror.sync('client');
+  mirror.sync('admin');
 }
 
 /** Run reducer commands (non-wire mutations) against one side, then mirror. */
 export function mutateTicketSide<T>(side: ChatSide, fn: (reducer: ChatStreamReducer) => T): T {
-  const result = ticketChatDialogStore.mutate(TICKET_THREAD_KEY, side, fn);
-  syncSide(side);
-  return result;
+  return mirror.mutate(side, fn);
 }
 
 /** Merge the app's approval-status map into one side's reducer lookup.
@@ -130,19 +113,12 @@ export function syncTicketApprovalStatuses(side: ChatSide, statuses: Record<stri
 
 /** Read-modify-write on one side's app-shape thread. */
 function mutateThread(side: ChatSide, op: (messages: ChatMessage[]) => ChatMessage[]): void {
-  mutateTicketSide(side, reducer => {
-    const current = reducer.state.messages.map(u => fromUnifiedMessage(u, SIDE_IDENTITY[side]));
-    const next = op(current);
-    if (next === current) return;
-    reducer.setMessages(next.map(m => toUnifiedMessage(m)));
-  });
+  mirror.mutateThread(side, op);
 }
 
 function dropSideCaches(side: ChatSide): void {
-  ticketChatDialogStore.remove(TICKET_THREAD_KEY, side);
+  mirror.drop(side);
   approvalHandlersBySide.delete(side);
-  delete lastSyncedSnapshot[side];
-  delete lastConvertedThread[side];
 }
 
 // ─── Zustand store (persistence/cache + identity + read mirror) ─────────────

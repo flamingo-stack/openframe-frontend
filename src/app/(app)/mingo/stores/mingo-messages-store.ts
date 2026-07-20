@@ -3,15 +3,13 @@ import type { ChatStreamEvent } from '@flamingo-stack/openframe-frontend-core/ch
 import {
   type ChatApprovalStatus,
   type ChatStreamReducer,
-  type ChatStreamReducerOptions,
   createChatDialogStore,
   DEFAULT_DIALOG_SIDE,
   type StreamingPhase,
-  type UnifiedChatMessage,
 } from '@flamingo-stack/openframe-frontend-core/components/chat';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { fromUnifiedMessage, toUnifiedMessage } from '@/lib/chat-stream-thread';
+import { createReducerMirror, toUnifiedMessage } from '@/lib/chat-stream-thread';
 import { featureFlags } from '@/lib/feature-flags';
 import type { DialogNode, Message } from '../types';
 
@@ -36,12 +34,15 @@ const approvalHandlersByDialog = new Map<
   string,
   { onApprove?: (requestId?: string) => void | Promise<void>; onReject?: (requestId?: string) => void | Promise<void> }
 >();
-const knownDialogIds = new Set<string>();
-const lastSyncedSnapshot = new Map<string, unknown>();
-const lastConvertedThread = new Map<string, { source: UnifiedChatMessage[]; out: Message[] }>();
 
-function reducerOptions(dialogId: string): ChatStreamReducerOptions {
-  return {
+/** All reducer-mirror scaffolding (create-or-get, snapshot change detection,
+ *  conversion cache, thread RMW, delta batching) lives in the shared
+ *  `createReducerMirror` factory — this host supplies only the key mapping
+ *  and the zustand patch. Mirror key = dialogId (side is always 'main'). */
+const mirror = createReducerMirror<string>({
+  store: mingoChatDialogStore,
+  identityFor: dialogId => ({ dialogId, side: DEFAULT_DIALOG_SIDE, defaults: MINGO_IDENTITY }),
+  options: dialogId => ({
     transport: 'nats',
     displayApprovalTypes: ['CLIENT', 'ADMIN'],
     batchApprovalsEnabled: featureFlags.batchApproval.enabled(),
@@ -49,13 +50,31 @@ function reducerOptions(dialogId: string): ChatStreamReducerOptions {
       onApprove: id => approvalHandlersByDialog.get(dialogId)?.onApprove?.(id),
       onReject: id => approvalHandlersByDialog.get(dialogId)?.onReject?.(id),
     },
-  };
-}
+  }),
+  onSnapshot: (dialogId, { messages, phase, streamingId, state: snap }) => {
+    const usage = snap.dialogTokenUsage ?? null;
+    useMingoMessagesStore.setState(state => {
+      const newMessagesMap = new Map(state.messagesByDialog);
+      newMessagesMap.set(dialogId, messages as Message[]);
+      const newPhaseMap = new Map(state.phaseByDialog);
+      newPhaseMap.set(dialogId, phase);
+      const newStreamingMap = new Map(state.streamingIdByDialog);
+      newStreamingMap.set(dialogId, streamingId);
 
-function getMingoReducer(dialogId: string): ChatStreamReducer {
-  knownDialogIds.add(dialogId);
-  return mingoChatDialogStore.getReducer(dialogId, DEFAULT_DIALOG_SIDE, () => reducerOptions(dialogId));
-}
+      const patch: Partial<MingoMessagesStore> = {
+        messagesByDialog: newMessagesMap,
+        phaseByDialog: newPhaseMap,
+        streamingIdByDialog: newStreamingMap,
+      };
+      if (usage && state.tokenUsageByDialog.get(dialogId) !== usage) {
+        const newUsageMap = new Map(state.tokenUsageByDialog);
+        newUsageMap.set(dialogId, usage as TokenUsageData);
+        patch.tokenUsageByDialog = newUsageMap;
+      }
+      return patch;
+    });
+  },
+});
 
 /** Late-bind approve/reject handlers (stamped onto approval segments). */
 export function setMingoApprovalHandlers(
@@ -68,78 +87,24 @@ export function setMingoApprovalHandlers(
   approvalHandlersByDialog.set(dialogId, handlers);
 }
 
-/** Mirror the reducer snapshot into the zustand store (no-op when unchanged). */
-function syncMirror(dialogId: string): void {
-  getMingoReducer(dialogId);
-  const snap = mingoChatDialogStore.getSnapshot(dialogId, DEFAULT_DIALOG_SIDE);
-  if (lastSyncedSnapshot.get(dialogId) === snap) return;
-  lastSyncedSnapshot.set(dialogId, snap);
-
-  const prevConverted = lastConvertedThread.get(dialogId);
-  const messages =
-    prevConverted && prevConverted.source === snap.messages
-      ? prevConverted.out
-      : snap.messages.map(u => fromUnifiedMessage(u, MINGO_IDENTITY) as Message);
-  lastConvertedThread.set(dialogId, { source: snap.messages, out: messages });
-
-  const phase = snap.streamingPhase;
-  const last = messages[messages.length - 1];
-  const streamingId = phase === 'streaming' && last?.role === 'assistant' ? last.id : null;
-  const usage = snap.dialogTokenUsage ?? null;
-
-  useMingoMessagesStore.setState(state => {
-    const newMessagesMap = new Map(state.messagesByDialog);
-    newMessagesMap.set(dialogId, messages);
-    const newPhaseMap = new Map(state.phaseByDialog);
-    newPhaseMap.set(dialogId, phase);
-    const newStreamingMap = new Map(state.streamingIdByDialog);
-    newStreamingMap.set(dialogId, streamingId);
-
-    const patch: Partial<MingoMessagesStore> = {
-      messagesByDialog: newMessagesMap,
-      phaseByDialog: newPhaseMap,
-      streamingIdByDialog: newStreamingMap,
-    };
-    if (usage && state.tokenUsageByDialog.get(dialogId) !== usage) {
-      const newUsageMap = new Map(state.tokenUsageByDialog);
-      newUsageMap.set(dialogId, usage as TokenUsageData);
-      patch.tokenUsageByDialog = newUsageMap;
-    }
-    return patch;
-  });
-}
-
 /** Apply one decoded stream event to a dialog's reducer, then mirror. */
 export function applyMingoChatEvent(dialogId: string, event: ChatStreamEvent): void {
-  getMingoReducer(dialogId);
-  mingoChatDialogStore.apply(dialogId, DEFAULT_DIALOG_SIDE, event);
-  syncMirror(dialogId);
+  mirror.apply(dialogId, event);
 }
 
 /** Run reducer commands (non-wire mutations) against a dialog, then mirror. */
 export function mutateMingoDialog<T>(dialogId: string, fn: (reducer: ChatStreamReducer) => T): T {
-  getMingoReducer(dialogId);
-  const result = mingoChatDialogStore.mutate(dialogId, DEFAULT_DIALOG_SIDE, fn);
-  syncMirror(dialogId);
-  return result;
+  return mirror.mutate(dialogId, fn);
 }
 
 /** Read-modify-write on the app-shape thread, delegated to the reducer. */
 function mutateThread(dialogId: string, op: (messages: Message[]) => Message[]): void {
-  mutateMingoDialog(dialogId, reducer => {
-    const current = reducer.state.messages.map(u => fromUnifiedMessage(u, MINGO_IDENTITY) as Message);
-    const next = op(current);
-    if (next === current) return;
-    reducer.setMessages(next.map(m => toUnifiedMessage(m)));
-  });
+  mirror.mutateThread(dialogId, current => op(current as Message[]));
 }
 
 function dropDialogCaches(dialogId: string): void {
-  mingoChatDialogStore.remove(dialogId);
+  mirror.drop(dialogId);
   approvalHandlersByDialog.delete(dialogId);
-  lastSyncedSnapshot.delete(dialogId);
-  lastConvertedThread.delete(dialogId);
-  knownDialogIds.delete(dialogId);
 }
 
 // ─── Zustand store (persistence/cache + identity + read mirror) ─────────────
@@ -435,7 +400,7 @@ export const useMingoMessagesStore = create<MingoMessagesStore>()(
       },
 
       resetAll: () => {
-        for (const dialogId of [...knownDialogIds]) dropDialogCaches(dialogId);
+        for (const dialogId of mirror.knownKeys()) dropDialogCaches(dialogId);
         set({
           messagesByDialog: new Map(),
           phaseByDialog: new Map(),

@@ -5,13 +5,14 @@ import {
   type NatsMessageType,
   useJetStreamDialogSubscription,
 } from '@flamingo-stack/openframe-frontend-core';
-import { decodeNatsChunk } from '@flamingo-stack/openframe-frontend-core/chat-protocol';
+import type { ChatStreamEvent } from '@flamingo-stack/openframe-frontend-core/chat-protocol';
+import type { ChatStreamReducer } from '@flamingo-stack/openframe-frontend-core/components/chat';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { registerActiveDialogView } from '@/lib/active-dialog-views';
-import { computeIncompleteTailState } from '@/lib/chat-stream-thread';
 import { featureFlags } from '@/lib/feature-flags';
 import { useNatsAppConfig } from '@/lib/nats/nats-app-config';
+import { type ChatModelMetadata, useChatChunkProcessor } from '@/lib/use-chat-chunk-processor';
 import { useAuthStore } from '@/stores';
 import {
   applyMingoChatEvent,
@@ -146,12 +147,7 @@ interface UseDialogChunkProcessorOptions {
   onApprove?: (requestId?: string) => void | Promise<void>;
   onReject?: (requestId?: string) => void | Promise<void>;
   approvalStatuses?: Record<string, any>;
-  onMetadata?: (metadata: {
-    modelDisplayName: string;
-    modelName: string;
-    providerName: string;
-    contextWindow: number;
-  }) => void;
+  onMetadata?: (metadata: ChatModelMetadata) => void;
 }
 
 /**
@@ -160,19 +156,15 @@ interface UseDialogChunkProcessorOptions {
  * accumulation rule that used to live in the ~270-LOC callback glue here
  * (stream windows, segment routing, cross-message tool merges, approval
  * flips, participant dedup, typing phase); the store mirrors its snapshot.
- * Only true side concerns remain: own-echo suppression (the optimistic
- * send already rendered the user's bubble), the metadata side-channel for
- * the model badge, approval handler binding, and the one-shot
- * incomplete-turn seed after history hydration.
+ * The residual side concerns (own-echo suppression, the metadata
+ * side-channel, approval-status sync, the keyed incomplete-turn seed) are
+ * shared with the tickets processor via `useChatChunkProcessor`; only the
+ * approval-handler binding is mingo-specific.
  */
 function useDialogChunkProcessor(dialogId: string, options: UseDialogChunkProcessorOptions = {}) {
   const { onApprove, onReject, approvalStatuses, onMetadata } = options;
 
   const currentUserId = useAuthStore(state => state.user?.id);
-  const currentUserIdRef = useRef(currentUserId);
-  currentUserIdRef.current = currentUserId;
-  const onMetadataRef = useRef(onMetadata);
-  onMetadataRef.current = onMetadata;
 
   useEffect(() => {
     if (onApprove || onReject) {
@@ -180,57 +172,30 @@ function useDialogChunkProcessor(dialogId: string, options: UseDialogChunkProces
     }
   }, [dialogId, onApprove, onReject]);
 
-  // Status lookup the reducer consults when an APPROVAL_REQUEST replays.
-  useEffect(() => {
-    if (approvalStatuses && Object.keys(approvalStatuses).length > 0) {
-      syncMingoApprovalStatuses(dialogId, approvalStatuses);
-    }
-  }, [dialogId, approvalStatuses]);
-
-  // One-shot incomplete-turn seed: once the hydrated thread shows an
-  // unfinished trailing assistant run (pending approvals / executing
-  // tools), seed the reducer's per-turn kernel so continuation chunks
-  // merge instead of replaying into a fresh bubble.
   const messages = useMingoMessagesStore(s => s.messagesByDialog.get(dialogId));
-  const seededRef = useRef(false);
-  useEffect(() => {
-    if (seededRef.current || !messages || messages.length === 0) return;
-    const extras = computeIncompleteTailState(messages);
-    if (!extras) return;
-    seededRef.current = true;
-    mutateMingoDialog(dialogId, r => r.initializeWithState(null, extras));
-  }, [dialogId, messages]);
 
-  const processChunk = useCallback(
-    (chunk: unknown) => {
-      const event = decodeNatsChunk(chunk);
-      if (!event) return;
-
-      // Side-channel: model badge refinement (kept outside the reducer).
-      if (event.type === 'metadata') {
-        onMetadataRef.current?.({
-          modelDisplayName: event.modelLabel ?? event.modelName ?? '',
-          modelName: event.modelName ?? '',
-          providerName: event.provider ?? '',
-          contextWindow: event.contextWindowMaxTokens ?? 0,
-        });
-      }
-
-      // Own MESSAGE_REQUEST echo — the optimistic send already rendered it
-      // (with the admin's name/avatar, which the wire echo doesn't carry).
-      if (
-        event.type === 'participant' &&
-        event.kind === 'message-request' &&
-        event.userId &&
-        event.userId === currentUserIdRef.current
-      ) {
-        return;
-      }
-
-      applyMingoChatEvent(dialogId, event);
+  const apply = useCallback((event: ChatStreamEvent) => applyMingoChatEvent(dialogId, event), [dialogId]);
+  const mutate = useCallback(
+    (fn: (reducer: ChatStreamReducer) => void) => {
+      mutateMingoDialog(dialogId, fn);
     },
     [dialogId],
   );
+  const syncApprovalStatuses = useCallback(
+    (statuses: Record<string, string>) => syncMingoApprovalStatuses(dialogId, statuses),
+    [dialogId],
+  );
+
+  const processChunk = useChatChunkProcessor({
+    apply,
+    mutate,
+    messages,
+    seedKey: dialogId,
+    currentUserId,
+    onMetadata,
+    approvalStatuses,
+    syncApprovalStatuses,
+  });
 
   return { processChunk };
 }

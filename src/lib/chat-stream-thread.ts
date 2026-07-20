@@ -422,6 +422,12 @@ export function natsMirrorOptions<K extends string>(
     transport: 'nats',
     displayApprovalTypes: ['CLIENT', 'ADMIN'],
     batchApprovalsEnabled: batchApprovalsEnabled(),
+    // This app's operator IS the admin: every optimistic send here is
+    // admin-authored, so its MESSAGE_REQUEST echo comes back with
+    // ownerType 'ADMIN'. Without this the reducer skips echo consumption
+    // for ADMIN rows (correct on hosts where an ADMIN row is a
+    // technician's reply) and every message we send renders twice.
+    ownEchoIncludesAdmin: true,
     callbacks: {
       onApprove: (id?: string) => handlersFor(key)?.onApprove?.(id),
       onReject: (id?: string) => handlersFor(key)?.onReject?.(id),

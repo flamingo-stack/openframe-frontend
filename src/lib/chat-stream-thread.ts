@@ -14,7 +14,7 @@
 
 import {
   type Message as ChatMessage,
-  extractIncompleteMessageState,
+  extractIncompleteTailState,
   type MessageSegment,
 } from '@flamingo-stack/openframe-frontend-core';
 import type { ChatStreamEvent } from '@flamingo-stack/openframe-frontend-core/chat-protocol';
@@ -90,45 +90,16 @@ export function fromUnifiedMessage(unified: UnifiedChatMessage, defaults: Thread
 /**
  * Incomplete-turn tail of a hydrated thread → the reducer's
  * `initializeWithState` extras (accumulator seed: pending approvals +
- * executing tools + trailing segments). Collects the trailing ASSISTANT
- * run (consecutive assistant rows), exactly like the pre-Phase-4 per-side
- * `incompleteState` memos did.
+ * executing tools + trailing segments).
  *
- * TODO(lib-export): replace this local copy with the lib's run-collecting
- * `extractIncompleteTailState` once it ships —
- *   import { extractIncompleteTailState } from '@flamingo-stack/openframe-frontend-core/components/chat'
- * — so the NATS adapter and this app share one implementation. Not yet
- * exported by the pinned lib, hence the duplicate.
+ * The run-collecting walk lives in the lib (`extractIncompleteTailState`),
+ * shared with the NATS adapter, so there is ONE incompleteness rule set.
+ * This wrapper only adapts the app's `ChatMessage` rows to the lib's
+ * `ProcessedMessage` shape.
  */
 export function computeIncompleteTailState(messages: readonly ChatMessage[]): InitializeExtras | undefined {
-  const tail: MessageSegment[] = [];
-  let lastAssistantId = '';
-  let lastAssistantTimestamp = new Date();
-
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (msg.role !== 'assistant') break;
-    if (!lastAssistantId) {
-      lastAssistantId = msg.id;
-      lastAssistantTimestamp = msg.timestamp || new Date();
-    }
-    if (Array.isArray(msg.content)) {
-      tail.unshift(...msg.content);
-    } else if (typeof msg.content === 'string' && msg.content) {
-      tail.unshift({ type: 'text', text: msg.content } as MessageSegment);
-    }
-  }
-
-  if (!tail.length || !lastAssistantId) return undefined;
-
   return (
-    extractIncompleteMessageState({
-      id: lastAssistantId,
-      role: 'assistant',
-      content: tail,
-      name: 'assistant',
-      timestamp: lastAssistantTimestamp,
-    } as Parameters<typeof extractIncompleteMessageState>[0]) ?? undefined
+    extractIncompleteTailState(messages as unknown as Parameters<typeof extractIncompleteTailState>[0]) ?? undefined
   );
 }
 

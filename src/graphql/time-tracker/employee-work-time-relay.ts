@@ -25,7 +25,6 @@ export const employeeWorkTimeRelayFragment = graphql`
     employeeTimeEntries(
       filter: $filter
       search: $search
-      sort: { field: "startedAt", direction: DESC }
       first: $first
       after: $after
     ) @connection(key: "EmployeeWorkTime_employeeTimeEntries", filters: ["filter", "search"]) {

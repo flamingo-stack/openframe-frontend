@@ -6,8 +6,10 @@ import { Suspense, useId, useState } from 'react';
 import { graphql, useLazyLoadQuery } from 'react-relay';
 import type { testClockPanelQuery as TestClockPanelQueryType } from '@/__generated__/testClockPanelQuery.graphql';
 import { ConfirmDialog } from '@/app/components/shared/confirm-dialog';
+import { BillingProvisioningState } from '@/generated/schema-enums';
 import { formatDateTime } from '@/lib/format-date';
 import { runtimeEnv } from '@/lib/runtime-config';
+import { useBillingProvisioningStatus } from '../hooks/use-billing-provisioning-status';
 import { useAdvanceTestClock, useResetTestClock } from '../hooks/use-test-clock';
 
 interface TestClockPanelProps {
@@ -51,6 +53,7 @@ function TestClockPanelContent({ onClockChanged }: TestClockPanelProps) {
   const data = useLazyLoadQuery<TestClockPanelQueryType>(testClockPanelQuery, {}, { fetchPolicy: 'store-and-network' });
   const advance = useAdvanceTestClock();
   const reset = useResetTestClock();
+  const provisioning = useBillingProvisioningStatus();
 
   const [daysInput, setDaysInput] = useState('1');
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
@@ -77,8 +80,13 @@ function TestClockPanelContent({ onClockChanged }: TestClockPanelProps) {
       setFrozenTimeOverride(null);
       setConfirmResetOpen(false);
       onClockChanged();
+      // The reset drops the Stripe customer; the schedulers rebuild it over the
+      // next minutes, so start watching provisioning again.
+      provisioning.restart();
     });
   };
+
+  const isProvisioningReady = provisioning.status?.state === BillingProvisioningState.READY;
 
   return (
     <div className="flex flex-col gap-[var(--spacing-system-s)] rounded-md border border-ods-warning bg-ods-card p-[var(--spacing-system-m)]">
@@ -97,6 +105,18 @@ function TestClockPanelContent({ onClockChanged }: TestClockPanelProps) {
           <span className="text-ods-text-secondary">Real time (no test clock)</span>
         )}
       </p>
+
+      {/* Provisioning is only trustworthy at READY — after a reset (or a fresh
+          registration) the schedulers spend a few minutes rebuilding the Stripe
+          customer, and the billing data on this page is stale until they finish. */}
+      {provisioning.status && (
+        <p className="text-h4 text-ods-text-primary">
+          Provisioning:{' '}
+          <span className={isProvisioningReady ? 'text-ods-success' : 'text-ods-warning'}>
+            {provisioning.status.message}
+          </span>
+        </p>
+      )}
 
       <form
         className="flex flex-wrap items-end gap-[var(--spacing-system-s)]"

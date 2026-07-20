@@ -406,10 +406,13 @@ export function createReducerMirror<K extends string>(config: ReducerMirrorConfi
       // alone.
       //
       // `parked.messages` is DELIBERATELY discarded in favour of the mirror's
-      // own already-converted copy: every write path (`apply` / `mutate`) ends
-      // in `sync`, which refreshes `lastConvertedThread` from the very snapshot
-      // `parked.messages` was taken from, so the two hold the same thread and
-      // the app-shape one survives replay without a needless round-trip through
+      // own already-converted copy, which holds the SAME thread: every write
+      // path (`apply` / `mutate` / the batcher's `onFlushed`) ends in `sync`,
+      // which refreshes `lastConvertedThread` from the very snapshot
+      // `parked.messages` was taken from — and `getReducer` re-seeds the entry
+      // straight after a restore, so a key evicted twice with no `sync` in
+      // between still parks its thread rather than an empty array. Keeping the
+      // app-shape copy lets it survive replay without a round-trip through
       // `fromUnifiedMessage` (which would defeat the identity caches).
       // `parked.pendingEchoes` has no such app-shape twin and is passed through
       // verbatim — the reducer drops expired entries and re-caps on restore.
@@ -466,7 +469,7 @@ export function createReducerMirror<K extends string>(config: ReducerMirrorConfi
 
   function getReducer(key: K): ChatStreamReducer {
     knownKeys.add(key);
-    const { dialogId, side } = identityFor(key);
+    const { dialogId, side, defaults } = identityFor(key);
     const reducer = store.getReducer(dialogId, side, () => options(key));
     // This is the first look at the replacement instance for an evicted key —
     // restore the parked state before any caller reads it, so the resumed
@@ -485,6 +488,23 @@ export function createReducerMirror<K extends string>(config: ReducerMirrorConfi
         // eviction time; without it the pending `MESSAGE_REQUEST` echo renders
         // a SECOND copy of the user's bubble. Expiry/cap are the reducer's job.
         pendingEchoes: parked.pendingEchoes,
+      });
+      // Re-establish the `lastConvertedThread` invariant that `onEvict` relies
+      // on (it parks `lastConvertedThread.get(key)?.out ?? []`). Without this,
+      // a key evicted a SECOND time BEFORE any `sync` — reachable through the
+      // sibling-materialization window, since `onEvict` deleted the entry and
+      // nothing between here and the next `sync` repopulates it — would park
+      // `messages: []` and LOSE the restored thread.
+      //
+      // Deliberately the same expression `sync`'s cold path uses, over the same
+      // snapshot, so the seeded pair is by construction what `sync` would have
+      // produced. It is also a cache WARM rather than a re-conversion:
+      // `fromUnifiedMessage` hits the `toAppCache` entry `toUnifiedMessage`
+      // wrote on the way in, returning the very app-shape rows just parked.
+      const seeded = store.getSnapshot(dialogId, side);
+      lastConvertedThread.set(key, {
+        source: seeded.messages,
+        out: seeded.messages.map((u: UnifiedChatMessage) => fromUnifiedMessage(u, defaults)),
       });
     }
     return reducer;

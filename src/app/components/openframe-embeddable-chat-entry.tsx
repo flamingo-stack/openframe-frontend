@@ -20,8 +20,14 @@
  * here alongside `<EmbeddableChat>`, wired from the hook's `subscription`
  * bundle — exactly as the `/mingo` page does.
  *
- * Mingo is the ONLY transport: Guide mode (the SSE hub integration) has been
- * removed, so there is no in-panel mode toggle and no `modes.guide` wiring.
+ * Guide mode (the SSE hub integration) is RESTORED as the second transport
+ * (Phase 5 of the chat unification): `modes.guide` activates the lib's
+ * unified SSE adapter, whose endpoints come from
+ * `OpenframeChatRuntimeProvider` — the same-origin `/api/guide-chat/*`
+ * proxy routes that forward server-side to the hub with the server-held
+ * service token. Both modes existing makes the lib show the in-panel
+ * guide↔mingo toggle; `defaultActiveMode="mingo"` keeps Mingo the landing
+ * mode, and both transports share ONE reader (`createChatStreamReducer`).
  *
  * Coexists with the old `/mingo` page route during migration.
  */
@@ -156,12 +162,16 @@ export function OpenframeEmbeddableChatEntry({ open, onOpenChange }: OpenframeEm
         userDisplayName={userDisplayName}
         // Mingo mode is host-owned via `mingoState`, so we do NOT pass
         // `modes.mingo` — that keeps the lib's built-in NATS adapter idle.
-        // The EXPLICIT empty object matters: omitting `modes` entirely makes
-        // the lib fall back to its legacy guide-only default, resurrecting the
-        // removed Guide (SSE hub) mode. With no `modes.guide`, the panel is
-        // Mingo-only: no mode toggle, no "Start Guide Chat" entry point, and
-        // the uncontrolled active mode defaults to 'mingo'.
-        modes={{}}
+        // `modes.guide` (re)enables Guide mode on the lib's unified SSE
+        // adapter: endpoints come from `OpenframeChatRuntimeProvider`'s
+        // `/api/guide-chat/*` service-token proxy routes, and the adapter's
+        // baked-in `defaultTableIdForDocumentType` covers the hub's registered
+        // document types, so no per-host config is required here. Guide +
+        // Mingo both present → the lib renders the in-panel mode toggle;
+        // `defaultActiveMode` keeps Mingo the landing mode (without it the
+        // lib would default to Guide whenever `modes.guide` exists).
+        modes={{ guide: {} }}
+        defaultActiveMode="mingo"
         mingoState={state}
         // Dialog management for the host-injected Mingo state:
         //  - search: the chat-history search bar emits the debounced term into

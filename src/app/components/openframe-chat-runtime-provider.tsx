@@ -9,10 +9,15 @@
  *
  *   - Mingo callbacks live in `MingoEmbeddableChatEntry` and don't touch
  *     this runtime — they call `apiClient` against `/chat/*` directly.
- *   - Guide reads its endpoint URLs FROM this runtime. Each Guide path
- *     is prefixed with `/content/`; the openframe-frontend Next.js layer
- *     reverse-proxies that prefix to the MPH origin so neither the lib
- *     nor the host page learns the upstream MPH URL.
+ *   - Guide reads its endpoint URLs FROM this runtime, via TWO proxies:
+ *     the three CHAT endpoints (stream / approval / commands) hit the
+ *     app's own `/api/guide-chat/*` route handlers, which forward
+ *     server-side to the hub with the server-held `CHAT_SERVICE_TOKEN`
+ *     (service-tier auth waiver — see `@/lib/guide-chat-hub-proxy`);
+ *     every other content endpoint keeps the `/content/` prefix that the
+ *     openframe-frontend Next.js layer reverse-proxies to the MPH origin.
+ *     Either way, neither the lib nor the host page learns the upstream
+ *     MPH URL.
  *
  * Navigation is `mode: 'host'` — IDENTICAL to MPH's `HubRuntimeProvider`
  * (hub.openframe.ai). openframe-frontend hosts its own copy of the content the
@@ -67,9 +72,10 @@ import { refreshAccessToken } from '@/lib/token-refresh-manager';
 
 /** Stable source identifier used for localStorage namespacing inside the
  *  lib (`mingo-chat-openframe-v1` keys). Must not change between
- *  deployments or users lose their local Guide history. Openframe is
- *  Mingo-only today, so the source value is more of a namespace label
- *  than a content discriminator. */
+ *  deployments or users lose their local Guide history. Matches the fixed
+ *  `x-openframe-chat-source: openframe` value the guide-chat proxy sends
+ *  the hub (the wire source is still resolved SERVER-side; this client
+ *  copy only namespaces storage + informs link decisions). */
 const CHAT_SOURCE = 'openframe' as const;
 
 /**
@@ -188,10 +194,18 @@ export function OpenframeChatRuntimeProvider({ children }: { children: ReactNode
 
     return {
       endpoints: {
-        // Upstream paths verified live against the deployed instance
-        // (2026-05-29 endpoint table).
-        chatStreamUrl: content('/api/docs/chat'),
-        approvalToolUrl: content('/api/chat/agent/confirm-tool'),
+        // Guide-mode CHAT endpoints go through the app's OWN Next.js proxy
+        // routes (`src/app/api/guide-chat/*`), NOT the `/content` gateway
+        // proxy. The route handlers forward server-side to the hub
+        // (`HUB_CHAT_BASE_URL`) with the server-held `CHAT_SERVICE_TOKEN` +
+        // `x-openframe-chat-source: openframe` headers — the hub waives auth
+        // with a 'service' tier, so the browser needs no hub credentials and
+        // the token never leaves the server. Same-origin relative URLs keep
+        // `embedAuthedFetch`'s cross-origin guard satisfied in every build.
+        // (Native shell: no Next server → these routes don't exist there;
+        // Guide mode is a web-only surface, matching the `/content` rewrite.)
+        chatStreamUrl: '/api/guide-chat',
+        approvalToolUrl: '/api/guide-chat/approval',
         // Help Center ticket agent endpoints — proxied under `/content` like
         // every other endpoint, so they route through the existing `/content/*`
         // rewrite (dev) + platform reverse-proxy (prod). No bare `/api/chat/agent/*`
@@ -199,7 +213,7 @@ export function OpenframeChatRuntimeProvider({ children }: { children: ReactNode
         findTicketUrl: content('/api/chat/agent/find-ticket'),
         ticketActionUrl: content('/api/chat/agent/ticket-action'),
         listEngagementsUrl: content('/api/chat/agent/list-engagements'),
-        commandsUrl: content('/api/docs/commands'),
+        commandsUrl: '/api/guide-chat/commands',
         // Per-platform empty-state config (greeting + try-asking quick-action
         // chips + RAG-source filter), admin-edited in MPH's `/admin/chat-config`.
         // Same-origin relative `/content/*` path (see `commandsUrl`), proxied to

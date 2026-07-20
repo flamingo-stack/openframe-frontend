@@ -123,6 +123,12 @@
       "linter": {
         "rules": { "correctness": { "noUndeclaredDependencies": "off" } }
       }
+    },
+    {
+      "includes": ["**/src/app/**/route.ts"],
+      "linter": {
+        "rules": { "style": { "useNamingConvention": "off" } }
+      }
     }
   ]
 }

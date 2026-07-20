@@ -20,7 +20,7 @@ import { useApiParams } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { askMingoButton, EmptyState } from '@/app/components/shared';
+import { EmptyState, onboardingGuideButton } from '@/app/components/shared';
 import { useSearchParam } from '@/app/hooks/use-search-param';
 import { useStickyToolbar } from '@/app/hooks/use-sticky-toolbar';
 import { dateRangeFromParams, dateRangeToInstantBounds, toDayParam } from '@/lib/date-filter-params';
@@ -145,7 +145,7 @@ export function CustomersTable({ status }: CustomersTableProps) {
             { icon: <GraphMixSquareIcon />, label: 'Track tickets, SLAs, and activity per Customer' },
             { icon: <ShieldCheckIcon />, label: 'Monitor security posture per Customer' },
           ]}
-          {...askMingoButton('customers', 'Ask Mingo about Customers')}
+          {...onboardingGuideButton('customers', 'Learn more about Customers')}
         />
       ) : (
         <div style={containerStyle}>

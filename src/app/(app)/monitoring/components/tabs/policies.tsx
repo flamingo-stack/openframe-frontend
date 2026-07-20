@@ -21,8 +21,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  askMingoButton,
   EmptyState,
+  onboardingGuideButton,
   PoliciesTable,
   type PolicyTableRow,
   type PolicyTableStatus,
@@ -225,7 +225,7 @@ export function Policies() {
             { icon: <RadarIcon />, label: 'Target devices by Customer, OS, or tag' },
             { icon: <BellCheckIcon />, label: 'Get alerts when devices fall out of compliance' },
           ]}
-          {...askMingoButton('policies', 'Ask Mingo about Policies')}
+          {...onboardingGuideButton('policies', 'Learn more about Policies')}
         />
       ) : (
         <div className="flex flex-col gap-[var(--spacing-system-l)]" style={containerStyle}>

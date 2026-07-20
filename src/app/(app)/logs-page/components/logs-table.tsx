@@ -46,7 +46,7 @@ import { graphql, useLazyLoadQuery, usePaginationFragment } from 'react-relay';
 import type { logsTableRelay_query$key as LogsFragmentKey } from '@/__generated__/logsTableRelay_query.graphql';
 import type { logsTableRelayPaginationQuery as LogsPaginationQueryType } from '@/__generated__/logsTableRelayPaginationQuery.graphql';
 import type { logsTableRelayQuery as LogsQueryType } from '@/__generated__/logsTableRelayQuery.graphql';
-import { askMingoButton, EMBEDDED_PAGE_OFFSET, EmptyState, LogDrawer } from '@/app/components/shared';
+import { EMBEDDED_PAGE_OFFSET, EmptyState, LogDrawer, onboardingGuideButton } from '@/app/components/shared';
 import { useSearchParam } from '@/app/hooks/use-search-param';
 import { LogSortField, SortDirection } from '@/generated/schema-enums';
 import { dateRangeFromParams, dateRangeToInstantBounds, toDayParam } from '@/lib/date-filter-params';
@@ -607,7 +607,7 @@ function LogsTableContent({
           { icon: <Filter01ListIcon />, label: 'Filter by user, action type, Customer, or date range' },
           { icon: <SearchIcon />, label: 'Investigate incidents and audit security events' },
         ]}
-        {...askMingoButton('logs', 'Ask Mingo about Logs')}
+        {...onboardingGuideButton('logs', 'Learn more about Logs')}
       />
     );
   }

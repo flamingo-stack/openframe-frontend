@@ -2,9 +2,9 @@
 
 import {
   accentFromIdentityIcon,
-  ChatQuickActionRow,
   getAgentAccent,
   type QuickActionChip,
+  QuickActionWall,
   useEmptyStateConfig,
 } from '@flamingo-stack/openframe-frontend-core/components/chat';
 import { Video } from '@flamingo-stack/openframe-frontend-core/components/features';
@@ -31,7 +31,7 @@ const DEMO_VIDEO_ID = 'i4H_XqrI3RA';
  * keyed by `source = agent-mingo` — the "application type" we actually want. We select
  * it through the runtime's standard `aiAgentConfigUrl(slug)` seam (same `/content`
  * proxy, same flat wire shape), fetch it with the shared `useEmptyStateConfig`, and
- * render the first four through the SAME `ChatQuickActionRow` the chat empty state
+ * render the first four through the SAME `QuickActionWall` the chat empty state
  * (`GuideWelcome`) uses — with the identical icon-accent resolution, so the glyphs come
  * out turquoise (mingo → `cyan`) exactly like in the chat.
  *
@@ -104,7 +104,17 @@ export function MingoStep({
           {chips.length > 0 && (
             <div className="flex flex-col gap-[var(--spacing-system-xxs)]">
               <p className="text-h5 text-ods-text-secondary">Try this quick actions:</p>
-              <ChatQuickActionRow wrap chips={chips} />
+              <QuickActionWall
+                chips={chips}
+                rows={4}
+                pauseOnHover
+                dragScroll
+                fade={['left', 'right']}
+                fadeSize={{ left: 32 }}
+                fadeColor="var(--color-bg)"
+                copyGap="var(--spacing-system-xxs)"
+                className="max-h-44 shrink-0"
+              />
             </div>
           )}
         </div>

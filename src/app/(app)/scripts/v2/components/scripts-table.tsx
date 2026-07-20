@@ -42,7 +42,7 @@ import type {
 import type { scriptTagsRelayFilterQuery as ScriptTagsFilterQueryType } from '@/__generated__/scriptTagsRelayFilterQuery.graphql';
 import type { unarchiveScriptMutation as UnarchiveScriptMutationType } from '@/__generated__/unarchiveScriptMutation.graphql';
 import { employeeDetailHref } from '@/app/(app)/settings/employees/routes';
-import { askMingoButton, EmptyState } from '@/app/components/shared';
+import { EmptyState, onboardingGuideButton } from '@/app/components/shared';
 import { useDeferredQuery } from '@/app/hooks/use-deferred-query';
 import { useSafeBack } from '@/app/hooks/use-safe-back';
 import { useSearchParam } from '@/app/hooks/use-search-param';
@@ -553,7 +553,7 @@ function ScriptsTableContent({
             label: 'Let Mingo suggest or generate scripts for you',
           },
         ]}
-        {...askMingoButton('scripts', 'Ask Mingo about Scripts')}
+        {...onboardingGuideButton('scripts', 'Learn more about Scripts')}
       />
     );
   }

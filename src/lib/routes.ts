@@ -99,7 +99,12 @@ export const routes = {
   root: '/',
   dashboard: '/dashboard',
   onboarding: '/onboarding',
-  helpCenter: '/help-center',
+  helpCenter: {
+    root: '/help-center',
+    // Help Center hosts the hub's content on real slugged segments ([slug] route),
+    // not the app-wide `?id=` convention — see help-center-content-href.ts.
+    onboardingGuide: (slug: string) => `/help-center/onboarding-guides/${encodeURIComponent(slug)}`,
+  },
   worktime: '/worktime',
 
   auth: {

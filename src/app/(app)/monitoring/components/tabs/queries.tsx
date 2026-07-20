@@ -12,9 +12,9 @@ import { useApiParams } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  askMingoButton,
   EmptyState,
   formatQueryInterval,
+  onboardingGuideButton,
   QueriesTable,
   type QueryTableRow,
 } from '@/app/components/shared';
@@ -138,7 +138,7 @@ export function Queries() {
             { icon: <DatabaseIcon />, label: 'Use SQL-like syntax or natural language via Mingo' },
             { icon: <HourglassClockIcon />, label: 'Save queries to rerun later or schedule them' },
           ]}
-          {...askMingoButton('queries', 'Ask Mingo about Queries')}
+          {...onboardingGuideButton('queries', 'Learn more about Queries')}
         />
       ) : (
         <div className="flex flex-col gap-[var(--spacing-system-l)]" style={containerStyle}>

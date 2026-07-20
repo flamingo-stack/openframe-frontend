@@ -94,6 +94,15 @@ export function OnboardingSection() {
     },
   ];
 
+  // Don't surface a loading skeleton for onboarding on the dashboard: it's an
+  // optional, dismissible surface and its own completion probe (devices/orgs/users/
+  // SSO) is the slowest data on the page — skeletoning it just adds a tall block
+  // that pops/collapses on load. Render nothing until completion is known; the real
+  // walkthrough then appears only if it's actually needed (not dismissed / incomplete).
+  if (isLoading) {
+    return null;
+  }
+
   return (
     <OnboardingWalkthrough
       steps={onboardingSteps}

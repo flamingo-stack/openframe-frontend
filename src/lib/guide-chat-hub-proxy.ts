@@ -22,9 +22,11 @@
  *   - App cookies / Authorization are NOT forwarded to the hub (the service
  *     token IS the identity), and the token never reaches the browser (no
  *     NEXT_PUBLIC_ prefix).
- *   - The VISITOR's IP is forwarded as `x-chat-ip`. See
- *     `visitorIpFrom()` for why this is load-bearing, not optional — and
- *     why the header precedence there is a security boundary.
+ *   - The VISITOR's IP is forwarded as `x-chat-ip` ONLY when the deployment
+ *     declares an ingress that overwrites the header it was read from
+ *     (`VERCEL` / `TRUSTED_INGRESS_SETS_REAL_IP`); otherwise the header is
+ *     OMITTED entirely. See `visitorIpFrom()` — the presence of that header
+ *     is a security boundary, not an optimization.
  */
 
 import { normalizeIpForBucketKey } from '@flamingo-stack/openframe-frontend-core/chat-protocol';
@@ -50,7 +52,7 @@ let warnedMissingServiceToken = false;
  *
  * Getting this right is not a cosmetic nit in either direction: a false
  * negative means NO `x-chat-ip` is sent at all and every visitor silently
- * collapses back into this app's single egress bucket, and a pass-through of
+ * collapses back into this app's egress bucket, and a pass-through of
  * junk could smuggle CR/LF or extra header material into the forwarded value.
  * The lib handles the routinely-seen non-canonical forms (`[::1]:443`
  * brackets + port, `fe80::1%eth0` zone ids, `::ffff:203.0.113.4` IPv4-mapped)
@@ -61,29 +63,31 @@ let warnedMissingServiceToken = false;
 let warnedMissingVisitorIp = false;
 
 /**
- * Extract the end user's IP from the incoming request.
+ * Extract the end user's IP from the incoming request, or `null` when this
+ * deployment has no trustworthy way to know it.
  *
- * WHY THIS MATTERS — do not "simplify" this away: without a forwarded
- * visitor identity the hub can only bucket by this app server's single
- * egress IP, so (a) the hub's guide-mode rate limit (5 req/min) is shared by
- * EVERY user of this deployment — the 6th guide request in a minute 429s for
- * everyone — and (b) every guide conversation persists under the same
- * pseudo-visitor, destroying per-user conversation attribution.
+ * WHY A VALUE MATTERS: without a forwarded visitor identity the hub can only
+ * bucket by this app server's egress IP, so (a) the hub's guide-mode rate
+ * limit (5 req/min) is shared by EVERY user of this deployment — the 6th
+ * guide request in a minute 429s for everyone — and (b) every guide
+ * conversation persists under the same pseudo-visitor, destroying per-user
+ * conversation attribution.
  *
- * The hub honors `x-chat-ip` only on requests that also carry a valid
- * `x-chat-service-token`; the service token IS the trust proof. We must NOT
- * forward the impersonation-grade `CHAT_PROXY_SECRET` here — this proxy
- * speaks for anonymous visitors and must not hold that power.
+ * WHY A WRONG VALUE MATTERS MORE: the hub honors `x-chat-ip` VERBATIM on any
+ * request carrying a valid `x-chat-service-token` — the service token IS the
+ * trust proof, so whatever we put in that header becomes the visitor's
+ * rate-limit bucket key with no further checking. (We must NOT forward the
+ * impersonation-grade `CHAT_PROXY_SECRET` here — this proxy speaks for
+ * anonymous visitors and must not hold that power.) Sourcing that value from
+ * a header NOBODY on the request path overwrites therefore hands the visitor
+ * a bucket of their own choosing: rotating `curl -H '<that header>: <random>'`
+ * defeats the guide limit entirely, uncapping LLM spend, and attributes
+ * conversations to forged visitors.
  *
- * HEADER PRECEDENCE IS A SECURITY BOUNDARY, AND TRUST IS EXPLICIT.
- * Because the hub trusts whatever we put in `x-chat-ip`, reading a header
- * that NOBODY on the request path overwrites hands the visitor their own
- * rate-limit bucket: rotating `curl -H '<that header>: <random>'` defeats the
- * guide limit entirely and attributes conversations to forged visitors. A
- * header is only overwritten-by-the-ingress on deployments that actually run
- * that ingress, so each vendor header is gated on an env that says so —
- * assuming it in a comment is exactly how the bypass got relocated instead of
- * closed:
+ * SO EVERY CANDIDATE IS GATED ON A DECLARED INGRESS. A header is only
+ * overwritten-by-the-ingress on deployments that actually run that ingress,
+ * so each is read only when an env var says so. Assuming it in a comment is
+ * exactly how such a bypass gets relocated instead of closed:
  *   1. `x-vercel-forwarded-for` — read ONLY when `VERCEL` is set (Vercel sets
  *      it in its own runtime). Off-Vercel (nginx, self-hosted, k8s, localhost
  *      dev) nobody strips it, so it arrives verbatim from the client.
@@ -91,29 +95,49 @@ let warnedMissingVisitorIp = false;
  *      nginx populates it only where explicitly configured
  *      (`proxy_set_header X-Real-IP $remote_addr`); everywhere else it is
  *      just another client-authored header.
- *   3. `x-forwarded-for` LAST hop — the always-available fallback: the entry
- *      APPENDED by the ingress closest to us. Ingresses that append rather
- *      than overwrite leave the FIRST hop entirely client-supplied, so the
- *      first hop must never be used. This mirrors the hub's own
- *      `getClientIp`, which takes the same end of the same header for the
- *      same reason. On a deployment with NO trusted ingress at all this is
- *      still client-controllable — that is the floor of what a bare
- *      pass-through can know, and it is why the vendor headers above must
- *      not silently widen it.
+ *   3. `x-forwarded-for` LAST hop — the entry APPENDED by the ingress closest
+ *      to us (the FIRST hop is whatever the client claimed, so it is never
+ *      used). Gated on the SAME `TRUSTED_INGRESS_SETS_REAL_IP` assertion as
+ *      (2): both mean "an ingress I control sits in front of me". With no
+ *      such ingress, XFF is wholly client-authored and its last hop is
+ *      whatever the attacker typed, so an ungated fallback here would be the
+ *      whole bypass the gates above exist to close.
+ *
+ * WHEN NOTHING IS TRUSTED WE RETURN `null` AND THE CALLER OMITS `x-chat-ip`
+ * ENTIRELY — we do not forward a best-effort guess. The hub then falls back
+ * to its own attribution (`resolveClientIp` → `getClientIp`), which under the
+ * same untrusted conditions returns its `'unknown'` sentinel and buckets all
+ * such traffic together. That over-limits rather than allowing a bypass, and
+ * it is the SAME choice the hub already makes for its direct traffic: this
+ * seam must not answer the question one way while the hub answers it the
+ * other. Omission is also safe by construction — every hub read of
+ * `x-chat-ip` is conditional on the header being present.
+ *
+ * SELF-HOSTED OPERATORS: if a reverse proxy (nginx, an ALB, Cloudflare, a
+ * Docker ingress) does terminate in front of this app and overwrite
+ * `x-real-ip` / append to `x-forwarded-for`, set
+ * `TRUSTED_INGRESS_SETS_REAL_IP=1` to restore per-visitor bucketing and
+ * conversation attribution. Without it guide traffic shares ONE bucket — the
+ * once-per-process warning below is the only signal, so it says exactly this.
+ *
  * Values are validated for IP shape before forwarding so a hostile header
  * can't inject CR/LF or extra header material into the upstream request.
  */
 function visitorIpFrom(request: Request): string | null {
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  const forwardedHops = forwardedFor ? forwardedFor.split(',') : [];
-  const candidates = [
-    // Gated: see the precedence note above. `process.env` is read per call
-    // (not module-hoisted) so tests and edge runtimes see the live value.
-    process.env.VERCEL ? (request.headers.get('x-vercel-forwarded-for') ?? '') : '',
-    process.env.TRUSTED_INGRESS_SETS_REAL_IP ? (request.headers.get('x-real-ip') ?? '') : '',
+  // `process.env` is read per call (not module-hoisted) so tests and edge
+  // runtimes see the live value.
+  const onVercel = Boolean(process.env.VERCEL);
+  const trustedIngress = Boolean(process.env.TRUSTED_INGRESS_SETS_REAL_IP);
+
+  const candidates: string[] = [];
+  if (onVercel) candidates.push(request.headers.get('x-vercel-forwarded-for') ?? '');
+  if (trustedIngress) {
+    candidates.push(request.headers.get('x-real-ip') ?? '');
     // LAST hop only — see the precedence note above.
-    forwardedHops.length > 0 ? forwardedHops[forwardedHops.length - 1] : '',
-  ];
+    const forwardedHops = request.headers.get('x-forwarded-for')?.split(',') ?? [];
+    if (forwardedHops.length > 0) candidates.push(forwardedHops[forwardedHops.length - 1]);
+  }
+
   for (const raw of candidates) {
     const candidate = normalizeIpForBucketKey(raw);
     if (candidate) return candidate;
@@ -121,8 +145,11 @@ function visitorIpFrom(request: Request): string | null {
   if (!warnedMissingVisitorIp) {
     warnedMissingVisitorIp = true;
     console.warn(
-      '[guide-chat-proxy] no platform-set visitor IP found — guide rate limiting ' +
-        'and conversation attribution will bucket every visitor together',
+      '[guide-chat-proxy] no ingress-attributed visitor IP — x-chat-ip is OMITTED, ' +
+        'so guide rate limiting and conversation attribution bucket every visitor ' +
+        'together. If a trusted ingress DOES set x-real-ip / append to ' +
+        'x-forwarded-for in front of this app, set TRUSTED_INGRESS_SETS_REAL_IP=1 ' +
+        'to restore per-visitor bucketing.',
     );
   }
   return null;
@@ -164,7 +191,9 @@ export async function proxyGuideChatToHub(request: Request, upstreamPath: string
 
   // Visitor identity for rate-limit bucketing + conversation attribution.
   // Only meaningful alongside the service token (the hub gates `x-chat-ip`
-  // on it), but harmless to send either way. See `visitorIpFrom`.
+  // on it), but harmless to send either way. Absent on deployments with no
+  // declared trusted ingress — the hub tolerates that and falls back to its
+  // own attribution. See `visitorIpFrom`.
   const visitorIp = visitorIpFrom(request);
   if (visitorIp) headers.set('x-chat-ip', visitorIp);
 

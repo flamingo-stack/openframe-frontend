@@ -29,6 +29,10 @@ import { useCreateCustomer } from '../hooks/use-create-customer';
 import { customerDetailsQueryKeys, useCustomerDetails } from '../hooks/use-customer-details';
 import { useUpdateCustomer } from '../hooks/use-update-customer';
 import {
+  CustomerAiAssistantAppearance,
+  type CustomerAppearanceHandle,
+} from './ai-assistant-appearance/customer-ai-assistant-appearance';
+import {
   CustomerAiConfiguration,
   type CustomerAiConfigurationHandle,
 } from './customer-ai-configuration/customer-ai-configuration';
@@ -119,7 +123,10 @@ export function NewCustomerPage({ organizationId }: NewCustomerPageProps) {
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | undefined>(undefined);
   const previewUrlRef = useRef<string | undefined>(undefined);
   // Let "Save Customer" also persist the AI configuration / guardrails blocks.
+  // Only one AI block is mounted at a time (the flag picks old vs new), so at
+  // most one of these refs is set; both handle shapes are `{ validate, commit }`.
   const aiConfigurationRef = useRef<CustomerAiConfigurationHandle>(null);
+  const appearanceRef = useRef<CustomerAppearanceHandle>(null);
   const guardrailsRef = useRef<CustomerGuardrailsHandle>(null);
 
   const isSaasTenant = runtimeEnv.appMode() === 'saas-tenant';
@@ -128,19 +135,34 @@ export function NewCustomerPage({ organizationId }: NewCustomerPageProps) {
 
   // Per-customer AI blocks: SaaS-only (they rely on the openframe-saas-ai-agent
   // service, absent in self-hosted) and edit-mode only (they need an org id to
-  // scope the override). Each is gated behind its own release flag. When any is
-  // visible, the page renders as tabs (Details / AI Configuration / Guardrails).
-  const showAppearance = !!organizationId && isSaasTenant && featureFlags.customerAiAssistantSettings.enabled();
+  // scope the override). When any is visible, the page renders as tabs
+  // (Details / AI Configuration / Guardrails).
+  //
+  // `customer-ai-configuration` switches the AI tab's flow: on → the full
+  // Customer AI Configuration (provider/model, answer style, quick actions);
+  // off (default) → the legacy appearance-only block, which keeps its original
+  // `customer-ai-assistant-settings` gate (pre-session behavior).
+  const isFullAiConfig = featureFlags.customerAiConfiguration.enabled();
+  const showAiConfig =
+    !!organizationId && isSaasTenant && (isFullAiConfig || featureFlags.customerAiAssistantSettings.enabled());
   const showGuardrails = !!organizationId && isSaasTenant && featureFlags.customerGuardrails.enabled();
-  const showTabs = showAppearance || showGuardrails;
+  const showTabs = showAiConfig || showGuardrails;
 
   const editTabs = useMemo<TabItem[]>(
     () => [
       { id: DETAILS_TAB, label: 'Details', icon: FileContentIcon },
-      ...(showAppearance ? [{ id: AI_CONFIGURATION_TAB, label: 'Customer AI Configuration', icon: ChatsIcon }] : []),
+      ...(showAiConfig
+        ? [
+            {
+              id: AI_CONFIGURATION_TAB,
+              label: isFullAiConfig ? 'Customer AI Configuration' : 'AI-Assistant Appearance',
+              icon: ChatsIcon,
+            },
+          ]
+        : []),
       ...(showGuardrails ? [{ id: GUARDRAILS_TAB, label: 'Customer AI Guardrails', icon: ShieldCheckIcon }] : []),
     ],
-    [showAppearance, showGuardrails],
+    [showAiConfig, isFullAiConfig, showGuardrails],
   );
 
   // Tab rides the URL (controlled mode, mirroring customer-details-view) so
@@ -292,8 +314,11 @@ export function NewCustomerPage({ organizationId }: NewCustomerPageProps) {
     try {
       setIsSubmitting(true);
 
-      // Validate the AI configuration fields before writing anything.
-      if (aiConfigurationRef.current && !(await aiConfigurationRef.current.validate())) {
+      // Whichever AI block is mounted (flag picks old appearance vs new config).
+      const activeAiHandle = aiConfigurationRef.current ?? appearanceRef.current;
+
+      // Validate the AI fields before writing anything.
+      if (activeAiHandle && !(await activeAiHandle.validate())) {
         toast({
           title: 'Check AI configuration',
           description: 'Fix the highlighted AI configuration fields before saving',
@@ -342,12 +367,12 @@ export function NewCustomerPage({ organizationId }: NewCustomerPageProps) {
         }
       }
 
-      // Persist the AI configuration overrides/reset (edit mode only). The
-      // customer is already saved at this point, so a configuration failure is
-      // a non-fatal warning — it must not surface as a full "Save failed".
-      if (organizationId && aiConfigurationRef.current) {
+      // Persist the AI overrides/reset (edit mode only). The customer is already
+      // saved at this point, so a configuration failure is a non-fatal warning —
+      // it must not surface as a full "Save failed".
+      if (organizationId && activeAiHandle) {
         try {
-          await aiConfigurationRef.current.commit();
+          await activeAiHandle.commit();
         } catch (e) {
           toast({
             title: 'Customer saved, AI configuration not updated',
@@ -497,9 +522,13 @@ export function NewCustomerPage({ organizationId }: NewCustomerPageProps) {
             // survive tab switches so one "Save Customer" persists them all.
             <div className="pt-[var(--spacing-system-l)]">
               <div className={activeId === DETAILS_TAB ? undefined : 'hidden'}>{detailsForm}</div>
-              {showAppearance && (
+              {showAiConfig && (
                 <div className={activeId === AI_CONFIGURATION_TAB ? undefined : 'hidden'}>
-                  <CustomerAiConfiguration ref={aiConfigurationRef} organizationId={organizationId} />
+                  {isFullAiConfig ? (
+                    <CustomerAiConfiguration ref={aiConfigurationRef} organizationId={organizationId} />
+                  ) : (
+                    <CustomerAiAssistantAppearance ref={appearanceRef} organizationId={organizationId} />
+                  )}
                 </div>
               )}
               {showGuardrails && (

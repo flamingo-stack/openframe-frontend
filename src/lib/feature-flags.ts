@@ -15,6 +15,7 @@ export const FEATURE_FLAG_NAMES = [
   'mingo-sidebar-context',
   'mingo-ai-chat-settings',
   'customer-ai-assistant-settings',
+  'customer-ai-configuration',
   'customer-guardrails',
   'time-tracker',
   'scripts-v2',
@@ -83,6 +84,14 @@ export const featureFlags = {
   customerAiAssistantSettings: {
     enabled(): boolean {
       return getFlagValue('customer-ai-assistant-settings', () => false);
+    },
+  },
+  // Old↔new switch for the customer AI-assistant tab (details + edit):
+  // off (default) → the legacy appearance-only view (pre-session); on → the
+  // new full Customer AI Configuration. Independent of `customerAiAssistantSettings`.
+  customerAiConfiguration: {
+    enabled(): boolean {
+      return getFlagValue('customer-ai-configuration', () => false);
     },
   },
   customerGuardrails: {

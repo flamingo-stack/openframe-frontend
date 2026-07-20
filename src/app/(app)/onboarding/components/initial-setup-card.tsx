@@ -12,6 +12,7 @@ import { type ReactNode, useState } from 'react';
 import { TenantOnboardingStep } from '@/generated/schema-enums';
 import { useOnboardingMutations } from '@/graphql/onboarding/use-onboarding-mutations';
 import { useOnboardingStore } from '@/stores/onboarding-store';
+import { useOnboardingAutoAdvance } from '../hooks/use-onboarding-auto-advance';
 import { useTenantOnboardingAutoDetect } from '../hooks/use-tenant-onboarding-auto-detect';
 import { countCompleted, isStepDone, TENANT_ONBOARDING_STEPS } from '../onboarding-steps';
 import { CompanyTeamStep } from './company-team-step';
@@ -116,6 +117,14 @@ function InitialSetupCardContent() {
   // needed: `countCompleted` builds its own Set and `isStepDone` uses `.includes`, so
   // an overlap between the two sources is harmless.
   const completedSteps = [...(tenant?.completedSteps ?? []), ...completedByData];
+
+  // Guided flow: the first incomplete step opens automatically and, as steps
+  // complete, the finished one folds while the next opens and scrolls into view.
+  // No mount anchor — this card is already the dashboard's first section. Runs
+  // after the auto-detect suspend, so the initial expanded step is picked from the
+  // settled union above, not a pre-load snapshot.
+  const { expandedOf, onExpandedChangeOf, refOf } = useOnboardingAutoAdvance(TENANT_ONBOARDING_STEPS, completedSteps);
+
   const total = TENANT_ONBOARDING_STEPS.length;
   const done = countCompleted(TENANT_ONBOARDING_STEPS, completedSteps);
   const allDone = done >= total;
@@ -175,10 +184,13 @@ function InitialSetupCardContent() {
         {STEP_META.map(meta => (
           <OnboardingAccordionItem
             key={meta.step}
+            ref={refOf(meta.step)}
             icon={meta.icon}
             status={statusOf(meta.step)}
             title={meta.title}
             description={meta.description}
+            expanded={expandedOf(meta.step)}
+            onExpandedChange={onExpandedChangeOf(meta.step)}
           >
             {renderStepBody(meta.step)}
           </OnboardingAccordionItem>

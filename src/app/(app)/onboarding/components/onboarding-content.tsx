@@ -10,6 +10,7 @@ import { useOnboardingMutations } from '@/graphql/onboarding/use-onboarding-muta
 import { EVENT_SUBTYPE, trackDashboardActivity } from '@/lib/analytics';
 import { routes } from '@/lib/routes';
 import { useOnboardingStore } from '@/stores/onboarding-store';
+import { useOnboardingAutoAdvance } from '../hooks/use-onboarding-auto-advance';
 import { countCompleted, isStepDone, USER_ONBOARDING_STEPS } from '../onboarding-steps';
 import { USER_ONBOARDING_GROUPS } from '../user-onboarding-groups';
 import { CustomerSetupStep } from './customer-setup-step';
@@ -56,20 +57,17 @@ const STEP_BODY: Record<UserOnboardingStep, ComponentType<StepBodyProps>> = {
  * User "Get Started" onboarding. Step statuses, the header counter and the
  * Skip/Finish actions are driven by `userOnboardingProgress` (via the onboarding
  * store); each step's "Mark as Complete" commits `completeUserOnboardingStep`.
+ *
+ * Mount gate only: shows the skeleton until progress is loaded (and redirects if the
+ * tenant Initial Setup isn't done), then mounts {@link LoadedOnboardingContent} — so
+ * the loaded content's hooks (notably the auto-advance flow, which picks its initial
+ * expanded step on mount) always start from real progress, never from the empty
+ * pre-load state.
  */
 export function OnboardingContent() {
   const router = useRouter();
-  const [skipConfirmOpen, setSkipConfirmOpen] = useState(false);
-  // Which step's "Mark as Complete" is committing — drives that button's spinner.
-  const [completingStep, setCompletingStep] = useState<UserOnboardingStep | null>(null);
-
   const tenant = useOnboardingStore(state => state.tenant);
-  const user = useOnboardingStore(state => state.user);
   const isLoaded = useOnboardingStore(state => state.isLoaded);
-  const { completeUserStep, completeUserStepInBackground, completeUser, skipUser, isMutating } =
-    useOnboardingMutations();
-
-  const leaveOnboarding = () => router.push(routes.dashboard);
 
   // The personal Get Started tour is only available after the tenant Initial Setup
   // is complete. If the user lands here (deep link, stale tab) beforehand, send them
@@ -85,7 +83,30 @@ export function OnboardingContent() {
     return <OnboardingSkeleton />;
   }
 
+  return <LoadedOnboardingContent />;
+}
+
+/** The loaded page body — mounted by {@link OnboardingContent} once progress is in. */
+function LoadedOnboardingContent() {
+  const router = useRouter();
+  const [skipConfirmOpen, setSkipConfirmOpen] = useState(false);
+  // Which step's "Mark as Complete" is committing — drives that button's spinner.
+  const [completingStep, setCompletingStep] = useState<UserOnboardingStep | null>(null);
+
+  const user = useOnboardingStore(state => state.user);
+  const { completeUserStep, completeUserStepInBackground, completeUser, skipUser, isMutating } =
+    useOnboardingMutations();
+
+  const leaveOnboarding = () => router.push(routes.dashboard);
+
   const completedSteps = user?.completedSteps ?? [];
+
+  // Guided flow: the first incomplete step opens automatically (anchored on mount —
+  // the next step may be a group or two below the fold) and, as steps complete, the
+  // flow advances: finished step folds, the next one opens and scrolls into view.
+  const { expandedOf, onExpandedChangeOf, refOf } = useOnboardingAutoAdvance(USER_ONBOARDING_STEPS, completedSteps, {
+    scrollOnMount: true,
+  });
   const total = USER_ONBOARDING_STEPS.length;
   const done = countCompleted(USER_ONBOARDING_STEPS, completedSteps);
   const allDone = done >= total;
@@ -142,10 +163,13 @@ export function OnboardingContent() {
             return (
               <OnboardingAccordionItem
                 key={item.step}
+                ref={refOf(item.step)}
                 icon={item.icon}
                 status={statusOf(item.step)}
                 title={item.title}
                 description={item.description}
+                expanded={expandedOf(item.step)}
+                onExpandedChange={onExpandedChangeOf(item.step)}
               >
                 <StepBody
                   completed={doneOf(item.step)}

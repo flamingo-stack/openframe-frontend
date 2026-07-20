@@ -25,6 +25,15 @@ export interface OnboardingAccordionItemProps {
   /** Whether the step starts expanded. Ignored for `disabled`. @default false */
   defaultExpanded?: boolean;
   /**
+   * Controlled expansion. When set, the row follows this value and reports chevron
+   * toggles via `onExpandedChange` instead of keeping internal state (used by the
+   * auto-advance flow — see `useOnboardingAutoAdvance`). Ignored for `disabled`.
+   */
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
+  /** Ref to the row's root element — the scroll anchor for the auto-advance flow. */
+  ref?: React.Ref<HTMLDivElement>;
+  /**
    * Loading state: the step's static content (icon, title, description) is known,
    * but its completion status is not yet loaded. Renders the row exactly as an
    * `active` step but with the trailing status control (Complete tag + chevron)
@@ -51,21 +60,31 @@ export function OnboardingAccordionItem({
   status = 'active',
   requirementHint,
   defaultExpanded = false,
+  expanded: controlledExpanded,
+  onExpandedChange,
   loading = false,
   children,
+  ref,
 }: OnboardingAccordionItemProps) {
   const isDisabled = !loading && status === 'disabled';
   const isCompleted = !loading && status === 'completed';
-  const [expanded, setExpanded] = React.useState(!isDisabled && defaultExpanded);
+  const [internalExpanded, setInternalExpanded] = React.useState(!isDisabled && defaultExpanded);
+  const expanded = !isDisabled && (controlledExpanded ?? internalExpanded);
 
   const toggle = React.useCallback(() => {
-    if (!isDisabled) setExpanded(prev => !prev);
-  }, [isDisabled]);
+    if (isDisabled) return;
+    const next = !expanded;
+    setInternalExpanded(next);
+    onExpandedChange?.(next);
+  }, [isDisabled, expanded, onExpandedChange]);
 
   return (
     <div
+      ref={ref}
       className={cn(
-        'w-full border-b border-ods-border transition-colors duration-200 ease-out motion-reduce:transition-none',
+        // scroll-mt clears the sticky app header (h-12/md:h-14, z-[50]) plus breathing
+        // room when the auto-advance flow anchors this row via scrollIntoView.
+        'w-full scroll-mt-20 border-b border-ods-border transition-colors duration-200 ease-out motion-reduce:transition-none',
         expanded && !loading ? 'bg-ods-bg' : 'bg-ods-card',
       )}
     >

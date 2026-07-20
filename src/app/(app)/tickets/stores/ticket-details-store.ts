@@ -86,10 +86,12 @@ const mirror = createReducerMirror<ChatSide>({
       // Approval resolutions the reducer learned from stream events flow
       // back into the shared status map (history processing + pending-card
       // extraction read it). ADDITIVE ON PURPOSE — only 'approved'/'rejected'
-      // are copied IN, nothing is ever removed: a post-eviction re-seed
-      // restores `messages` only, so the replacement reducer's first snapshot
-      // has an empty `approvalStatuses`, and a blanking write would re-arm
-      // buttons for approvals this host already knows were resolved.
+      // are copied IN, nothing is ever removed. The mirror's post-eviction
+      // re-seed does restore the parked `approvalStatuses` onto the
+      // replacement reducer, so its first snapshot is no longer blank — but
+      // this map is still the WIDER record (it also carries statuses learned
+      // from history processing and from the other side), so a blanking write
+      // would re-arm buttons for approvals this host knows were resolved.
       let approvalStatuses = state.approvalStatuses;
       for (const [id, status] of Object.entries(snap.approvalStatuses)) {
         if ((status === 'approved' || status === 'rejected') && approvalStatuses[id] !== status) {

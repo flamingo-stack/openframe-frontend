@@ -31,6 +31,7 @@ import {
   createDeltaBatcher,
   type DeltaBatcher,
   type DeltaEvent,
+  type EvictedReducerState,
   type InitializeExtras,
   type ProcessedMessage,
   type StreamingPhase,
@@ -199,6 +200,16 @@ export interface BoundMirror {
   mutate: (fn: (reducer: ChatStreamReducer) => void) => void;
   /** MERGE (stream-learned wins) — see `ReducerMirror.mergeApprovalStatuses`. */
   mergeApprovalStatuses: (statuses: Record<string, string>) => void;
+  /**
+   * How many times THIS key's reducer has been LRU-evicted and replaced.
+   * Snapshotted when the handle was built, and the handle is invalidated on
+   * every eviction — so a changed epoch (or, equivalently, a changed handle
+   * identity) is the signal a React consumer needs to RE-RUN the one-shot
+   * work it did against the previous instance: the persisted approval-status
+   * merge and the incomplete-turn accumulator seed both target a specific
+   * reducer instance, and the replacement starts without either.
+   */
+  evictionEpoch: number;
 }
 
 export interface ReducerMirror<K extends string> {
@@ -301,10 +312,22 @@ export interface ReducerMirror<K extends string> {
  * EVICTION OF A NON-DISPLAYED KEY IS THEN SAFE because the store PUBLISHES
  * it: the mirror injects `onEvict` when it builds the store (hence
  * `createStore` being a factory), and on that signal it parks the key's last
- * converted thread. The next `getReducer` for the key — the call that
- * materializes the replacement instance — re-seeds it from that parked thread
+ * converted thread TOGETHER WITH the `EvictedReducerState` the store hands
+ * over. The next `getReducer` for the key — the call that materializes the
+ * replacement instance — replays all three through `initializeWithState`
  * before anything reads it, so the fresh reducer starts out holding exactly
  * what the host is already showing.
+ *
+ * THE THREAD ALONE IS NOT ENOUGH, which is why the whole parked state rides
+ * along. A recreated reducer starts with `approvalStatuses = {}` and
+ * `lastAppliedSeq = -Infinity`; refetching history does not restore either.
+ * Drop them and a resolved approval whose `APPROVAL_RESULT` row is older than
+ * the refetched page re-renders ACTIONABLE (the operator can re-approve an
+ * already-executed tool), and a catch-up replay from the host's own cursor
+ * re-applies events the dropped instance had already consumed (duplicate
+ * rows). Parking is therefore UNCONDITIONAL — an empty thread with an
+ * advanced seq cursor is exactly the case a "only park a non-empty thread"
+ * gate used to throw away.
  *
  * Re-seeding, rather than suppressing the pristine-empty snapshot, is what
  * makes this correct in both directions. Suppression (comparing reducer OBJECT
@@ -327,6 +350,17 @@ export interface ReducerMirror<K extends string> {
  * then flushes and applies it itself, so ordering is preserved and turn
  * completion / dialog switch / unmount can never strand buffered text.
  */
+/**
+ * The store's `EvictedReducerState` with its thread swapped for the mirror's
+ * already-converted app-shape one (the reducer-shape `messages` would only be
+ * converted back on replay, defeating the identity caches).
+ */
+interface ParkedReducerState {
+  messages: ChatMessage[];
+  approvalStatuses: EvictedReducerState['approvalStatuses'];
+  lastAppliedSeq: number;
+}
+
 export function createReducerMirror<K extends string>(config: ReducerMirrorConfig<K>): ReducerMirror<K> {
   const { createStore, identityFor, options, onSnapshot, siblingKeys } = config;
 
@@ -337,9 +371,11 @@ export function createReducerMirror<K extends string>(config: ReducerMirrorConfi
   /** Keys the host declared DISPLAYED, pushed to the store's policy-retain
    *  set — see the RETENTION note. */
   const activeKeys = new Set<K>();
-  /** Thread parked by `onEvict`, replayed into the replacement reducer by the
+  /** State parked by `onEvict`, replayed into the replacement reducer by the
    *  next `getReducer` — see the EVICTION note. */
-  const reseedByKey = new Map<K, ChatMessage[]>();
+  const reseedByKey = new Map<K, ParkedReducerState>();
+  /** Per-key eviction counter published on `BoundMirror.evictionEpoch`. */
+  const evictionEpochByKey = new Map<K, number>();
 
   /** Inverse of `identityFor`, over the keys this mirror knows. Only used to
    *  translate the store's `(dialogId, side)` eviction signal back into `K`;
@@ -354,15 +390,27 @@ export function createReducerMirror<K extends string>(config: ReducerMirrorConfi
   }
 
   const store = createStore({
-    onEvict: (dialogId: string, side: ChatDialogSide) => {
+    onEvict: (dialogId: string, side: ChatDialogSide, parked: EvictedReducerState) => {
       const key = keyForIdentity(dialogId, side);
       if (key === undefined) return;
-      // Park the converted thread rather than re-seeding here: `onEvict`
-      // fires from INSIDE the store's `getReducer`, before the replacement
-      // instance for this key exists (and possibly while another key is being
-      // resolved). The mirror's own `getReducer` does the seeding.
-      const cached = lastConvertedThread.get(key)?.out;
-      if (cached && cached.length > 0) reseedByKey.set(key, cached);
+      // Park rather than re-seed here: `onEvict` fires from INSIDE the store's
+      // `getReducer`, before the replacement instance for this key exists (and
+      // possibly while another key is being resolved). The mirror's own
+      // `getReducer` does the seeding.
+      //
+      // UNCONDITIONAL — see the EVICTION note. The approval statuses and the
+      // seq cursor are worth parking even when the thread is empty, so the
+      // length check narrows to the messages field alone.
+      reseedByKey.set(key, {
+        messages: lastConvertedThread.get(key)?.out ?? [],
+        approvalStatuses: parked.approvalStatuses,
+        lastAppliedSeq: parked.lastAppliedSeq,
+      });
+      // Bump BEFORE dropping the memoized handle: the next `bind(key)` builds
+      // a fresh `BoundMirror` carrying the new epoch, which is what re-arms
+      // the consumers' one-shot effects against the replacement instance.
+      evictionEpochByKey.set(key, (evictionEpochByKey.get(key) ?? 0) + 1);
+      boundByKey.delete(key);
       lastSyncedSnapshot.delete(key);
       lastConvertedThread.delete(key);
     },
@@ -408,12 +456,19 @@ export function createReducerMirror<K extends string>(config: ReducerMirrorConfi
     const { dialogId, side } = identityFor(key);
     const reducer = store.getReducer(dialogId, side, () => options(key));
     // This is the first look at the replacement instance for an evicted key —
-    // restore the parked thread before any caller reads it, so the resumed
-    // stream appends to the host's full thread instead of truncating it.
-    const reseed = reseedByKey.get(key);
-    if (reseed !== undefined) {
+    // restore the parked state before any caller reads it, so the resumed
+    // stream appends to the host's full thread instead of truncating it, a
+    // resolved approval stays resolved, and the seq gate keeps rejecting the
+    // events the dropped instance had already applied.
+    const parked = reseedByKey.get(key);
+    if (parked !== undefined) {
       reseedByKey.delete(key);
-      reducer.setMessages(reseed.map(m => toUnifiedMessage(m)));
+      // `null` keeps the fresh reducer's (empty) thread — the parked one had
+      // nothing to restore, and the statuses/cursor still must be.
+      reducer.initializeWithState(parked.messages.length > 0 ? parked.messages.map(m => toUnifiedMessage(m)) : null, {
+        approvalStatuses: parked.approvalStatuses,
+        lastAppliedSeq: parked.lastAppliedSeq,
+      });
     }
     return reducer;
   }
@@ -614,6 +669,7 @@ export function createReducerMirror<K extends string>(config: ReducerMirrorConfi
         mutate(key, fn);
       },
       mergeApprovalStatuses: statuses => mergeApprovalStatuses(key, statuses),
+      evictionEpoch: evictionEpochByKey.get(key) ?? 0,
     };
     boundByKey.set(key, bound);
     return bound;
@@ -633,15 +689,16 @@ export function createReducerMirror<K extends string>(config: ReducerMirrorConfi
     lastSyncedSnapshot.delete(key);
     lastConvertedThread.delete(key);
     // A dropped key is intentionally gone — the next `getReducer` builds a
-    // fresh reducer that the host is expected to seed, so any thread parked
+    // fresh reducer that the host is expected to seed, so any state parked
     // by an earlier eviction must NOT be replayed into it.
     reseedByKey.delete(key);
+    evictionEpochByKey.delete(key);
     knownKeys.delete(key);
   }
 
   // `getReducer` and `sync` stay module-private (`apply` is reachable only
   // pre-curried, via `bind`). An EXTERNAL `getReducer` would CONSUME a parked
-  // post-eviction re-seed — `reseedByKey.delete` + `setMessages` — without the
+  // post-eviction re-seed — `reseedByKey.delete` + `initializeWithState` — without the
   // `sync` that is supposed to follow it, so the host store would keep showing
   // its pre-eviction thread with no snapshot ever republishing it.
   return {

@@ -83,14 +83,25 @@ export function useChatChunkProcessor({
   const interceptEventRef = useRef(interceptEvent);
   interceptEventRef.current = interceptEvent;
 
+  // EVICTION EPOCH. Both effects below write ONE-SHOT state into a specific
+  // reducer INSTANCE, and LRU eviction silently replaces that instance behind
+  // an unchanged key: `bind(key)` is memoized per key and `seedKey` does not
+  // move, so neither effect would re-run and the replacement would be left
+  // without the persisted statuses and without the accumulator seed. The
+  // mirror bumps this counter per evicted key (and rebuilds the bound handle),
+  // which is the dependency that re-arms both.
+  const { evictionEpoch } = boundMirror;
+
   // Status lookup the reducer consults when an APPROVAL_REQUEST replays.
   // `boundMirror` comes from `ReducerMirror.bind(key)`, which memoizes per key —
-  // so this effect re-runs on a real key change, not on every host render.
+  // so this effect re-runs on a real key change (or an eviction), not on every
+  // host render.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: evictionEpoch is the re-arm trigger, not used in the body — the replacement reducer needs this merge replayed.
   useEffect(() => {
     if (approvalStatuses && Object.keys(approvalStatuses).length > 0) {
       boundMirror.mergeApprovalStatuses(approvalStatuses);
     }
-  }, [approvalStatuses, boundMirror]);
+  }, [approvalStatuses, boundMirror, evictionEpoch]);
 
   // One-shot-PER-KEY incomplete-turn seed: once the hydrated thread shows an
   // unfinished trailing assistant run (pending approvals / executing tools),
@@ -98,13 +109,20 @@ export function useChatChunkProcessor({
   // of replaying into a fresh bubble. See `seedKey` above for why the guard
   // is keyed rather than a plain boolean.
   const seededKeyRef = useRef<string | null>(null);
+  const seededEpochRef = useRef(evictionEpoch);
   useEffect(() => {
+    // A new instance for the SAME key has never been seeded, whatever the
+    // guard remembers about its predecessor — clear it before the check.
+    if (seededEpochRef.current !== evictionEpoch) {
+      seededEpochRef.current = evictionEpoch;
+      seededKeyRef.current = null;
+    }
     if (seededKeyRef.current === seedKey || !messages || messages.length === 0) return;
     const extras = computeIncompleteTailState(messages);
     if (!extras) return;
     seededKeyRef.current = seedKey;
     boundMirror.mutate((r: ChatStreamReducer) => r.initializeWithState(null, extras));
-  }, [seedKey, messages, boundMirror]);
+  }, [seedKey, messages, boundMirror, evictionEpoch]);
 
   return useCallback((chunk: unknown) => {
     const event = decodeNatsChunk(chunk);

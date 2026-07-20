@@ -266,7 +266,7 @@ export function NewDeviceContent() {
             label: 'Copy Command',
             onClick: copyCommand,
             icon: commandCopied ? (
-              <CheckIcon className="w-5 h-5 text-[var(--ods-attention-green-success)]" />
+              <CheckIcon className="w-5 h-5 text-ods-success" />
             ) : (
               <Copy02Icon className="w-5 h-5" />
             ),

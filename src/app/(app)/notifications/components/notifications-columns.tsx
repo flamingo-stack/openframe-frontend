@@ -54,6 +54,8 @@ export function buildNotificationColumns({
       meta: { width: 'flex-[2] min-w-0' },
       cell: ({ row }: { row: Row<NotificationRow> }) => {
         const { category, type, severity, variant = 'default' } = row.original.notification;
+        const titleColor = (severity && titleColorBySeverity[severity]) ?? 'text-ods-text-primary';
+        const relativeTime = formatTicketRelativeTime(new Date(row.original.createdAt).toISOString());
         return (
           <div className="flex min-w-0 items-center gap-[var(--spacing-system-m)]">
             <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-ods-border text-ods-text-secondary">
@@ -61,18 +63,18 @@ export function buildNotificationColumns({
                 <span className={cn('size-1.5 rounded-full', dotColorByVariant[variant])} />
               )}
             </div>
-            <div className="flex min-w-0 flex-col gap-[var(--spacing-system-xxs)]">
-              <span
-                className={cn(
-                  'truncate text-h4',
-                  (severity && titleColorBySeverity[severity]) ?? 'text-ods-text-primary',
-                )}
-              >
+            <div className="hidden min-w-0 flex-col gap-[var(--spacing-system-xxs)] md:flex">
+              <span className={cn('truncate text-h4', titleColor)}>
                 {/* Context-derived kind label; title stands in when the context is generic. */}
                 {type ?? row.original.title}
               </span>
+              <span className="truncate text-h6 text-ods-text-secondary">{relativeTime}</span>
+            </div>
+            {/* Mobile: the details column is hidden, so title + description collapse into this cell. */}
+            <div className="flex min-w-0 flex-col md:hidden">
+              <span className={cn('truncate text-h4', titleColor)}>{row.original.title}</span>
               <span className="truncate text-h6 text-ods-text-secondary">
-                {formatTicketRelativeTime(new Date(row.original.createdAt).toISOString())}
+                {row.original.description || relativeTime}
               </span>
             </div>
           </div>
@@ -84,7 +86,7 @@ export function buildNotificationColumns({
       accessorKey: 'description',
       header: '',
       enableSorting: false,
-      meta: { width: 'flex-[3] min-w-0' },
+      meta: { width: 'flex-[3] min-w-0', hideAt: 'md' },
       cell: ({ row }: { row: Row<NotificationRow> }) => {
         // The title moves here only when the kind label owns the first column;
         // otherwise it's already shown there and only the description remains.
@@ -105,7 +107,7 @@ export function buildNotificationColumns({
       id: 'action',
       header: '',
       enableSorting: false,
-      meta: { width: 'w-[210px]', align: 'right' },
+      meta: { width: 'w-11 shrink-0 md:w-[210px]', align: 'right' },
       cell: ({ row }: { row: Row<NotificationRow> }) => {
         const action = resolveNotificationAction(row.original.notification);
         if (!action) return null;
@@ -125,6 +127,7 @@ export function buildNotificationColumns({
         return (
           <div data-no-row-click className="flex w-full justify-end">
             <SplitButton
+              className="hidden md:inline-flex"
               variant="outline"
               href={isRoute ? action.route : undefined}
               onClick={openDrawer}
@@ -139,6 +142,16 @@ export function buildNotificationColumns({
             >
               {action.label}
             </SplitButton>
+            {/* Mobile: the labeled SplitButton doesn't fit — collapse to an icon-only open button. */}
+            <Button
+              className="md:hidden"
+              variant="outline"
+              size="icon"
+              href={isRoute ? action.route : undefined}
+              onClick={openDrawer}
+              aria-label={action.label}
+              leftIcon={<ArrowRightUpIcon />}
+            />
           </div>
         );
       },
@@ -147,7 +160,7 @@ export function buildNotificationColumns({
       id: 'rowIcon',
       header: '',
       enableSorting: false,
-      meta: { width: 'w-12 shrink-0', align: 'right' },
+      meta: { width: 'w-11 shrink-0 md:w-12', align: 'right' },
       cell: ({ row }: { row: Row<NotificationRow> }) => (
         <div data-no-row-click className="flex items-center justify-end">
           {rowVariant === 'unread' ? (

@@ -12,6 +12,7 @@ export const aiLogicShape = {
   providerModel: z.string().min(1, 'Provider model is required'),
   answerStyle: z.enum(['SHORT', 'STANDARD', 'DETAILED', 'CUSTOM']),
   customPrompt: z.string().optional(),
+  quickActionsIsDefault: z.boolean(),
   quickActions: z.array(quickActionSchema),
 } as const;
 
@@ -30,7 +31,12 @@ export function getAiLogicDefaults(config: AgentAiConfig): AiLogicFormValues {
     providerModel: config.providerModel,
     answerStyle: config.answerStyle ?? 'STANDARD',
     customPrompt: config.customPrompt ?? '',
-    quickActions: config.quickActions ?? [],
+    quickActionsIsDefault: config.quickActionsIsDefault,
+    // With defaults active the field array starts empty: the hub-provided
+    // actions are shown read-only and only become editable rows on uncheck.
+    quickActions: config.quickActionsIsDefault
+      ? []
+      : (config.quickActions ?? []).map(q => ({ id: q.id, name: q.name, instructions: q.instructions })),
   };
 }
 
@@ -41,6 +47,8 @@ export function toAgentAiConfigInput(values: AiLogicFormValues): AgentAiConfigIn
     providerModel: values.providerModel,
     answerStyle: values.answerStyle,
     customPrompt: values.answerStyle === 'CUSTOM' ? values.customPrompt : undefined,
-    quickActions: values.quickActions,
+    quickActionsIsDefault: values.quickActionsIsDefault,
+    // Defaults active → the BE owns the action list (Product Hub); don't send one.
+    quickActions: values.quickActionsIsDefault ? undefined : values.quickActions,
   };
 }

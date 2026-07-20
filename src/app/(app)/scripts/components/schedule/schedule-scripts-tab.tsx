@@ -68,12 +68,12 @@ function ScheduleScriptCard({ action }: ScheduleScriptCardProps) {
           <span className="text-h4 text-ods-text-primary truncate" title={action.name}>
             {action.name}
           </span>
-          <span className="font-medium text-[14px] leading-[20px] text-ods-text-secondary truncate">Script</span>
+          <span className="text-h6 text-ods-text-secondary truncate">Script</span>
         </div>
 
         <div className="flex flex-col">
           <span className="text-h4 text-ods-text-primary truncate">{action.timeout} Seconds</span>
-          <span className="font-medium text-[14px] leading-[20px] text-ods-text-secondary truncate">Timeout</span>
+          <span className="text-h6 text-ods-text-secondary truncate">Timeout</span>
         </div>
 
         {/* Script Details - hidden on mobile */}
@@ -107,19 +107,19 @@ function ScheduleScriptCard({ action }: ScheduleScriptCardProps) {
                   {argsData ? (
                     <InfoCard data={{ title: 'Script Arguments', ...argsData }} />
                   ) : (
-                    <div className="text-ods-text-secondary text-[14px]">No script arguments</div>
+                    <div className="text-h6 text-ods-text-secondary">No script arguments</div>
                   )}
                 </div>
                 <div className="flex-1 w-full p-4">
                   {envData ? (
                     <InfoCard data={{ title: 'Environment Vars', ...envData }} />
                   ) : (
-                    <div className="text-ods-text-secondary text-[14px]">No environment variables</div>
+                    <div className="text-h6 text-ods-text-secondary">No environment variables</div>
                   )}
                 </div>
               </div>
             ) : (
-              <div className="p-4 text-ods-text-secondary text-[14px]">
+              <div className="p-4 text-h6 text-ods-text-secondary">
                 No script arguments or environment variables configured
               </div>
             )}

@@ -67,7 +67,7 @@ export function ProfileCard({ onEditProfile, onVerifyEmail }: ProfileCardProps) 
                 title="Email not verified - click to resend verification"
               >
                 <AlertCircleIcon className="w-4 h-4" />
-                <span className="text-xs font-medium">Not verified</span>
+                <span className="text-h6">Not verified</span>
               </button>
             )}
           </div>

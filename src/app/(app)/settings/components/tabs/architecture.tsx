@@ -84,7 +84,7 @@ export function ArchitectureTab({ title = 'Architecture Overview' }: Architectur
 
       {layerOrder.map(layer => (
         <div key={layer} className="space-y-4">
-          <div className="text-ods-text-primary font-bold text-2xl">{layer}</div>
+          <div className="text-h2 text-ods-text-primary">{layer}</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {grouped[layer].map(tool => {
               const rows: Array<{ label?: string; value: string; href?: string; isSecret?: boolean; actions?: any }> =

@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Skeleton } from '@flamingo-stack/openframe-frontend-core/components/ui';
+import { LoadError, Skeleton } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { useToast } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
@@ -24,7 +24,7 @@ import { useAiSettingsActions } from './ai-settings-actions';
 import { AiSettingsLayout } from './ai-settings-layout';
 import { type AiSettingsTabId, AiSettingsTabs, getVisibleAiSettingsTabs } from './ai-settings-tabs';
 import { CUSTOMER_AI_ASSISTANT_FORM_ID, CustomerAiAssistantTab } from './customer-ai-assistant-tab';
-import { GUARDRAILS_FORM_ID, GuardrailsTab } from './guardrails-tab';
+import { GUARDRAILS_FORM_ID, GuardrailsTab } from './guardrails/guardrails-tab';
 import { MingoAiChatTab } from './mingo-ai-chat-tab';
 
 const FORM_ID_BY_TAB: Record<AiSettingsTabId, string> = {
@@ -189,14 +189,10 @@ export function AiSettings() {
           // defaults, so real settings can't be overwritten on save.
           if (hasLoadError) {
             return (
-              <div className="flex flex-col items-start gap-[var(--spacing-system-m)]">
-                <p className="text-ods-text-secondary">
-                  Couldn't load AI settings. The service may be temporarily unavailable.
-                </p>
-                <Button variant="outline" onClick={refetchActive}>
-                  Retry
-                </Button>
-              </div>
+              <LoadError
+                message="Couldn't load AI settings. The service may be temporarily unavailable."
+                onRetry={refetchActive}
+              />
             );
           }
 

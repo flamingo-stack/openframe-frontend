@@ -78,7 +78,7 @@ export function ScriptFormFields({
     <>
       {/* Supported Platform Section */}
       <div className="relative">
-        <Label className="text-lg font-['DM_Sans'] font-medium text-ods-text-primary">Supported Platform</Label>
+        <Label className="text-h4 text-ods-text-primary">Supported Platform</Label>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-1">
           {AVAILABLE_PLATFORMS.map(p => {
             const isDisabled = DISABLED_PLATFORMS.includes(p.id);
@@ -141,7 +141,7 @@ export function ScriptFormFields({
           control={control}
           render={({ field, fieldState }) => (
             <div className="space-y-1">
-              <Label className="text-lg font-['DM_Sans'] font-medium text-ods-text-primary">Name</Label>
+              <Label className="text-h4 text-ods-text-primary">Name</Label>
               <Input
                 type="text"
                 value={field.value}
@@ -160,7 +160,7 @@ export function ScriptFormFields({
           control={control}
           render={({ field, fieldState }) => (
             <div className="space-y-1">
-              <Label className="text-lg font-['DM_Sans'] font-medium text-ods-text-primary">Shell Type</Label>
+              <Label className="text-h4 text-ods-text-primary">Shell Type</Label>
               <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
                 <SelectTrigger
                   error={showErrors ? fieldState.error?.message : undefined}
@@ -189,7 +189,7 @@ export function ScriptFormFields({
             control={control}
             render={({ field, fieldState }) => (
               <div className="space-y-1">
-                <Label className="text-lg font-['DM_Sans'] font-medium text-ods-text-primary">Category</Label>
+                <Label className="text-h4 text-ods-text-primary">Category</Label>
                 <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
                   <SelectTrigger
                     error={showErrors ? fieldState.error?.message : undefined}
@@ -215,14 +215,14 @@ export function ScriptFormFields({
           control={control}
           render={({ field, fieldState }) => (
             <div className="space-y-1">
-              <Label className="text-lg font-['DM_Sans'] font-medium text-ods-text-primary">Timeout</Label>
+              <Label className="text-h4 text-ods-text-primary">Timeout</Label>
               <Input
                 type="number"
                 value={field.value}
                 onChange={e => field.onChange(e.target.value ? Number(e.target.value) : '')}
                 disabled={disabled}
                 placeholder="90"
-                endAdornment={<span className="text-sm text-ods-text-secondary">Seconds</span>}
+                endAdornment={<span className="text-h6 text-ods-text-secondary">Seconds</span>}
                 error={showErrors ? fieldState.error?.message : undefined}
                 invalid={showErrors && !!fieldState.error}
               />
@@ -237,7 +237,7 @@ export function ScriptFormFields({
         control={control}
         render={({ field }) => (
           <div>
-            <Label className="text-lg font-['DM_Sans'] font-medium text-ods-text-primary">Description</Label>
+            <Label className="text-h4 text-ods-text-primary">Description</Label>
             <Textarea
               value={field.value}
               onChange={field.onChange}
@@ -294,7 +294,7 @@ export function ScriptFormFields({
         control={control}
         render={({ field, fieldState }) => (
           <div>
-            <Label className="text-lg font-['DM_Sans'] font-medium text-ods-text-primary">Syntax</Label>
+            <Label className="text-h4 text-ods-text-primary">Syntax</Label>
             <ScriptEditor
               value={field.value}
               onChange={field.onChange}

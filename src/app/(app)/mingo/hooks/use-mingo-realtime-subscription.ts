@@ -354,8 +354,16 @@ function useDialogChunkProcessor(dialogId: string, options: UseDialogChunkProces
       },
 
       onToolExecuted: (segment: ToolExecutionSegment) => {
+        // Merge into an existing card first; when NOTHING matches — the
+        // common case for the FIRST post-MESSAGE_END EXECUTING chunk of an
+        // approved command, which has no prior segment to merge into —
+        // append the segment to the last assistant bubble instead of
+        // dropping it, or the whole tool run stays invisible.
         const execId = segment.data.toolExecutionRequestId;
-        if (execId) updateToolExecutionInMessages(dialogId, execId, segment.data);
+        const matched = updateToolExecutionInMessages(dialogId, execId, segment.data);
+        if (!matched) {
+          appendSegmentsToLastAssistant(dialogId, [segment]);
+        }
       },
 
       onUserMessage: (
@@ -476,6 +484,16 @@ export function DialogSubscription({
   // Rejects out-of-order JetStream redeliveries.
   const lastAppliedStreamSeqRef = useRef<number>(-1);
 
+  // Dispatch-level redelivery gate (mirrors the tickets subscription):
+  // JetStream is at-least-once, so a chunk with an equal-or-older streamSeq
+  // has already been processed — letting it through duplicates accumulator
+  // text / participant rows. The streamState guard above only protects the
+  // query-cache write, not the processor.
+  const lastDispatchedStreamSeqRef = useRef<number>(-1);
+  useEffect(() => {
+    lastDispatchedStreamSeqRef.current = -1;
+  }, [dialogId]);
+
   const syncStreamStateFromChunk = useCallback(
     (chunk: ChunkData) => {
       if (typeof chunk.streamSeq === 'number') {
@@ -500,6 +518,10 @@ export function DialogSubscription({
       if (featureFlags.debugNatsChunks.enabled()) {
         console.log('[mingo-js] chunk received', { dialogId, streamSeq: chunk.streamSeq, chunk });
       }
+      if (typeof chunk.streamSeq === 'number') {
+        if (chunk.streamSeq <= lastDispatchedStreamSeqRef.current) return;
+        lastDispatchedStreamSeqRef.current = chunk.streamSeq;
+      }
       syncStreamStateFromChunk(chunk);
       processorRef.current(chunk);
     },
@@ -514,7 +536,7 @@ export function DialogSubscription({
     onConnectionChange?.(dialogId, false);
   }, [dialogId, onConnectionChange]);
 
-  useJetStreamDialogSubscription({
+  const { reconnectionCount } = useJetStreamDialogSubscription({
     enabled: isInitialOptStartSeqReady,
     dialogId,
     streamName: CHAT_CHUNKS_STREAM,
@@ -526,6 +548,17 @@ export function DialogSubscription({
     onBeforeReconnect,
     getNatsWsUrl: getWsUrl,
   });
+
+  // NATS reconnect: JetStream replays only ~10 minutes of CHAT_CHUNKS, so an
+  // outage longer than that leaves a gap the resume-by-seq cannot fill.
+  // Refetch persisted history — the merge layer dedupes what replay covers.
+  const lastHandledReconnectRef = useRef(0);
+  useEffect(() => {
+    if (reconnectionCount <= lastHandledReconnectRef.current) return;
+    lastHandledReconnectRef.current = reconnectionCount;
+    void queryClient.invalidateQueries({ queryKey: ['mingo-dialog-messages', dialogId] });
+    void queryClient.invalidateQueries({ queryKey: ['mingo-dialog', dialogId] });
+  }, [reconnectionCount, queryClient, dialogId]);
 
   return null;
 }

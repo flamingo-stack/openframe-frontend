@@ -43,7 +43,7 @@ function InlineSkeleton({ className }: { className?: string }) {
 
 // Exact wrapper of the core `DashboardInfoCard` (its `baseClassName`).
 const INFO_CARD_CLASS =
-  'flex items-center gap-[var(--spacing-system-s)] rounded-sm border border-ods-border bg-ods-card p-[var(--spacing-system-m)] transition-all';
+  'flex h-16 items-center gap-[var(--spacing-system-s)] rounded-md border border-ods-border bg-ods-card p-[var(--spacing-system-xsf)] transition-all md:h-[104px] md:gap-[var(--spacing-system-m)] md:p-[var(--spacing-system-m)]';
 
 /**
  * One `DashboardInfoCard` in its loading state. The title (or the status-tag
@@ -85,29 +85,22 @@ function InfoCardSkeleton({
 }
 
 /**
- * `OrganizationCard` skeleton — the whole card is per-customer data (name, type,
- * avatar, device count), so it stays a skeleton. Mirrors the real card's wrapper
- * + header (avatar 52 → 60px) and the top-right device-count badge.
+ * Customer `DashboardInfoCard` skeleton — the whole card is per-customer data
+ * (logo, name, device count, website), so it stays a skeleton. Mirrors the real
+ * card's icon slot (32 → 56px tile) and the name/subtitle rows.
  */
-function OrganizationCardSkeleton() {
+function CustomerInfoCardSkeleton() {
   return (
-    <div className="relative flex w-full flex-col gap-3 overflow-clip rounded-[6px] border border-ods-border bg-ods-card p-4">
-      {/* device-count badge (absolute top-right): monitor icon + "N devices" */}
-      <div className="absolute right-4 top-4 flex items-center gap-2">
-        <Skeleton className="size-4" />
-        <Skeleton className="h-4 w-16" />
-      </div>
-      {/* header: avatar + name/subtitle */}
-      <div className="flex w-full items-start gap-3">
-        <Skeleton className="size-[52px] shrink-0 rounded-md md:size-[60px]" />
-        <div className="flex min-w-0 flex-1 flex-col justify-center py-2">
-          <p className="text-lg leading-[1.33]">
-            <InlineSkeleton className="h-4 w-32" />
-          </p>
-          <p className="text-sm leading-[1.43]">
-            <InlineSkeleton className="h-3 w-24" />
-          </p>
-        </div>
+    <div className={cn(INFO_CARD_CLASS, 'col-span-2')}>
+      {/* logo tile — mirrors the DashboardInfoCard icon slot */}
+      <Skeleton className="size-8 shrink-0 rounded-sm md:size-14" />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <p className="text-h3 text-ods-text-primary">
+          <InlineSkeleton className="h-4 w-40" />
+        </p>
+        <p className="text-h6 text-ods-text-secondary">
+          <InlineSkeleton className="h-3 w-24" />
+        </p>
       </div>
     </div>
   );
@@ -148,13 +141,13 @@ function OverviewHeaderSkeleton({ title, unit, className }: { title: string; uni
 /** Devices Overview loading state — real header + 4 info-card skeletons with real titles. */
 export function DevicesOverviewSkeleton() {
   return (
-    <div className="space-y-4">
+    <div>
       <OverviewHeaderSkeleton
         title="Devices Overview"
         unit="Devices in Total"
-        className="pt-1 mb-0 [&_p]:hidden lg:[&_p]:block"
+        className="[&_p]:hidden lg:[&_p]:block"
       />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-[var(--spacing-system-mf)] lg:grid-cols-4">
         {DEVICE_CARDS.map(title => (
           <InfoCardSkeleton key={title} title={title} showProgress showPercentage />
         ))}
@@ -166,13 +159,13 @@ export function DevicesOverviewSkeleton() {
 /** Tickets Overview loading state — real header + 4 ticket cards with their real status tags. */
 export function TicketsOverviewSkeleton() {
   return (
-    <div className="space-y-4">
+    <div>
       <OverviewHeaderSkeleton
         title="Tickets Overview"
         unit="Tickets in Total"
-        className="pt-0 mb-0 [&_p]:hidden lg:[&_p]:block"
+        className="[&_p]:hidden lg:[&_p]:block"
       />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-[var(--spacing-system-mf)] md:grid-cols-2 lg:grid-cols-4">
         <InfoCardSkeleton titleSlot={<TicketStatusTag status="AI_ASSISTANCE" />} />
         <InfoCardSkeleton titleSlot={<TicketStatusTag status="TECH_REQUIRED" />} />
         <InfoCardSkeleton titleSlot={<TicketStatusTag status="RESOLVED" />} />
@@ -186,13 +179,13 @@ export function TicketsOverviewSkeleton() {
   );
 }
 
-/** The row list for Customers Overview — 3 rows of [org card, 2 info cards with real titles]. */
+/** The row list for Customers Overview — 3 rows of [customer card, 2 info cards with real titles]. */
 function CustomersRowsSkeleton() {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-[var(--spacing-system-mf)]">
       {CUSTOMER_ROW_KEYS.map(key => (
-        <div key={key} className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <OrganizationCardSkeleton />
+        <div key={key} className="grid grid-cols-2 items-stretch gap-[var(--spacing-system-mf)] lg:grid-cols-4">
+          <CustomerInfoCardSkeleton />
           <InfoCardSkeleton title="Online Devices" showProgress showPercentage />
           <InfoCardSkeleton title="Offline Devices" showProgress showPercentage />
         </div>
@@ -204,11 +197,11 @@ function CustomersRowsSkeleton() {
 /** Customers Overview loading state — real header + the row skeletons. */
 export function CustomersOverviewSkeleton() {
   return (
-    <div className="space-y-4">
+    <div>
       <OverviewHeaderSkeleton
         title="Customers Overview"
         unit="Customers in Total"
-        className="pt-0 mb-0 [&_p]:hidden lg:[&_p]:block"
+        className="[&_p]:hidden lg:[&_p]:block"
       />
       <CustomersRowsSkeleton />
     </div>

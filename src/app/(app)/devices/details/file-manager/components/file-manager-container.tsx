@@ -328,18 +328,18 @@ export function FileManagerContainer({ deviceId, meshcentralAgentId, hostname, c
       {uploadProgress && (
         <div className="fixed bottom-4 right-4 bg-ods-card border border-ods-border rounded-lg p-4 shadow-lg w-80">
           <div className="flex justify-between items-center mb-2">
-            <div className="text-sm text-ods-text-primary">Uploading: {uploadProgress.file}</div>
+            <div className="text-h6 text-ods-text-primary">Uploading: {uploadProgress.file}</div>
             <Button
               variant="transparent"
               size="small-legacy"
               onClick={cancelUpload}
-              className="h-6 w-6 p-0 text-ods-text-secondary hover:text-ods-text-primary hover:bg-ods-bg-secondary"
+              className="h-6 w-6 p-0 text-ods-text-secondary hover:text-ods-text-primary hover:bg-ods-bg-hover"
             >
               x
             </Button>
           </div>
           <Progress value={uploadProgress.progress} className="h-2" indicatorClassName="bg-ods-accent" />
-          <div className="mt-1 text-xs text-ods-text-secondary">{uploadProgress.progress}% complete</div>
+          <div className="mt-1 text-h6 text-ods-text-secondary">{uploadProgress.progress}% complete</div>
         </div>
       )}
 
@@ -347,18 +347,18 @@ export function FileManagerContainer({ deviceId, meshcentralAgentId, hostname, c
       {downloadProgress && (
         <div className="fixed bottom-4 right-4 bg-ods-card border border-ods-border rounded-lg p-4 shadow-lg w-80">
           <div className="flex justify-between items-center mb-2">
-            <div className="text-sm text-ods-text-primary">Downloading: {downloadProgress.file}</div>
+            <div className="text-h6 text-ods-text-primary">Downloading: {downloadProgress.file}</div>
             <Button
               variant="transparent"
               size="small-legacy"
               onClick={cancelDownload}
-              className="h-6 w-6 p-0 text-ods-text-secondary hover:text-ods-text-primary hover:bg-ods-bg-secondary"
+              className="h-6 w-6 p-0 text-ods-text-secondary hover:text-ods-text-primary hover:bg-ods-bg-hover"
             >
               x
             </Button>
           </div>
           <Progress value={downloadProgress.progress} className="h-2" indicatorClassName="bg-ods-accent" />
-          <div className="mt-1 text-xs text-ods-text-secondary">{downloadProgress.progress}% complete</div>
+          <div className="mt-1 text-h6 text-ods-text-secondary">{downloadProgress.progress}% complete</div>
         </div>
       )}
 
@@ -366,14 +366,14 @@ export function FileManagerContainer({ deviceId, meshcentralAgentId, hostname, c
       {clipboard && (
         <div className="fixed bottom-4 right-4 bg-ods-card border border-ods-border rounded-lg p-3 shadow-lg">
           <div className="flex items-center gap-2">
-            <div className="text-sm text-ods-text-primary">
+            <div className="text-h6 text-ods-text-primary">
               {clipboard.fileIds.length} item(s) {clipboard.operation === 'copy' ? 'copied' : 'cut'}
             </div>
             <Button
               variant="transparent"
               size="small-legacy"
               onClick={clearClipboard}
-              className="h-5 w-5 p-0 text-ods-text-secondary hover:text-ods-text-primary hover:bg-ods-bg-secondary"
+              className="h-5 w-5 p-0 text-ods-text-secondary hover:text-ods-text-primary hover:bg-ods-bg-hover"
             >
               x
             </Button>

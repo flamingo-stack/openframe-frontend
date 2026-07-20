@@ -49,7 +49,7 @@ export default function FileManagerPage() {
         backButton={{ label: 'Back', onClick: handleBack }}
       >
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <div className="text-ods-attention-red-error text-lg">Error: {error}</div>
+          <div className="text-ods-error text-h4">Error: {error}</div>
           <Button variant="outline" onClick={handleBack}>
             Return to Device Details
           </Button>
@@ -67,9 +67,7 @@ export default function FileManagerPage() {
         backButton={{ label: 'Back', onClick: handleBack }}
       >
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <div className="text-ods-attention-red-error text-lg">
-            MeshCentral Agent ID is required for file manager functionality
-          </div>
+          <div className="text-ods-error text-h4">MeshCentral Agent ID is required for file manager functionality</div>
           <p className="text-ods-text-secondary">File manager requires MeshCentral agent to be connected.</p>
           <Button variant="outline" onClick={handleBack}>
             Return to Device Details

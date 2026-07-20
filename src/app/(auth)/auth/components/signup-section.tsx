@@ -95,10 +95,8 @@ export function AuthSignupSection({
         {/* Complete Your Registration Section */}
         <div className="bg-ods-card border border-ods-border rounded-sm p-10">
           <div className="mb-6">
-            <h1 className="font-heading text-[32px] font-semibold text-ods-text-primary leading-10 tracking-[-0.64px] mb-2">
-              {getTitle()}
-            </h1>
-            <p className="font-body text-[18px] font-medium text-ods-text-secondary leading-6">{getSubtitle()}</p>
+            <h1 className="text-h2 text-ods-text-primary mb-2">{getTitle()}</h1>
+            <p className="text-h4 text-ods-text-secondary">{getSubtitle()}</p>
           </div>
 
           {/* SSO Options for SaaS Shared Mode */}
@@ -114,8 +112,8 @@ export function AuthSignupSection({
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-ods-border" />
                 </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="bg-ods-card px-2 text-ods-text-secondary">Or continue with email</span>
+                <div className="relative flex justify-center">
+                  <span className="text-h6 bg-ods-card px-2 text-ods-text-secondary">Or continue with email</span>
                 </div>
               </div>
             </div>
@@ -130,7 +128,7 @@ export function AuthSignupSection({
                   value={orgName}
                   disabled
                   onKeyDown={handleKeyDown}
-                  className="bg-ods-card border-ods-border text-ods-text-secondary font-body text-[18px] font-medium leading-6 p-3"
+                  className="bg-ods-card border-ods-border text-ods-text-secondary text-h4 p-3"
                 />
               </div>
               <div className="flex-1 flex flex-col gap-1">
@@ -139,7 +137,7 @@ export function AuthSignupSection({
                   value={displayDomain}
                   disabled
                   onKeyDown={handleKeyDown}
-                  className="bg-ods-card border-ods-border text-ods-text-secondary font-body text-[18px] font-medium leading-6 p-3"
+                  className="bg-ods-card border-ods-border text-ods-text-secondary text-h4 p-3"
                 />
               </div>
             </div>
@@ -154,7 +152,7 @@ export function AuthSignupSection({
                   onKeyDown={handleKeyDown}
                   placeholder="Your First Name"
                   disabled={isLoading}
-                  className="bg-ods-card border-ods-border text-ods-text-secondary font-body text-[18px] font-medium leading-6 placeholder:text-ods-text-secondary p-3"
+                  className="bg-ods-card border-ods-border text-ods-text-secondary text-h4 placeholder:text-ods-text-secondary p-3"
                 />
               </div>
               <div className="flex-1 flex flex-col gap-1">
@@ -165,7 +163,7 @@ export function AuthSignupSection({
                   onKeyDown={handleKeyDown}
                   placeholder="Your Last Name"
                   disabled={isLoading}
-                  className="bg-ods-card border-ods-border text-ods-text-secondary font-body text-[18px] font-medium leading-6 placeholder:text-ods-text-secondary p-3"
+                  className="bg-ods-card border-ods-border text-ods-text-secondary text-h4 placeholder:text-ods-text-secondary p-3"
                 />
               </div>
             </div>
@@ -179,10 +177,10 @@ export function AuthSignupSection({
                 onKeyDown={handleKeyDown}
                 placeholder="username@mail.com"
                 disabled={isLoading || !!prefillEmail}
-                className="bg-ods-card border-ods-border text-ods-text-secondary font-body text-[18px] font-medium leading-6 placeholder:text-ods-text-secondary p-3"
+                className="bg-ods-card border-ods-border text-ods-text-secondary text-h4 placeholder:text-ods-text-secondary p-3"
               />
               {email.trim() && !isEmailValid && (
-                <p className="text-xs text-ods-error mt-1">Enter a valid email address</p>
+                <p className="text-h6 text-ods-error mt-1">Enter a valid email address</p>
               )}
             </div>
 
@@ -196,10 +194,10 @@ export function AuthSignupSection({
                   onKeyDown={handleKeyDown}
                   placeholder={'Choose a Strong Password'}
                   disabled={isLoading}
-                  className="bg-ods-card border-ods-border text-ods-text-secondary font-body text-[18px] font-medium leading-6 placeholder:text-ods-text-secondary p-3"
+                  className="bg-ods-card border-ods-border text-ods-text-secondary text-h4 placeholder:text-ods-text-secondary p-3"
                 />
                 {isSaasShared && password && password.length < 8 && (
-                  <p className="text-xs text-ods-error mt-1">Password must be at least 8 characters</p>
+                  <p className="text-h6 text-ods-error mt-1">Password must be at least 8 characters</p>
                 )}
               </div>
               <div className="flex-1 flex flex-col gap-1">
@@ -211,10 +209,10 @@ export function AuthSignupSection({
                   onKeyDown={handleKeyDown}
                   placeholder="Confirm your Password"
                   disabled={isLoading}
-                  className="bg-ods-card border-ods-border text-ods-text-secondary font-body text-[18px] font-medium leading-6 placeholder:text-ods-text-secondary p-3"
+                  className="bg-ods-card border-ods-border text-ods-text-secondary text-h4 placeholder:text-ods-text-secondary p-3"
                 />
                 {confirmPassword && password !== confirmPassword && (
-                  <p className="text-xs text-ods-error mt-1">Passwords do not match</p>
+                  <p className="text-h6 text-ods-error mt-1">Passwords do not match</p>
                 )}
               </div>
             </div>

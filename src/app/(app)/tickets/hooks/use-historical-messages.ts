@@ -87,6 +87,9 @@ export function useHistoricalMessages({
       createdAt: msg.createdAt,
       owner: msg.owner,
       messageData: msg.messageData,
+      // Feed the merge's per-role seq coverage so a post-reload live synthetic
+      // isn't dropped by an unrelated row's seq (message-loss on stop/reload).
+      lastChunkStreamSeq: msg.lastChunkStreamSeq,
     }));
 
     const historicalResolutions: Record<string, 'approved' | 'rejected'> = {};
@@ -111,6 +114,11 @@ export function useHistoricalMessages({
       onReject: onRejectRef.current,
       approvalStatuses: { ...approvalStatusesRef.current, ...historicalResolutions },
       batchApprovalsEnabled: featureFlags.batchApproval.enabled(),
+      // Must match the realtime processor (use-side-chunk-processor): an
+      // omitted option is not guaranteed to include ADMIN, and a history
+      // reprocess (reopen, reconnect refetch, pagination) would silently
+      // drop pending ADMIN approval cards that rendered live.
+      displayApprovalTypes: ['CLIENT', 'ADMIN'],
     });
 
     const storeMessages: ChatMessage[] = foldPendingApprovalsEnvelope(
@@ -123,6 +131,8 @@ export function useHistoricalMessages({
         authorType: msg.authorType,
         timestamp: msg.timestamp,
         avatar: msg.avatar,
+        // Carry the persisted per-row seq into the merge (per-role coverage).
+        streamSeq: msg.streamSeq,
       })),
     );
 

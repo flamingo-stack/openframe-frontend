@@ -1,20 +1,27 @@
 'use client';
 
 import {
+  ChatsIcon,
+  FileContentIcon,
+  ShieldCheckIcon,
+} from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
+import {
   CheckboxBlock,
   ImageUploader,
   Input,
   PageLayout,
+  type TabItem,
+  TabNavigation,
   Textarea,
 } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { useToast } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import React, { useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { safeBackOrReplace, useSafeBack } from '@/app/hooks/use-safe-back';
 import { featureFlags } from '@/lib/feature-flags';
 import { getFullImageUrl } from '@/lib/image-url';
-import { routes } from '@/lib/routes';
+import { routes, TAB_IDS } from '@/lib/routes';
 import { runtimeEnv } from '@/lib/runtime-config';
 import { deleteWithAuth, uploadWithAuth } from '@/lib/upload-with-auth';
 import { dashboardQueryKeys } from '../../dashboard/utils/query-keys';
@@ -22,9 +29,10 @@ import { useCreateCustomer } from '../hooks/use-create-customer';
 import { customerDetailsQueryKeys, useCustomerDetails } from '../hooks/use-customer-details';
 import { useUpdateCustomer } from '../hooks/use-update-customer';
 import {
-  CustomerAiAssistantAppearance,
-  type CustomerAppearanceHandle,
-} from './ai-assistant-appearance/customer-ai-assistant-appearance';
+  CustomerAiConfiguration,
+  type CustomerAiConfigurationHandle,
+} from './customer-ai-configuration/customer-ai-configuration';
+import { type CustomerGuardrailsHandle, CustomerGuardrailsSettings } from './customer-guardrails-settings';
 
 interface NewCustomerPageProps {
   organizationId: string | null;
@@ -86,8 +94,12 @@ const contactToDto = (c: { name: string; title: string; phone: string; email: st
   email: c.email,
 });
 
+const [DETAILS_TAB, AI_CONFIGURATION_TAB, GUARDRAILS_TAB] = TAB_IDS.customerEdit;
+
 export function NewCustomerPage({ organizationId }: NewCustomerPageProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -106,12 +118,45 @@ export function NewCustomerPage({ organizationId }: NewCustomerPageProps) {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | undefined>(undefined);
   const previewUrlRef = useRef<string | undefined>(undefined);
-  // Lets "Save Customer" also persist the AI-Assistant appearance block.
-  const appearanceRef = useRef<CustomerAppearanceHandle>(null);
+  // Let "Save Customer" also persist the AI configuration / guardrails blocks.
+  const aiConfigurationRef = useRef<CustomerAiConfigurationHandle>(null);
+  const guardrailsRef = useRef<CustomerGuardrailsHandle>(null);
 
   const isSaasTenant = runtimeEnv.appMode() === 'saas-tenant';
   const showImageUploader = isSaasTenant;
   const displayedImage = pendingPreviewUrl || getFullImageUrl(form.imageUrl, form.imageHash);
+
+  // Per-customer AI blocks: SaaS-only (they rely on the openframe-saas-ai-agent
+  // service, absent in self-hosted) and edit-mode only (they need an org id to
+  // scope the override). Each is gated behind its own release flag. When any is
+  // visible, the page renders as tabs (Details / AI Configuration / Guardrails).
+  const showAppearance = !!organizationId && isSaasTenant && featureFlags.customerAiAssistantSettings.enabled();
+  const showGuardrails = !!organizationId && isSaasTenant && featureFlags.customerGuardrails.enabled();
+  const showTabs = showAppearance || showGuardrails;
+
+  const editTabs = useMemo<TabItem[]>(
+    () => [
+      { id: DETAILS_TAB, label: 'Details', icon: FileContentIcon },
+      ...(showAppearance ? [{ id: AI_CONFIGURATION_TAB, label: 'Customer AI Configuration', icon: ChatsIcon }] : []),
+      ...(showGuardrails ? [{ id: GUARDRAILS_TAB, label: 'Customer AI Guardrails', icon: ShieldCheckIcon }] : []),
+    ],
+    [showAppearance, showGuardrails],
+  );
+
+  // Tab rides the URL (controlled mode, mirroring customer-details-view) so
+  // "Edit Customer" from a details-page tab lands on the matching edit tab and
+  // a refresh keeps the current one. Unknown or flag-hidden tab ids fall back
+  // to Details. Panels stay mounted across switches, so form state survives.
+  const requestedTab = searchParams?.get('tab') ?? DETAILS_TAB;
+  const activeTab = editTabs.some(tab => tab.id === requestedTab) ? requestedTab : DETAILS_TAB;
+  const handleTabChange = useCallback(
+    (tabId: string) => {
+      const params = new URLSearchParams(searchParams?.toString() ?? '');
+      params.set('tab', tabId);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
 
   const set = (partial: Partial<FormState>) => setForm(prev => ({ ...prev, ...partial }));
 
@@ -247,11 +292,11 @@ export function NewCustomerPage({ organizationId }: NewCustomerPageProps) {
     try {
       setIsSubmitting(true);
 
-      // Validate the AI-Assistant appearance fields before writing anything.
-      if (appearanceRef.current && !(await appearanceRef.current.validate())) {
+      // Validate the AI configuration fields before writing anything.
+      if (aiConfigurationRef.current && !(await aiConfigurationRef.current.validate())) {
         toast({
-          title: 'Check AI-Assistant appearance',
-          description: 'Fix the highlighted appearance fields before saving',
+          title: 'Check AI configuration',
+          description: 'Fix the highlighted AI configuration fields before saving',
           variant: 'destructive',
         });
         setIsSubmitting(false);
@@ -297,16 +342,30 @@ export function NewCustomerPage({ organizationId }: NewCustomerPageProps) {
         }
       }
 
-      // Persist the AI-Assistant appearance override/reset (edit mode only).
-      // The customer is already saved at this point, so an appearance failure is
+      // Persist the AI configuration overrides/reset (edit mode only). The
+      // customer is already saved at this point, so a configuration failure is
       // a non-fatal warning — it must not surface as a full "Save failed".
-      if (organizationId && appearanceRef.current) {
+      if (organizationId && aiConfigurationRef.current) {
         try {
-          await appearanceRef.current.commit();
+          await aiConfigurationRef.current.commit();
         } catch (e) {
           toast({
-            title: 'Customer saved, appearance not updated',
-            description: e instanceof Error ? e.message : 'Failed to save AI-Assistant appearance',
+            title: 'Customer saved, AI configuration not updated',
+            description: e instanceof Error ? e.message : 'Failed to save the customer AI configuration',
+            variant: 'warning',
+          });
+        }
+      }
+
+      // Persist the per-customer guardrails selection (edit mode only). Same
+      // non-fatal semantics as the appearance block: the customer is saved.
+      if (organizationId && guardrailsRef.current) {
+        try {
+          await guardrailsRef.current.commit();
+        } catch (e) {
+          toast({
+            title: 'Customer saved, guardrails not updated',
+            description: e instanceof Error ? e.message : 'Failed to save customer guardrails',
             variant: 'warning',
           });
         }
@@ -333,6 +392,84 @@ export function NewCustomerPage({ organizationId }: NewCustomerPageProps) {
 
   const saveDisabled = !form.name.trim() || isSubmitting;
 
+  const detailsForm = (
+    <div className="flex flex-col gap-6 w-full">
+      {/* Row 1: name + website (left) | image (right on lg, below on md/sm) */}
+      <div className="flex flex-col lg:flex-row gap-6 items-stretch">
+        <div className="flex-1 min-w-0 flex flex-col gap-6 md:flex-row md:gap-6 lg:flex-col">
+          <div className="flex-1 min-w-0">
+            <Input
+              label="Customer Name"
+              placeholder="Customer Name"
+              value={form.name}
+              onChange={e => set({ name: e.target.value })}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <Input
+              label="Website URL"
+              placeholder="https://www.website.com"
+              value={form.website}
+              onChange={e => set({ website: e.target.value })}
+            />
+          </div>
+        </div>
+
+        {showImageUploader && (
+          <div className="w-full lg:w-[316px] shrink-0">
+            <ImageUploader
+              value={displayedImage}
+              onChange={handleImageChange}
+              onRemove={handleImageRemove}
+              objectFit="contain"
+              label="Customer Logo"
+              description="(Click here or drag and drop)"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Notes */}
+      <Textarea
+        label="Notes"
+        rows={4}
+        placeholder="Your notes here..."
+        value={form.notes}
+        onChange={e => set({ notes: e.target.value })}
+        className="min-h-[96px] resize-y"
+      />
+
+      {/* Row 3: physical address + same-as-physical checkbox */}
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-end">
+        <div className="flex-1 min-w-0">
+          <Input
+            label="Physical Address"
+            placeholder="123 Main St, City, State, ZIP"
+            value={form.physicalAddress}
+            onChange={e => set({ physicalAddress: e.target.value })}
+          />
+        </div>
+        <CheckboxBlock
+          id="mailing-same"
+          className="flex-1 min-w-0 md:max-w-[50%]"
+          label="Mailing Address Same as Physical"
+          checked={form.mailingSameAsPhysical}
+          onCheckedChange={c => set({ mailingSameAsPhysical: Boolean(c) })}
+        />
+      </div>
+
+      {/* Mailing address (full width) */}
+      <Input
+        label="Mailing Address"
+        placeholder="123 Main St, City, State, ZIP"
+        value={form.mailingAddress}
+        onChange={e => set({ mailingAddress: e.target.value })}
+        disabled={form.mailingSameAsPhysical}
+        className="disabled:opacity-60"
+      />
+    </div>
+  );
+
   return (
     <PageLayout
       className="px-[var(--spacing-system-l)] pb-[var(--spacing-system-l)]"
@@ -352,92 +489,30 @@ export function NewCustomerPage({ organizationId }: NewCustomerPageProps) {
         },
       ]}
     >
-      <div className="flex flex-col gap-6 w-full">
-        {/* Row 1: name + website (left) | image (right on lg, below on md/sm) */}
-        <div className="flex flex-col lg:flex-row gap-6 items-stretch">
-          <div className="flex-1 min-w-0 flex flex-col gap-6 md:flex-row md:gap-6 lg:flex-col">
-            <div className="flex-1 min-w-0">
-              <Input
-                label="Customer Name"
-                placeholder="Customer Name"
-                value={form.name}
-                onChange={e => set({ name: e.target.value })}
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <Input
-                label="Website URL"
-                placeholder="https://www.website.com"
-                value={form.website}
-                onChange={e => set({ website: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {showImageUploader && (
-            <div className="w-full lg:w-[316px] shrink-0">
-              <ImageUploader
-                value={displayedImage}
-                onChange={handleImageChange}
-                onRemove={handleImageRemove}
-                objectFit="contain"
-                label="Customer Logo"
-                description="(Click here or drag and drop)"
-              />
+      {showTabs && organizationId ? (
+        <TabNavigation tabs={editTabs} activeTab={activeTab} onTabChange={handleTabChange}>
+          {activeId => (
+            // Every panel stays mounted (inactive ones hidden via CSS): the
+            // details form state and the AI blocks' imperative refs must
+            // survive tab switches so one "Save Customer" persists them all.
+            <div className="pt-[var(--spacing-system-l)]">
+              <div className={activeId === DETAILS_TAB ? undefined : 'hidden'}>{detailsForm}</div>
+              {showAppearance && (
+                <div className={activeId === AI_CONFIGURATION_TAB ? undefined : 'hidden'}>
+                  <CustomerAiConfiguration ref={aiConfigurationRef} organizationId={organizationId} />
+                </div>
+              )}
+              {showGuardrails && (
+                <div className={activeId === GUARDRAILS_TAB ? undefined : 'hidden'}>
+                  <CustomerGuardrailsSettings ref={guardrailsRef} organizationId={organizationId} />
+                </div>
+              )}
             </div>
           )}
-        </div>
-
-        {/* Notes */}
-        <Textarea
-          label="Notes"
-          rows={4}
-          placeholder="Your notes here..."
-          value={form.notes}
-          onChange={e => set({ notes: e.target.value })}
-          className="min-h-[96px] resize-y"
-        />
-
-        {/* Row 3: physical address + same-as-physical checkbox */}
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:items-end">
-          <div className="flex-1 min-w-0">
-            <Input
-              label="Physical Address"
-              placeholder="123 Main St, City, State, ZIP"
-              value={form.physicalAddress}
-              onChange={e => set({ physicalAddress: e.target.value })}
-            />
-          </div>
-          <CheckboxBlock
-            id="mailing-same"
-            className="flex-1 min-w-0 md:max-w-[50%]"
-            label="Mailing Address Same as Physical"
-            checked={form.mailingSameAsPhysical}
-            onCheckedChange={c => set({ mailingSameAsPhysical: Boolean(c) })}
-          />
-        </div>
-
-        {/* Mailing address (full width) */}
-        <Input
-          label="Mailing Address"
-          placeholder="123 Main St, City, State, ZIP"
-          value={form.mailingAddress}
-          onChange={e => set({ mailingAddress: e.target.value })}
-          disabled={form.mailingSameAsPhysical}
-          className="disabled:opacity-60"
-        />
-
-        {/* AI-Assistant Appearance — per-customer override. Gated behind the
-            customer-ai-assistant-settings flag (feature not released yet). SaaS-only:
-            it relies on the openframe-saas-ai-agent service (/chat/graphql), absent in
-            self-hosted. Edit mode only, since it needs an org id to scope the override. */}
-        {organizationId && isSaasTenant && featureFlags.customerAiAssistantSettings.enabled() && (
-          <>
-            <div className="border-t border-ods-border" />
-            <CustomerAiAssistantAppearance ref={appearanceRef} organizationId={organizationId} />
-          </>
-        )}
-      </div>
+        </TabNavigation>
+      ) : (
+        detailsForm
+      )}
     </PageLayout>
   );
 }

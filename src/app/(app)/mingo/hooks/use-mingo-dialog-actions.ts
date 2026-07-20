@@ -54,7 +54,11 @@ export function useMingoDialogActions() {
   const queryClient = useQueryClient();
 
   const invalidateDialogs = useCallback(() => {
+    // Archive/unarchive move a dialog between the active and archived lists, so
+    // refresh BOTH cached queries — otherwise the archived-list cache (below)
+    // would go stale after archiving/unarchiving.
     void queryClient.invalidateQueries({ queryKey: ['mingo-dialogs'] });
+    void queryClient.invalidateQueries({ queryKey: ['mingo-archived-dialogs'] });
   }, [queryClient]);
 
   const renameDialog = useCallback(
@@ -111,28 +115,47 @@ export function useMingoDialogActions() {
     [invalidateDialogs, toast],
   );
 
-  const fetchArchivedDialogs = useCallback(async (params: FetchArchivedParams): Promise<FetchArchivedResult> => {
-    const response = await apiClient.post<DialogsResponse>('/chat/graphql', {
-      query: GET_MINGO_DIALOGS_QUERY,
-      variables: {
-        filter: { agentTypes: ['ADMIN'], statuses: ['ARCHIVED'] },
-        pagination: { limit: params.limit ?? 20, cursor: params.cursor },
-        search: params.search,
-      },
-    });
-    if (!response.ok || !response.data) {
-      throw new Error(response.error || 'Failed to fetch archived chats');
-    }
-    const { edges, pageInfo } = response.data.data.dialogs;
-    return {
-      dialogs: edges.map(edge => ({
-        id: edge.node.id,
-        title: edge.node.title || 'Untitled Dialog',
-        timestamp: new Date(edge.node.createdAt),
-      })),
-      nextCursor: pageInfo.hasNextPage ? (pageInfo.endCursor ?? null) : null,
-    };
-  }, []);
+  const fetchArchivedDialogs = useCallback(
+    async (params: FetchArchivedParams): Promise<FetchArchivedResult> => {
+      const runFetch = async (): Promise<FetchArchivedResult> => {
+        const response = await apiClient.post<DialogsResponse>('/chat/graphql', {
+          query: GET_MINGO_DIALOGS_QUERY,
+          variables: {
+            filter: { agentTypes: ['ADMIN'], statuses: ['ARCHIVED'] },
+            pagination: { limit: params.limit ?? 20, cursor: params.cursor },
+            search: params.search,
+          },
+        });
+        if (!response.ok || !response.data) {
+          throw new Error(response.error || 'Failed to fetch archived chats');
+        }
+        const { edges, pageInfo } = response.data.data.dialogs;
+        return {
+          dialogs: edges.map(edge => ({
+            id: edge.node.id,
+            title: edge.node.title || 'Untitled Dialog',
+            timestamp: new Date(edge.node.createdAt),
+          })),
+          nextCursor: pageInfo.hasNextPage ? (pageInfo.endCursor ?? null) : null,
+        };
+      };
+
+      // Cache the FIRST page (no cursor) in the root QueryClient so reopening
+      // the archive — even after the drawer unmounted — returns instantly
+      // without a network round-trip or a skeleton. Paginated pages (cursor
+      // set) stay transient. Invalidated on archive/unarchive above.
+      if (!params.cursor) {
+        return queryClient.fetchQuery({
+          queryKey: ['mingo-archived-dialogs', { search: params.search, limit: params.limit ?? 20 }],
+          queryFn: runFetch,
+          staleTime: 5 * 60 * 1000,
+          gcTime: 30 * 60 * 1000,
+        });
+      }
+      return runFetch();
+    },
+    [queryClient],
+  );
 
   return { renameDialog, archiveDialog, unarchiveDialog, fetchArchivedDialogs };
 }

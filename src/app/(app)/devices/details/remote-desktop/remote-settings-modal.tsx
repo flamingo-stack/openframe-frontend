@@ -193,7 +193,7 @@ export function RemoteSettingsModal({
             <Label htmlFor="invert-scroll" className="cursor-pointer">
               Invert Scroll Direction
             </Label>
-            <p className="text-sm text-ods-text-secondary">Reverse mouse wheel scroll direction</p>
+            <p className="text-h6 text-ods-text-secondary">Reverse mouse wheel scroll direction</p>
           </div>
         </div>
 
@@ -208,7 +208,7 @@ export function RemoteSettingsModal({
               <Label htmlFor="swap-mouse" className="cursor-pointer">
                 Swap Mouse Buttons
               </Label>
-              <p className="text-sm text-ods-text-secondary">Reverse left and right mouse button functions</p>
+              <p className="text-h6 text-ods-text-secondary">Reverse left and right mouse button functions</p>
             </div>
           </div>
 
@@ -222,7 +222,7 @@ export function RemoteSettingsModal({
               <Label htmlFor="keyboard-map" className="cursor-pointer">
                 Use Remote Keyboard Map
               </Label>
-              <p className="text-sm text-ods-text-secondary">Use the remote device's keyboard layout</p>
+              <p className="text-h6 text-ods-text-secondary">Use the remote device's keyboard layout</p>
             </div>
           </div>
         </div>

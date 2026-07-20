@@ -92,7 +92,7 @@ export function AuthBenefitsSection() {
               lowerPathColor="var(--color-accent-primary)"
               upperPathColor="var(--color-text-primary)"
             />
-            <OpenFrameText textColor="#FAFAFA" style={{ width: '174px', height: '30px' }} />
+            <OpenFrameText textColor="var(--color-text-primary)" style={{ width: '174px', height: '30px' }} />
           </div>
 
           {/* Waitlist Form Container */}
@@ -100,11 +100,11 @@ export function AuthBenefitsSection() {
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
                 <h2 className="text-h2 text-ods-text-primary tracking-[-0.64px]">Get Early Access</h2>
-                <p className="text-[18px] leading-6 text-ods-text-secondary">
+                <p className="text-h4 text-ods-text-secondary">
                   Don't have access yet? Join our private beta to get your invitation code and start breaking free from
                   vendor lock-in.
                 </p>
-                <p className="text-[18px] leading-6 text-ods-text-secondary mt-2">
+                <p className="text-h4 text-ods-text-secondary mt-2">
                   Enter your email below or join our OpenMSP Slack community to connect with other MSPs making the
                   switch.
                 </p>
@@ -137,9 +137,7 @@ export function AuthBenefitsSection() {
             lowerPathColor="var(--color-accent-primary)"
             upperPathColor="var(--color-text-primary)"
           />
-          <span className="p-4 font-heading fon-[Azeret_Mono] font-semibold text-[24px] text-ods-text-primary">
-            OpenFrame{' '}
-          </span>
+          <span className="p-4 text-h2 text-ods-text-primary">OpenFrame </span>
         </div>
 
         {/* Benefits Container */}

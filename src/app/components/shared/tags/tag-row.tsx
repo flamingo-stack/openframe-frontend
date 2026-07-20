@@ -139,7 +139,7 @@ export function TagRow({ tag, onChange, onDelete, existingKeys, keySuggestionsRe
           size="icon"
           onClick={onDelete}
           aria-label="Remove tag row"
-          leftIcon={<Trash2 className="size-4 md:size-6 " color="var(--ods-attention-red-error)" />}
+          leftIcon={<Trash2 className="size-4 md:size-6 text-ods-error" />}
         />
       </div>
     </div>

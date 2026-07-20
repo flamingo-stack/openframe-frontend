@@ -1,50 +1,34 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
-
-interface AiConfiguration {
-  id: string;
-  provider: string;
-  displayName: string;
-  modelName: string;
-  isActive: boolean;
-}
+import { useAdminAiConfig } from '@/app/(app)/settings/ai-settings/hooks/use-agent-ai-config';
+import { getProviderModelLabel, useSupportedModels } from '@/app/(app)/settings/ai-settings/hooks/use-supported-models';
 
 export interface AiModel {
   provider: string;
   displayName: string;
 }
 
-async function fetchAiConfiguration(): Promise<AiModel | null> {
-  const response = await apiClient.get<AiConfiguration>('/chat/api/v1/ai-configuration');
-  if (!response.ok || !response.data) return null;
-  return { provider: response.data.provider, displayName: response.data.displayName };
-}
-
-export const AI_MODEL_QUERY_KEY = ['ai-configuration-model'] as const;
-
-const AI_MODEL_QUERY_OPTIONS = {
-  queryKey: AI_MODEL_QUERY_KEY,
-  queryFn: fetchAiConfiguration,
-  staleTime: 5 * 60 * 1000,
-  refetchOnWindowFocus: false,
-} as const;
-
-export function useAiModel() {
-  const { data: aiModel = null } = useQuery(AI_MODEL_QUERY_OPTIONS);
-
-  return aiModel;
-}
-
 /**
- * Same query as {@link useAiModel} (shared cache key — no extra request) but
- * also exposes `isLoading`, so consumers can render a size-matched skeleton
- * while the model config is still in flight instead of shifting the layout
- * when it pops in.
+ * Tenant-wide ADMIN (Mingo) assistant model, from the GraphQL `adminAiConfig`
+ * (the ADMIN agent has no per-organization override). Replaces the deprecated
+ * REST `/chat/api/v1/ai-configuration` read. For CLIENT chats use the
+ * per-message AssistantOwner provenance / `organizationClientAiConfig`
+ * instead — the effective client model is per-customer.
  */
 export function useAiModelStatus() {
-  const { data: aiModel = null, isLoading } = useQuery(AI_MODEL_QUERY_OPTIONS);
+  const { config, isLoading: isConfigLoading } = useAdminAiConfig();
+  const { modelsByProvider, isLoading: isModelsLoading } = useSupportedModels();
 
-  return { aiModel, isLoading };
+  const aiModel: AiModel | null = config?.providerModel
+    ? {
+        provider: config.llmProvider,
+        displayName: getProviderModelLabel(modelsByProvider, config.llmProvider, config.providerModel),
+      }
+    : null;
+
+  return { aiModel, isLoading: isConfigLoading || isModelsLoading };
+}
+
+export function useAiModel() {
+  return useAiModelStatus().aiModel;
 }

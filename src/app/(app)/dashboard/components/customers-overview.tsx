@@ -1,6 +1,6 @@
 'use client';
 
-import { DashboardInfoCard, OrganizationCard, TitleBlock } from '@flamingo-stack/openframe-frontend-core';
+import { DashboardInfoCard, EntityImage, TitleBlock } from '@flamingo-stack/openframe-frontend-core';
 import { IdCardIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import { useMemo } from 'react';
 import { EmptyState } from '@/app/components/shared';
@@ -17,7 +17,7 @@ export function CustomersOverviewSection() {
 
   const organizationRows = useMemo(() => {
     if (error) {
-      return <div className="text-ods-error font-['DM_Sans'] text-[14px]">{error}</div>;
+      return <div className="text-h6 text-ods-error">{error}</div>;
     }
 
     if (rows.length === 0) {
@@ -34,13 +34,24 @@ export function CustomersOverviewSection() {
       const fullImageUrl = getFullImageUrl(org.imageUrl, org.imageHash);
 
       return (
-        <div key={org.id} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
-          {/* Organization column */}
-          <OrganizationCard
-            organization={org}
-            fetchedImageUrl={fullImageUrl}
+        <div key={org.id} className="grid grid-cols-2 lg:grid-cols-4 gap-[var(--spacing-system-mf)] items-stretch">
+          {/* Customer column — full row on mobile/tablet, half row on desktop.
+              The `[&>div:first-child>span]` override enlarges the card's icon
+              slot content so the customer logo fills the tile (Figma). */}
+          <DashboardInfoCard
+            className="col-span-2 [&>div:first-child>span]:size-full"
+            icon={
+              <EntityImage src={fullImageUrl} alt={org.name} className="size-full md:size-full rounded-none border-0" />
+            }
+            titleSlot={
+              <span className="flex min-w-0 items-baseline gap-[var(--spacing-system-xs)]">
+                <span className="truncate text-h3 text-ods-text-primary">{org.name}</span>
+                <span className="shrink-0 text-h4 text-ods-text-secondary">({org.total.toLocaleString()} devices)</span>
+              </span>
+            }
+            value={org.websiteUrl || 'Organization'}
+            valueClassName="text-h6 md:text-h6 text-ods-text-secondary"
             href={routes.customers.details(org.organizationId)}
-            deviceCount={org.total}
           />
 
           {/* Active devices */}
@@ -51,7 +62,6 @@ export function CustomersOverviewSection() {
             showProgress
             progressVariant="success"
             percentageDisplay="plain"
-            progressSize={{ base: 24, md: 56 }}
             href={
               org.active > 0
                 ? `/devices?organizationIds=${org.organizationId}&statuses=ONLINE`
@@ -67,7 +77,6 @@ export function CustomersOverviewSection() {
             showProgress
             progressVariant="error"
             percentageDisplay="plain"
-            progressSize={{ base: 24, md: 56 }}
             href={
               org.inactive > 0
                 ? `/devices?organizationIds=${org.organizationId}&statuses=OFFLINE`
@@ -86,14 +95,14 @@ export function CustomersOverviewSection() {
   }
 
   return (
-    <div className="space-y-4">
+    <div>
       <TitleBlock
         title="Customers Overview"
         subtitle={`${totalOrganizations.toLocaleString()} Customers in Total`}
-        className="pt-0 mb-0 [&_p]:hidden lg:[&_p]:block"
+        className="[&_p]:hidden lg:[&_p]:block"
       />
 
-      <div className="flex flex-col gap-3">{organizationRows}</div>
+      <div className="flex flex-col gap-[var(--spacing-system-mf)]">{organizationRows}</div>
     </div>
   );
 }

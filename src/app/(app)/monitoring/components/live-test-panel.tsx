@@ -43,7 +43,7 @@ function CollapsibleSection({ color, title, children }: { color: string; title: 
         onClick={() => setIsOpen(prev => !prev)}
       >
         <Icon size={14} style={{ color }} />
-        <span className="text-sm font-medium" style={{ color }}>
+        <span className="text-h6" style={{ color }}>
           {title}
         </span>
       </button>
@@ -90,7 +90,7 @@ export function LiveTestPanel({
   return (
     <div className="flex flex-col gap-1">
       {/* Section title */}
-      <h3 className="text-h5 uppercase tracking-[-0.28px] text-ods-text-secondary">{label} TESTING</h3>
+      <h3 className="text-h5 text-ods-text-secondary">{label} TESTING</h3>
 
       {/* Card container */}
       <div className="bg-ods-card border border-ods-border rounded-[6px] max-h-[600px] overflow-clip flex flex-col">
@@ -115,9 +115,7 @@ export function LiveTestPanel({
             <div className="flex flex-[1_0_0] flex-col">
               <span className="text-h4 text-ods-text-primary">
                 {totalResponded}/{totalOnlineHosts}
-                {hostsFailed > 0 && (
-                  <span className="text-[var(--ods-attention-red-error)] ml-1">({hostsFailed} failed)</span>
-                )}
+                {hostsFailed > 0 && <span className="text-ods-error ml-1">({hostsFailed} failed)</span>}
               </span>
               <span className="text-h6 text-ods-text-secondary">Devices Online</span>
             </div>
@@ -154,15 +152,15 @@ export function LiveTestPanel({
         {/* Error summary */}
         {isFinished && errors.length > 0 && (
           <CollapsibleSection
-            color="var(--ods-attention-red-error)"
+            color="var(--color-error)"
             title={`${errors.length} host${errors.length !== 1 ? 's' : ''} returned errors`}
           >
             {errors.slice(0, 10).map((err, i) => (
-              <p key={i} className="text-xs text-ods-text-secondary">
+              <p key={i} className="text-h6 text-ods-text-secondary">
                 {err.host_display_name}: {err.error}
               </p>
             ))}
-            {errors.length > 10 && <p className="text-xs text-ods-text-secondary">...and {errors.length - 10} more</p>}
+            {errors.length > 10 && <p className="text-h6 text-ods-text-secondary">...and {errors.length - 10} more</p>}
           </CollapsibleSection>
         )}
 
@@ -173,12 +171,12 @@ export function LiveTestPanel({
             title={`${emptyResults.length} host${emptyResults.length !== 1 ? 's' : ''} returned no data`}
           >
             {emptyResults.slice(0, 10).map((item, i) => (
-              <p key={i} className="text-xs text-ods-text-secondary">
+              <p key={i} className="text-h6 text-ods-text-secondary">
                 {item.host_display_name}
               </p>
             ))}
             {emptyResults.length > 10 && (
-              <p className="text-xs text-ods-text-secondary">...and {emptyResults.length - 10} more</p>
+              <p className="text-h6 text-ods-text-secondary">...and {emptyResults.length - 10} more</p>
             )}
           </CollapsibleSection>
         )}

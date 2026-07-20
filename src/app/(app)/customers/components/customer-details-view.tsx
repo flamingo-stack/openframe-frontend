@@ -20,10 +20,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 import { useClientView } from '@/app/(app)/settings/ai-settings/hooks/use-client-view';
+import { useOrganizationClientAiConfig } from '@/app/(app)/settings/ai-settings/hooks/use-organization-ai-config';
 import { useSafeBack } from '@/app/hooks/use-safe-back';
 import { featureFlags } from '@/lib/feature-flags';
 import { getFullImageUrl } from '@/lib/image-url';
-import { routes } from '@/lib/routes';
+import { type CustomerDetailTab, type CustomerEditTab, routes } from '@/lib/routes';
 import { runtimeEnv } from '@/lib/runtime-config';
 import { CONTEXT_ENTITY_KIND } from '../../mingo/context/context-types';
 import { useTrackOpenView } from '../../mingo/context/use-track-open-view';
@@ -32,12 +33,24 @@ import { customerDetailsQueryKeys, useCustomerDetails } from '../hooks/use-custo
 import { customersQueryKeys } from '../hooks/use-customers';
 import { ArchiveCustomerModal } from './archive-customer-modal';
 import { CustomerDetailsSkeleton } from './customer-details-skeleton';
-import { getCustomerTabComponent, getCustomerTabs } from './details-tabs/customer-tabs';
+import {
+  CUSTOM_AI_ASSISTANT_TAB_ID,
+  CUSTOMER_GUARDRAILS_TAB_ID,
+  getCustomerTabComponent,
+  getCustomerTabs,
+} from './details-tabs/customer-tabs';
 import { RestoreCustomerModal } from './restore-customer-modal';
 
 interface CustomerDetailsViewProps {
   id: string;
 }
+
+// Details-page tabs with a counterpart on the edit page ("Edit Customer"
+// deep-links into it); unmapped tabs land on the edit page's Details tab.
+const DETAIL_TO_EDIT_TAB: Partial<Record<CustomerDetailTab, CustomerEditTab>> = {
+  [CUSTOM_AI_ASSISTANT_TAB_ID]: 'ai-configuration',
+  [CUSTOMER_GUARDRAILS_TAB_ID]: 'guardrails',
+};
 
 export function CustomerDetailsView({ id }: CustomerDetailsViewProps) {
   const router = useRouter();
@@ -67,10 +80,21 @@ export function CustomerDetailsView({ id }: CustomerDetailsViewProps) {
   // customer has a custom appearance override (an org-scoped ClientView exists).
   const isCustomerAiEnabled = featureFlags.customerAiAssistantSettings.enabled();
   const isSaasTenant = runtimeEnv.appMode() === 'saas-tenant';
-  const { view: clientView } = useClientView(id, { enabled: isCustomerAiEnabled && isSaasTenant && !!id });
-  const showCustomAiAssistant = isCustomerAiEnabled && isSaasTenant && !!clientView;
-  const tabs = useMemo(() => getCustomerTabs(showCustomAiAssistant), [showCustomAiAssistant]);
-  const activeTab = tabs.some(tab => tab.id === requestedTab) ? requestedTab : 'devices';
+  // The Customer AI Configuration tab appears when the customer overrides any
+  // part of the AI setup: appearance (org ClientView) or AI logic (org config).
+  const aiTabQueriesEnabled = isCustomerAiEnabled && isSaasTenant && !!id;
+  const { view: clientView } = useClientView(id, { enabled: aiTabQueriesEnabled });
+  const { config: orgAiConfig } = useOrganizationClientAiConfig(id, { enabled: aiTabQueriesEnabled });
+  const showCustomAiAssistant =
+    isCustomerAiEnabled && isSaasTenant && (!!clientView || (!!orgAiConfig && !orgAiConfig.inheritDefault));
+  // Effective per-org guardrails via /chat/graphql (saas-ai-agent), so
+  // saas-tenant only; own release flag, independent of the appearance feature.
+  const showGuardrails = featureFlags.customerGuardrails.enabled() && isSaasTenant;
+  const tabs = useMemo(
+    () => getCustomerTabs({ showCustomAiAssistant, showGuardrails }),
+    [showCustomAiAssistant, showGuardrails],
+  );
+  const activeTab = (tabs.some(tab => tab.id === requestedTab) ? requestedTab : 'devices') as CustomerDetailTab;
 
   // Register this organization as the Mingo "open view".
   useTrackOpenView(
@@ -162,7 +186,9 @@ export function CustomerDetailsView({ id }: CustomerDetailsViewProps) {
           loading: isChecking,
         };
 
-    const editHref = routes.customers.edit(id);
+    // Land on the edit tab matching the currently open details tab; tabs
+    // without an edit counterpart fall back to the edit page's default.
+    const editHref = routes.customers.edit(id, { tab: DETAIL_TO_EDIT_TAB[activeTab] });
     const editAction: PageActionButton = {
       label: 'Edit Customer',
       variant: 'outline',
@@ -171,7 +197,7 @@ export function CustomerDetailsView({ id }: CustomerDetailsViewProps) {
     };
 
     return [archiveAction, editAction];
-  }, [organization, isArchived, isChecking, handleArchiveClick, id]);
+  }, [organization, isArchived, isChecking, handleArchiveClick, id, activeTab]);
 
   if (isLoading) {
     return <CustomerDetailsSkeleton activeTab={activeTab} />;

@@ -53,14 +53,14 @@ export function DevicesOverviewSection() {
   }
 
   return (
-    <div className="space-y-4">
+    <div>
       <TitleBlock
         title="Devices Overview"
         subtitle={`${devices.total.toLocaleString()} Devices in Total`}
-        className="pt-1 mb-0 [&_p]:hidden lg:[&_p]:block"
+        className="[&_p]:hidden lg:[&_p]:block"
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-[var(--spacing-system-mf)]">
         {statusCards.map(card => (
           <DashboardInfoCard
             key={card.status}

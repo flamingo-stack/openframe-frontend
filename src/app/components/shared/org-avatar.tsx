@@ -18,7 +18,7 @@ export function OrgAvatar({ imageUrl, hash, name }: OrgAvatarProps) {
   const showImage = Boolean(fullUrl) && failedUrl !== fullUrl;
 
   return (
-    <div className="size-5 rounded-full flex-shrink-0 relative flex items-center justify-center overflow-hidden bg-[#161616] border border-ods-border">
+    <div className="size-5 rounded-full flex-shrink-0 relative flex items-center justify-center overflow-hidden bg-ods-bg border border-ods-border">
       {!showImage && <span className="text-[10px] font-medium text-ods-text-secondary">{initials}</span>}
       {showImage && fullUrl && (
         <Image

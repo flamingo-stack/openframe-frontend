@@ -186,10 +186,26 @@ export function useSideChunkProcessor(
         }
       },
       onToolExecuted: (segment: ToolExecutionSegment) => {
+        // With an execId, merge into an existing card on either side (a batch
+        // card can live in the other side's thread) — the id is unique, so a
+        // cross-side lookup can't touch the wrong segment. WITHOUT an id the
+        // fallback pairs by (toolType, toolFunction), which on the wrong side
+        // could flip an unrelated same-tool run — so fuzzy-match only THIS
+        // side. When NOTHING matches (the common case for the FIRST
+        // post-MESSAGE_END EXECUTING chunk of an approved command), append
+        // the segment to this side's last assistant bubble instead of
+        // dropping it, or the whole tool run stays invisible.
         const execId = segment.data.toolExecutionRequestId;
+        let matched: boolean;
         if (execId) {
-          updateToolExecutionInMessages('client', execId, segment.data);
-          updateToolExecutionInMessages('admin', execId, segment.data);
+          const matchedClient = updateToolExecutionInMessages('client', execId, segment.data);
+          const matchedAdmin = updateToolExecutionInMessages('admin', execId, segment.data);
+          matched = matchedClient || matchedAdmin;
+        } else {
+          matched = updateToolExecutionInMessages(side, undefined, segment.data);
+        }
+        if (!matched) {
+          appendSegmentsToLastAssistant(side, [segment]);
         }
       },
       onUserMessage: (

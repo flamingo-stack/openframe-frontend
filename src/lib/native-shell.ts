@@ -4,9 +4,27 @@
  * no Capacitor npm dependency, so all bridge access goes through these helpers.
  */
 
+/**
+ * Custom URL scheme the mobile app registers (CFBundleURLTypes). The login
+ * ASWebAuthenticationSession completes when navigation hits it; the gateway
+ * 302s the devTicket straight to it for authMobile=true logins.
+ */
+export const MOBILE_APP_SCHEME = 'com.openframe.app';
+
 export interface NativeAuthPlugin {
-  /** Runs the OAuth login in an ASWebAuthenticationSession; resolves with the final callback URL. */
-  start(options: { url: string; callbackHost: string; callbackPath: string }): Promise<{ callbackUrl: string }>;
+  /**
+   * Runs the OAuth login in a shell-owned browser context and resolves with
+   * the final callback URL. Mobile shells run a system browser
+   * (ASWebAuthenticationSession) that completes on `callbackScheme`; the
+   * desktop shell runs a dedicated window that intercepts the https
+   * callbackHost/callbackPath landing and ignores `callbackScheme`.
+   */
+  start(options: {
+    url: string;
+    callbackHost: string;
+    callbackPath: string;
+    callbackScheme?: string;
+  }): Promise<{ callbackUrl: string }>;
   /** Performs the dev-ticket exchange over native HTTP (no CORS) and returns tokens from response headers. */
   exchangeTicket(options: { url: string }): Promise<{ accessToken?: string; refreshToken?: string }>;
   getTokens(): Promise<{ accessToken?: string; refreshToken?: string }>;

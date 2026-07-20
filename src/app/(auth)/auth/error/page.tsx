@@ -28,16 +28,14 @@ export default function AuthErrorPage() {
           lowerPathColor="var(--color-accent-primary)"
           upperPathColor="var(--color-text-primary)"
         />
-        <OpenFrameText textColor="var(--ods-system-greys-white)" style={{ width: '144px', height: '24px' }} />
+        <OpenFrameText textColor="var(--color-text-primary)" style={{ width: '144px', height: '24px' }} />
       </div>
 
       {/* Error Content */}
       <div className="flex flex-col items-center gap-10 max-w-[600px] text-center">
         <div className="flex flex-col gap-2">
-          <h1 className="font-heading text-[32px] font-semibold text-ods-text-primary leading-10 tracking-[-0.64px]">
-            {title}
-          </h1>
-          <p className="font-body text-[18px] font-medium text-ods-text-secondary leading-6">{description}</p>
+          <h1 className="text-h2 text-ods-text-primary">{title}</h1>
+          <p className="text-h4 text-ods-text-secondary">{description}</p>
         </div>
 
         <div className="flex gap-4">
@@ -58,11 +56,11 @@ export default function AuthErrorPage() {
         href="https://flamingo.run"
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-2 p-4 text-ods-text-secondary rounded-md bg-transparent hover:bg-[var(--ods-system-greys-background-hover)] transition-colors"
+        className="flex items-center gap-2 p-4 text-ods-text-secondary rounded-md bg-transparent hover:bg-ods-bg-hover transition-colors"
       >
-        <span className="font-body text-[14px] font-medium leading-5">Powered by</span>
+        <span className="text-h6">Powered by</span>
         <FlamingoLogo className="h-5 w-5" fill="currentColor" />
-        <span className="font-heading text-[14px] font-semibold leading-5">Flamingo</span>
+        <span className="text-code font-semibold">Flamingo</span>
       </a>
     </div>
   );

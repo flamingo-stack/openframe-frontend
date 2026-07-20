@@ -65,8 +65,8 @@ export function AuthLoginSection({ availableProviders, onSso, onBack, isLoading 
         <div className="p-8 pb-0">
           {/* Icon and Title */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-ods-text-primary mb-2">Already registered?</h1>
-            <p className="text-sm text-ods-text-secondary">Enter you email to access your organization.</p>
+            <h1 className="text-h2 text-ods-text-primary mb-2">Already registered?</h1>
+            <p className="text-h6 text-ods-text-secondary">Enter you email to access your organization.</p>
           </div>
         </div>
 
@@ -102,10 +102,8 @@ export function AuthLoginSection({ availableProviders, onSso, onBack, isLoading 
                         <div className="absolute inset-0 flex items-center">
                           <div className="w-full border-t border-ods-border"></div>
                         </div>
-                        <div className="relative flex justify-center text-xs">
-                          <span className="bg-ods-card px-3 text-ods-text-secondary tracking-wider">
-                            or continue with
-                          </span>
+                        <div className="relative flex justify-center">
+                          <span className="text-h6 bg-ods-card px-3 text-ods-text-secondary">or continue with</span>
                         </div>
                       </div>
                     )}

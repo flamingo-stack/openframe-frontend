@@ -39,6 +39,10 @@ export function getDialogMessagesQuery() {
                 lastName
               }
             }
+            ... on AssistantOwner {
+              model
+              providerName
+            }
           }
           messageData {
             type

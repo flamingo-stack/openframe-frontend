@@ -53,6 +53,14 @@ class AuthApiClient {
     headers: Record<string, string>,
     init: RequestInit,
   ): Promise<AuthApiResponse<T> | null> {
+    // Mirror api-client: on the auth pages a 401 just means "not signed in
+    // yet" — never refresh-or-force-logout from here. A stale 401 chain that
+    // resolved after nativeLogin() stored fresh tokens used to forceLogout and
+    // wipe the Keychain right after a successful mobile login.
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/auth')) {
+      return null;
+    }
+
     const refreshSuccess = await refreshAccessToken();
 
     if (refreshSuccess) {
@@ -239,10 +247,16 @@ class AuthApiClient {
     });
   }
 
-  loginUrl(tenantId: string, redirectTo: string, provider?: string) {
+  loginUrl(tenantId: string, redirectTo: string, provider?: string, options?: { authMobile?: boolean }) {
     const providerParam = provider && provider !== 'openframe-sso' ? `&provider=${encodeURIComponent(provider)}` : '';
     const base = `/oauth/login?tenantId=${encodeURIComponent(tenantId)}${providerParam}`;
-    const path = isSaasSharedMode() ? base : `${base}&redirectTo=${redirectTo}`;
+    // authMobile logins always carry redirectTo (the app's custom scheme) —
+    // the gateway 302s the devTicket straight to the app, in shared mode too.
+    const path = options?.authMobile
+      ? `${base}&authMobile=true&redirectTo=${redirectTo}`
+      : isSaasSharedMode()
+        ? base
+        : `${base}&redirectTo=${redirectTo}`;
     return buildAuthUrl(path);
   }
 

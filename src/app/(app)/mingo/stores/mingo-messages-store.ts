@@ -65,11 +65,16 @@ interface MingoMessagesStore {
     status: 'approved' | 'rejected',
     resolvedByName?: string | null,
   ) => void;
+  /** Merge an EXECUTING/EXECUTED event into the matching tool segment or
+   *  batch `executions` slot. `executionRequestId` is optional — without it,
+   *  an EXECUTED chunk pairs with the newest EXECUTING of the same
+   *  (integratedToolType, toolFunction). Returns whether anything matched so
+   *  the caller can append a fresh segment instead of dropping the event. */
   updateToolExecutionInMessages: (
     dialogId: string,
-    executionRequestId: string,
+    executionRequestId: string | undefined,
     executedData: ToolExecutionSegment['data'],
-  ) => void;
+  ) => boolean;
   getMessages: (dialogId: string) => Message[];
 
   // Real-time State Management
@@ -289,67 +294,99 @@ export const useMingoMessagesStore = create<MingoMessagesStore>()(
 
       updateToolExecutionInMessages: (
         dialogId: string,
-        executionRequestId: string,
+        executionRequestId: string | undefined,
         executedData: ToolExecutionSegment['data'],
       ) => {
+        let matched = false;
         set(state => {
           const newMap = new Map(state.messagesByDialog);
           const currentMessages = newMap.get(dialogId) || [];
 
-          let matched = false;
-          const updatedMessages = currentMessages.map(message => {
-            if (matched) return message;
-            if (message.role !== 'assistant' || !Array.isArray(message.content)) return message;
-
-            let messageChanged = false;
-            const updatedContent = message.content.map(segment => {
-              if (matched) return segment;
-
-              if (
-                segment.type === 'tool_execution' &&
-                segment.data.type === 'EXECUTING_TOOL' &&
-                segment.data.toolExecutionRequestId === executionRequestId
-              ) {
-                matched = true;
-                messageChanged = true;
-                const merged: ToolExecutionSegment = {
-                  type: 'tool_execution',
-                  data: {
-                    ...executedData,
-                    toolTitle: executedData.toolTitle ?? segment.data.toolTitle,
-                    parameters: executedData.parameters ?? segment.data.parameters,
-                  },
-                };
-                return merged;
-              }
-
-              if (
+          // Scan NEWEST-first: an id-less EXECUTED must pair with the newest
+          // in-flight EXECUTING of the same tool (a stale interrupted card
+          // from an earlier turn must not swallow the current run); execId
+          // matches are unique so direction doesn't change them.
+          let msgIdx = -1;
+          let segIdx = -1;
+          for (let i = currentMessages.length - 1; i >= 0 && msgIdx === -1; i--) {
+            const message = currentMessages[i];
+            if (message.role !== 'assistant' || !Array.isArray(message.content)) continue;
+            const content = message.content as MessageSegment[];
+            for (let j = content.length - 1; j >= 0; j--) {
+              const segment = content[j];
+              if (segment.type === 'tool_execution') {
+                const idMatches = executionRequestId
+                  ? segment.data.toolExecutionRequestId === executionRequestId
+                  : segment.data.type === 'EXECUTING_TOOL' &&
+                    segment.data.integratedToolType === executedData.integratedToolType &&
+                    segment.data.toolFunction === executedData.toolFunction;
+                if (idMatches) {
+                  msgIdx = i;
+                  segIdx = j;
+                  break;
+                }
+              } else if (
+                executionRequestId &&
                 segment.type === 'approval_batch' &&
                 segment.data.toolCalls.some(c => c.toolExecutionRequestId === executionRequestId)
               ) {
-                matched = true;
-                messageChanged = true;
-                const prev: ApprovalBatchExecutionState | undefined = segment.data.executions?.[executionRequestId];
-                const next: ApprovalBatchExecutionState =
-                  executedData.type === 'EXECUTED_TOOL'
-                    ? { status: 'done', result: executedData.result, success: executedData.success }
-                    : { status: 'executing', result: prev?.result, success: prev?.success };
-                return {
-                  ...segment,
-                  data: {
-                    ...segment.data,
-                    executions: { ...(segment.data.executions ?? {}), [executionRequestId]: next },
-                  },
-                } as ApprovalBatchSegment;
+                msgIdx = i;
+                segIdx = j;
+                break;
               }
+            }
+          }
 
-              return segment;
-            });
+          if (msgIdx === -1) return state;
+          matched = true;
 
-            return messageChanged ? { ...message, content: updatedContent } : message;
-          });
+          const message = currentMessages[msgIdx];
+          const content = message.content as MessageSegment[];
+          const segment = content[segIdx];
+          let nextSegment: MessageSegment;
 
-          if (!matched) return state;
+          if (segment.type === 'tool_execution') {
+            // Never downgrade a completed run back to EXECUTING (JetStream
+            // redelivery of the EXECUTING chunk after EXECUTED landed).
+            // `matched` stays TRUE here on purpose: the run is already
+            // represented on screen, so the caller's append fallback must not
+            // fire — a `false` would duplicate the card.
+            if (executedData.type === 'EXECUTING_TOOL' && segment.data.type === 'EXECUTED_TOOL') {
+              return state;
+            }
+            nextSegment = {
+              type: 'tool_execution',
+              data: {
+                ...executedData,
+                toolTitle: executedData.toolTitle ?? segment.data.toolTitle,
+                parameters: executedData.parameters ?? segment.data.parameters,
+              },
+            } satisfies ToolExecutionSegment;
+          } else {
+            const batch = segment as ApprovalBatchSegment;
+            const prev: ApprovalBatchExecutionState | undefined = batch.data.executions?.[executionRequestId as string];
+            // Same no-downgrade rule for a batch slot: a redelivered EXECUTING
+            // must not flip a 'done' entry back (matched stays true → no append).
+            if (executedData.type === 'EXECUTING_TOOL' && prev?.status === 'done') {
+              return state;
+            }
+            const next: ApprovalBatchExecutionState =
+              executedData.type === 'EXECUTED_TOOL'
+                ? { status: 'done', result: executedData.result, success: executedData.success }
+                : { status: 'executing', result: prev?.result, success: prev?.success };
+            nextSegment = {
+              ...batch,
+              data: {
+                ...batch.data,
+                executions: { ...(batch.data.executions ?? {}), [executionRequestId as string]: next },
+              },
+            } as ApprovalBatchSegment;
+          }
+
+          const nextContent = [...content];
+          nextContent[segIdx] = nextSegment;
+          const updatedMessages = [...currentMessages];
+          updatedMessages[msgIdx] = { ...message, content: nextContent };
 
           newMap.set(dialogId, updatedMessages);
 
@@ -362,6 +399,7 @@ export const useMingoMessagesStore = create<MingoMessagesStore>()(
 
           return { messagesByDialog: newMap, streamingMessages: newStreamingMap };
         });
+        return matched;
       },
 
       getMessages: (dialogId: string) => {
@@ -480,16 +518,25 @@ export const useMingoMessagesStore = create<MingoMessagesStore>()(
               let nextContent: MessageSegment[];
 
               if (incomingCompaction) {
-                const startedIdx = existing.findIndex(s => s.type === 'context_compaction' && s.status === 'started');
-                const hasAnyCompaction = existing.some(s => s.type === 'context_compaction');
+                // Mirror the lib's upsertTrailingCompaction: replace the LAST
+                // 'started' (earlier compactions in the bubble are already
+                // completed-in-place), else append. The previous first-match +
+                // any-compaction blanket silently dropped a second compaction
+                // landing in the same bubble.
+                let startedIdx = -1;
+                for (let k = existing.length - 1; k >= 0; k--) {
+                  const seg = existing[k];
+                  if (seg.type === 'context_compaction' && seg.status === 'started') {
+                    startedIdx = k;
+                    break;
+                  }
+                }
 
-                if (incomingCompaction.status === 'completed' && startedIdx !== -1) {
+                if (startedIdx !== -1) {
                   nextContent = [...existing];
                   nextContent[startedIdx] = incomingCompaction;
-                } else if (!hasAnyCompaction) {
-                  nextContent = [...existing, incomingCompaction];
                 } else {
-                  nextContent = existing;
+                  nextContent = [...existing, incomingCompaction];
                 }
               } else {
                 const accumulator = state.segmentAccumulators.get(dialogId);
@@ -511,7 +558,20 @@ export const useMingoMessagesStore = create<MingoMessagesStore>()(
             }
           }
 
-          return state;
+          // No assistant message anywhere (thread cleared / history not yet
+          // hydrated): open a fresh bubble instead of dropping the segments —
+          // mirrors the lib's appendToTrailingAssistant. Silently dropping the
+          // first post-MESSAGE_END tool chunk here is exactly the
+          // invisible-tool-run bug this pipeline was fixed for.
+          const fallback: Message = {
+            id: `assistant-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            role: 'assistant',
+            content: incomingCompaction ? [incomingCompaction] : [...segments],
+            timestamp: new Date(),
+            ...(streamSeq != null ? { streamSeq } : {}),
+          };
+          newMap.set(dialogId, [...currentMessages, fallback]);
+          return { messagesByDialog: newMap };
         });
       },
 

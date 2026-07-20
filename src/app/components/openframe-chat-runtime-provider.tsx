@@ -48,6 +48,7 @@ import {
 } from '@flamingo-stack/openframe-frontend-core/utils';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useCallback, useMemo } from 'react';
+import { CONTENT_ORIGIN } from '@/app/(app)/help-center/endpoints';
 import { composeOpenframeChatContentUrl } from '@/app/(app)/help-center/help-center-content-href';
 import { getAccessTokenSync, isBearerAuthMode } from '@/lib/token-store';
 
@@ -100,6 +101,12 @@ const CHAT_AUTH_ADAPTER: EmbedAuthAdapter = {
   // `embedAuthedFetch` dedups 401-triggered retries on top — so a stampede of
   // simultaneously-expiring chat requests refreshes once.
   refresh: () => refreshAccessToken(),
+  // Native shell only: the page origin (`capacitor://localhost`) has no server
+  // behind it, so every `/content` call goes ABSOLUTE to the tenant gateway
+  // (see `help-center/endpoints.ts`) — sanction exactly that origin for
+  // `embedAuthedFetch`'s cross-origin guard. Empty on the web, where the
+  // same-origin rule stays absolute.
+  allowedOrigins: CONTENT_ORIGIN ? [CONTENT_ORIGIN] : [],
 };
 
 // Register the auth adapter + drop legacy proxy-auth ONCE, at module load —
@@ -165,14 +172,19 @@ export function OpenframeChatRuntimeProvider({ children }: { children: ReactNode
   );
 
   const runtime = useMemo<ChatRuntime>(() => {
-    // Guide-mode endpoints are SAME-ORIGIN relative `/content/*` paths. The
-    // lib's `embedAuthedFetch` rejects cross-origin URLs in production builds
-    // (bearer + cookies must not leak across origins); keeping these relative
-    // means the browser always calls the page origin and the guard passes in
-    // every build. The Next.js `rewrites()` (see `next.config.mjs`) forwards
-    // `/content/*` to the tenant gateway, and in a same-origin production
-    // deployment the platform reverse proxy answers it before Next does.
-    const content = (path: string): string => `/content${path}`;
+    // On the WEB, Guide-mode endpoints are SAME-ORIGIN relative `/content/*`
+    // paths. The lib's `embedAuthedFetch` rejects cross-origin URLs in
+    // production builds (bearer + cookies must not leak across origins);
+    // keeping these relative means the browser always calls the page origin
+    // and the guard passes in every build. The Next.js `rewrites()` (see
+    // `next.config.mjs`) forwards `/content/*` to the tenant gateway, and in
+    // a same-origin production deployment the platform reverse proxy answers
+    // it before Next does. In the NATIVE SHELL neither exists (static export
+    // on `capacitor://localhost`), so `CONTENT_ORIGIN` absolutizes the base
+    // to the tenant gateway — the origin `CHAT_AUTH_ADAPTER.allowedOrigins`
+    // sanctions for the guard. Same split as `help-center/endpoints.ts`.
+    const contentBase = `${CONTENT_ORIGIN}/content`;
+    const content = (path: string): string => `${contentBase}${path}`;
 
     return {
       endpoints: {
@@ -213,7 +225,7 @@ export function OpenframeChatRuntimeProvider({ children }: { children: ReactNode
         // `/content` reverse proxy so the URLs land on MPH. Returning null
         // here (the old TODO) left every such card with no URL → no fetch →
         // blank card.
-        buildListUrl: (type, ids) => buildEntityCardListUrl(type, ids, '/content'),
+        buildListUrl: (type, ids) => buildEntityCardListUrl(type, ids, contentBase),
         attachmentUploadUrl: content('/api/storage/generate-upload-url'),
         attachmentViewUrlPrefix: content('/api/storage/view/chat-attachments/'),
         // Identity endpoint = the MPH source route `app/api/auth/identity/route.ts`

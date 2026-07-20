@@ -8,6 +8,7 @@ import {
   UPDATE_CLIENT_VIEW_MUTATION,
 } from '../queries/ai-settings-queries';
 import type { ApplicationTheme, ClientView, ClientViewInput } from '../types/ai-settings';
+import type { GraphqlResponse } from './chat-graphql';
 
 export const clientViewQueryKeys = {
   detail: (organizationId: string | null) => ['client-view', { organizationId }] as const,
@@ -22,11 +23,6 @@ interface ClientViewGql {
   accentColor: string;
   createdAt: string;
   updatedAt: string | null;
-}
-
-interface GraphqlResponse<T> {
-  data?: T;
-  errors?: { message: string }[];
 }
 
 function toClientView(raw: ClientViewGql): ClientView {

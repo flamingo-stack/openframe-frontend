@@ -394,7 +394,7 @@ export function DeviceSelector({
           if (disabledReason) {
             return (
               <div data-no-row-click className="flex items-center justify-end gap-2 w-full pointer-events-auto">
-                <span className="max-md:hidden text-xs text-ods-text-secondary text-right leading-tight whitespace-pre-line">
+                <span className="max-md:hidden text-h6 text-ods-text-secondary text-right whitespace-pre-line">
                   {disabledReason}
                 </span>
                 <Button
@@ -436,7 +436,7 @@ export function DeviceSelector({
                 leftIcon={isSelected ? <CheckCircleIcon size={24} /> : <PlusCircleIcon size={24} />}
                 className={
                   isSelected
-                    ? 'text-ods-accent border-ods-accent bg-[var(--ods-open-yellow-secondary)] hover:bg-[var(--ods-open-yellow-secondary-hover)]'
+                    ? 'text-ods-accent border-ods-accent bg-ods-open-yellow-secondary hover:bg-[var(--ods-open-yellow-secondary-hover)]'
                     : 'text-ods-text-secondary hover:text-ods-text-primary'
                 }
                 disabled={disabled}
@@ -575,7 +575,7 @@ export function DeviceSelector({
               type="button"
               onClick={addAllDevices}
               disabled={disabled}
-              className="text-h6 font-medium underline text-ods-accent hover:text-ods-accent-hover bg-transparent border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-h6 underline text-ods-accent hover:text-ods-accent-hover bg-transparent border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Add All Devices
             </button>
@@ -584,7 +584,7 @@ export function DeviceSelector({
               type="button"
               onClick={removeAllSelected}
               disabled={disabled}
-              className="text-h6 font-medium underline text-ods-error hover:text-ods-error-hover bg-transparent border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-h6 underline text-ods-error hover:text-ods-error-hover bg-transparent border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Remove {selectedIds.size} Devices
             </button>

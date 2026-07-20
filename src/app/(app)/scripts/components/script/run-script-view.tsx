@@ -171,7 +171,7 @@ export function RunScriptView({ scriptId }: RunScriptViewProps) {
 
         {/* Timeout */}
         <div className="pt-6">
-          <Label className="text-ods-text-primary font-semibold text-lg">Timeout</Label>
+          <Label className="text-h3 text-ods-text-primary">Timeout</Label>
           <Controller
             name="timeout"
             control={control}
@@ -181,7 +181,7 @@ export function RunScriptView({ scriptId }: RunScriptViewProps) {
                 className="md:max-w-[320px] w-full"
                 value={field.value}
                 onChange={e => field.onChange(Number(e.target.value) || 0)}
-                endAdornment={<span className="text-ods-text-secondary text-sm">Seconds</span>}
+                endAdornment={<span className="text-h6 text-ods-text-secondary">Seconds</span>}
               />
             )}
           />

@@ -51,7 +51,7 @@ export function DetailsSection({ logDetails }: DetailsSectionProps) {
       <div className="bg-ods-card border border-ods-border rounded-[6px] w-full">
         <div className="p-4 md:p-6">
           <div className="w-full overflow-x-auto">
-            <pre className="font-['DM_Sans'] font-medium text-[14px] md:text-[16px] leading-[20px] md:leading-[22px] text-ods-text-primary whitespace-pre-wrap break-words min-w-0">
+            <pre className="text-code text-ods-text-primary whitespace-pre-wrap break-words min-w-0">
               {formattedJson}
             </pre>
           </div>

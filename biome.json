@@ -6,6 +6,7 @@
     "includes": [
       "**",
       "!**/node_modules/",
+      "!**/.claude",
       "!**/dist",
       "!**/.tsbuildinfo",
       "!**/.next",

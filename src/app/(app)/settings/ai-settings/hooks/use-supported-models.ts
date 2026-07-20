@@ -60,3 +60,20 @@ export function getProviderModelLabel(
 ): string {
   return modelsByProvider?.[provider]?.find(model => model.value === modelName)?.label ?? modelName;
 }
+
+/**
+ * Cross-provider variant of {@link getProviderModelLabel} for sources that
+ * carry a provider DISPLAY name instead of the AIProvider enum (message
+ * AssistantOwner metadata, stream chunks). Model names are unique across
+ * providers, so the first match wins; falls back to the raw value.
+ */
+export function getModelLabelByName(
+  modelsByProvider: SupportedModelsByProvider | undefined,
+  modelName: string,
+): string {
+  for (const models of Object.values(modelsByProvider ?? {})) {
+    const match = models?.find(model => model.value === modelName);
+    if (match) return match.label;
+  }
+  return modelName;
+}

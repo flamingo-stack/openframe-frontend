@@ -138,7 +138,10 @@ export interface ClientOwner extends MessageOwner {
 }
 
 export interface AssistantOwner extends MessageOwner {
+  /** Raw model id the reply was generated with. */
   model: string;
+  /** Provider display name ("Claude", "OpenAI", "Google"). */
+  providerName?: string | null;
 }
 
 export interface AdminOwner extends MessageOwner {

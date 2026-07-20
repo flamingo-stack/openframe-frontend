@@ -25,7 +25,7 @@ const EMPTY_COLUMN_FILTERS: never[] = [];
 const ALL_PLATFORMS = ['windows', 'darwin', 'linux'];
 
 const NOTE_TONE_CLASS = {
-  error: 'text-[var(--ods-attention-red-error)]',
+  error: 'text-ods-error',
   warning: 'text-ods-warning',
 } as const;
 
@@ -101,7 +101,7 @@ export function PoliciesTable({
         accessorFn: (row: PolicyTableRow) => (row.critical ? 1 : 0),
         header: 'SEVERITY',
         cell: ({ row }: { row: Row<PolicyTableRow> }) => (
-          <span className="font-medium leading-[20px] text-ods-text-primary">{row.original.severityLabel}</span>
+          <span className="text-h6 text-ods-text-primary">{row.original.severityLabel}</span>
         ),
         enableSorting: sortable,
         meta: { width: 'w-[100px]', sortable, hideAt: 'md' },
@@ -130,9 +130,7 @@ export function PoliciesTable({
         return (
           <div className="flex flex-col items-start gap-1">
             <Tag className="self-start" label={status.label} variant={status.variant} />
-            {status.note && (
-              <span className={`text-xs font-medium ${NOTE_TONE_CLASS[status.note.tone]}`}>{status.note.text}</span>
-            )}
+            {status.note && <span className={`text-h6 ${NOTE_TONE_CLASS[status.note.tone]}`}>{status.note.text}</span>}
           </div>
         );
       },

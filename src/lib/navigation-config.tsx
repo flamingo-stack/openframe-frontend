@@ -167,7 +167,7 @@ export const getNavigationItems = (
       id: 'help-center',
       label: 'Help Center',
       icon: <QuestionCircleIcon size={24} />,
-      path: routes.helpCenter,
+      path: routes.helpCenter.root,
       section: 'secondary',
       isActive: pathname.startsWith('/help-center'),
     });

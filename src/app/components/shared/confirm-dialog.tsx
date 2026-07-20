@@ -81,10 +81,13 @@ export function ConfirmDialog({
       {extraContent}
 
       <ModalV2Footer>
-        <Button variant="outline" onClick={handleClose} disabled={isPending} className="flex-1">
+        {/* Explicit type: the dialog can render inside a host <form>, where the
+            native submit default would fire the form on Confirm/Cancel. */}
+        <Button type="button" variant="outline" onClick={handleClose} disabled={isPending} className="flex-1">
           {cancelLabel}
         </Button>
         <Button
+          type="button"
           variant={confirm.variant}
           onClick={onConfirm}
           loading={isPending}

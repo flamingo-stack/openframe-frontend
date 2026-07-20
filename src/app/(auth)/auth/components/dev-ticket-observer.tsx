@@ -11,6 +11,8 @@ import { runtimeEnv } from '@/lib/runtime-config';
  *
  * Monitors the URL for devTicket search parameter across the entire application.
  * When detected, it triggers the exchange process via dedicated hooks.
+ * (Mobile-app logins never land here: authMobile=true makes the gateway 302
+ * the ticket straight to the app's custom scheme — see native-login.ts.)
  *
  * Enable/disable via NEXT_PUBLIC_ENABLE_DEV_TICKET_OBSERVER environment variable
  */

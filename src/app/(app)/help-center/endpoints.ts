@@ -2,14 +2,25 @@
  * SINGLE SOURCE for every Help Center content endpoint — every page reads from
  * `EP`, so repointing the data source is a one-line change to `CONTENT_BASE`.
  *
- * `CONTENT_BASE` is RELATIVE (`/content`) — same-origin, exactly like the
- * embedded chat. The browser always calls the page origin; Next's `rewrites()`
- * (see `next.config.mjs`) forwards `/content/*` → `${NEXT_PUBLIC_TENANT_HOST_URL}/content/*`
- * SERVER-SIDE, carrying the session cookie + auth headers — the SAME proven path
- * the chat uses. This is deliberately NOT an absolute cross-origin URL: a direct
- * browser → tenant-host request doesn't reliably carry the session (cross-origin
- * cookie) and forces the dev-ticket localStorage bearer + a cross-origin refresh,
- * which is exactly what 401s. Staying same-origin avoids all of that.
+ * On the WEB, `CONTENT_BASE` is RELATIVE (`/content`) — same-origin, exactly
+ * like the embedded chat. The browser always calls the page origin; Next's
+ * `rewrites()` (see `next.config.mjs`) forwards `/content/*` →
+ * `${NEXT_PUBLIC_TENANT_HOST_URL}/content/*` SERVER-SIDE, carrying the session
+ * cookie + auth headers — the SAME proven path the chat uses. This is
+ * deliberately NOT an absolute cross-origin URL: a direct browser → tenant-host
+ * request doesn't reliably carry the session (cross-origin cookie) and forces
+ * the dev-ticket localStorage bearer + a cross-origin refresh, which is exactly
+ * what 401s. Staying same-origin avoids all of that.
+ *
+ * In the NATIVE SHELL the page origin is `capacitor://localhost` (static
+ * export, no Next server, no `rewrites()`), so a relative `/content` resolves
+ * to a file that doesn't exist in the bundle. There — and ONLY there —
+ * `CONTENT_ORIGIN` absolutizes every content endpoint to the tenant gateway.
+ * The shell is always in bearer mode, and the chat's `EmbedAuthAdapter` lists
+ * this origin in `allowedOrigins` so `embedAuthedFetch`'s cross-origin guard
+ * sanctions it. Module-load evaluation is safe: a login that CHANGES the
+ * tenant host does a full `window.location.assign` (see `NativeLoginResult.
+ * tenantHostChanged`), so this module re-evaluates with the new host.
  *
  * The lib's content surfaces still fetch through `contentFetch`, which — because
  * this app registers an EmbedAuthAdapter for the chat — routes through
@@ -17,8 +28,14 @@
  * 401-refresh). Same-origin keeps `embedAuthedFetch` valid in prod builds too.
  */
 import type { EndpointsRuntime } from '@flamingo-stack/openframe-frontend-core/contexts';
+import { isNativeShell } from '@/lib/native-shell';
+import { runtimeEnv } from '@/lib/runtime-config';
 
-const CONTENT_BASE = '/content';
+/** `''` on the web (relative, same-origin); the tenant gateway origin in the
+ *  native shell. Exported for the chat auth adapter's `allowedOrigins`. */
+export const CONTENT_ORIGIN = isNativeShell() ? runtimeEnv.tenantHostUrl() : '';
+
+const CONTENT_BASE = `${CONTENT_ORIGIN}/content`;
 const CONTENT = `${CONTENT_BASE}/api`;
 
 /**

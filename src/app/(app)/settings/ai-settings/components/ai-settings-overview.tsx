@@ -4,7 +4,7 @@ import { featureFlags } from '@/lib/feature-flags';
 import { getFullImageUrl } from '@/lib/image-url';
 import type { AgentAiConfig, AiQuickAction, ClientView } from '../types/ai-settings';
 import { AiSettingsCustomerCard } from './ai-settings-customer-card';
-import { AiSettingsQuickActions } from './ai-settings-quick-actions';
+import { AiSettingsQuickActionsSection, ASSISTANT_QUICK_ACTIONS_CONFIG } from './ai-settings-quick-actions';
 import { AiSettingsPreviews } from './previews/ai-settings-previews';
 
 interface AiSettingsOverviewProps {
@@ -43,8 +43,13 @@ export function AiSettingsOverview({ aiConfig, view, providerModelLabel, quickAc
         </>
       )}
       {/* Quick actions are part of the not-yet-released AI customization. */}
-      {featureFlags.customerAiAssistantSettings.enabled() && quickActions && (
-        <AiSettingsQuickActions actions={quickActions} />
+      {featureFlags.customerAiAssistantSettings.enabled() && quickActions && aiConfig && (
+        <AiSettingsQuickActionsSection
+          title="Assistant Quick Actions"
+          actions={quickActions}
+          isDefault={aiConfig.quickActionsIsDefault}
+          agentConfig={ASSISTANT_QUICK_ACTIONS_CONFIG}
+        />
       )}
     </div>
   );

@@ -40,6 +40,8 @@ export interface AgentAiConfig {
   providerModel: string;
   answerStyle: AnswerStyle | null;
   customPrompt: string | null;
+  /** True → `quickActions` are the OpenFrame defaults (Product Hub, BE-resolved); false → org customs. */
+  quickActionsIsDefault: boolean;
   quickActions: AiQuickAction[];
   createdAt: string;
   updatedAt: string | null;
@@ -51,6 +53,7 @@ export interface AgentAiConfigInput {
   providerModel?: string;
   answerStyle?: AnswerStyle;
   customPrompt?: string;
+  quickActionsIsDefault?: boolean;
   quickActions?: AiQuickActionInput[];
 }
 
@@ -84,6 +87,7 @@ export function getDefaultAgentAiConfig(agentType: AgentType): AgentAiConfig {
     providerModel: '',
     answerStyle: 'STANDARD',
     customPrompt: null,
+    quickActionsIsDefault: true,
     quickActions: [],
     createdAt: '',
     updatedAt: null,

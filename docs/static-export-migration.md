@@ -89,10 +89,14 @@ build is green; the bundle is not yet runtime-functional from a `localhost` orig
   `http://tauri.localhost` (Tauri on Windows) origins, and the shell injecting the
   token from Face-ID-gated secure storage.
 
-- [ ] **C. `/content/*` embedded-chat proxy — localized**
-  `src/app/components/openframe-chat-runtime-provider.tsx` relies on the `rewrites()`
-  same-origin proxy (omitted under export). Switch to absolute gateway URLs + Bearer
-  + CORS (the provider already has cross-origin/Bearer logic).
+- [x] **C. `/content/*` embedded-chat proxy — localized** *(frontend side done
+  2026-07-17; gateway CORS for `/content/*` from the shell origins still item B)*
+  In the native shell, `help-center/endpoints.ts` (`CONTENT_ORIGIN`) and the chat
+  runtime provider absolutize every `/content` URL to the tenant gateway, and the
+  chat `EmbedAuthAdapter` sanctions that origin via the core lib's new
+  `allowedOrigins` field on `embedAuthedFetch`'s cross-origin guard
+  (openframe-frontend-core `embed-authed-fetch.ts`). Web builds keep the
+  relative same-origin base + `rewrites()`/reverse-proxy path unchanged.
 
 - [ ] **D. Native-shell SPA fallback** so cold loads of non-prerendered paths resolve
   to the app shell client-side: the help-center CMS routes (placeholder-only), and any

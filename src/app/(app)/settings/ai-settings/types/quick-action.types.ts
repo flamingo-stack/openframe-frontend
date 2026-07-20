@@ -12,4 +12,6 @@ export type QuickActionFormValue = z.infer<typeof quickActionSchema>;
 /** Minimal form-values contract required by AiSettingsQuickActionsEditor. */
 export interface QuickActionsFormValues {
   quickActions: QuickActionFormValue[];
+  /** Mirrors `AgentAiConfig.quickActionsIsDefault` — true hides the editor and keeps hub defaults. */
+  quickActionsIsDefault: boolean;
 }

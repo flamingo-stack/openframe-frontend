@@ -50,7 +50,10 @@ export function OsPlatformSelector({
         id: option.platformId,
         label: osType.label,
         icon: IconComponent ? (
-          <IconComponent className={iconSize} color={variant === 'primary' && isActive ? '#212121' : undefined} />
+          <IconComponent
+            className={iconSize}
+            color={variant === 'primary' && isActive ? 'var(--color-text-on-accent)' : undefined}
+          />
         ) : undefined,
         disabled: option.disabled,
         badge: option.badge ? (

@@ -10,6 +10,7 @@ import {
   UPDATE_CLIENT_AI_CONFIG_MUTATION,
 } from '../queries/ai-settings-queries';
 import type { AgentAiConfig, AgentAiConfigInput, AgentType, AnswerStyle } from '../types/ai-settings';
+import type { GraphqlResponse } from './chat-graphql';
 
 export const agentAiConfigQueryKeys = {
   detail: (agentType: AgentType) => ['agent-ai-config', agentType] as const,
@@ -22,14 +23,10 @@ interface AgentAiConfigGql {
   providerModel: string;
   answerStyle: AnswerStyle | null;
   customPrompt: string | null;
+  quickActionsIsDefault: boolean | null;
   quickActions: { id: string; name: string; instructions: string }[] | null;
   createdAt: string;
   updatedAt: string | null;
-}
-
-interface GraphqlResponse<T> {
-  data?: T;
-  errors?: { message: string }[];
 }
 
 function toAgentAiConfig(raw: AgentAiConfigGql): AgentAiConfig {
@@ -40,6 +37,8 @@ function toAgentAiConfig(raw: AgentAiConfigGql): AgentAiConfig {
     providerModel: raw.providerModel,
     answerStyle: raw.answerStyle ?? null,
     customPrompt: raw.customPrompt ?? null,
+    // BE default is true (defaults come from Product Hub until customized).
+    quickActionsIsDefault: raw.quickActionsIsDefault ?? true,
     quickActions: (raw.quickActions ?? []).map(q => ({ id: q.id, name: q.name, instructions: q.instructions })),
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt ?? null,

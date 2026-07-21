@@ -25,9 +25,13 @@ import {
   AiAnswerStyleFields,
   AiProviderModelFields,
 } from '@/app/(app)/settings/ai-settings/components/ai-config-fields';
-import { ASSISTANT_QUICK_ACTIONS_CONFIG } from '@/app/(app)/settings/ai-settings/components/ai-settings-quick-actions';
+import {
+  AiSettingsQuickActions,
+  ASSISTANT_QUICK_ACTIONS_CONFIG,
+} from '@/app/(app)/settings/ai-settings/components/ai-settings-quick-actions';
 import { AiSettingsQuickActionsEditor } from '@/app/(app)/settings/ai-settings/components/ai-settings-quick-actions-editor';
 import { AiSettingsPreviews } from '@/app/(app)/settings/ai-settings/components/previews/ai-settings-previews';
+import { useClientAiConfig } from '@/app/(app)/settings/ai-settings/hooks/use-agent-ai-config';
 import {
   clientViewQueryKeys,
   useClientView,
@@ -99,10 +103,20 @@ export const CustomerAiConfiguration = forwardRef<CustomerAiConfigurationHandle,
     const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
     // OpenFrame default quick actions from the Product Hub (the BE stores only
-    // customs); the editor shows them as the dimmed preview / uncheck seed.
-    const hubDefaults = useHubDefaultQuickActions(ASSISTANT_QUICK_ACTIONS_CONFIG.agentSlug, {
-      enabled: !useDefault,
-    });
+    // customs); the editor shows them as the dimmed preview / uncheck seed, and
+    // the inherit view shows them when the tenant default keeps OpenFrame's set.
+    const hubDefaults = useHubDefaultQuickActions(ASSISTANT_QUICK_ACTIONS_CONFIG.agentSlug);
+    // Tenant CLIENT default config — the source of the quick actions this
+    // customer inherits while `useDefault` is on. The org config's own
+    // `quickActions` can hold this customer's leftover customs, so it must NOT
+    // drive the inherit-mode list.
+    const { config: clientAiConfig } = useClientAiConfig();
+    // Effective inherited quick actions: the tenant's customs when it overrode
+    // the OpenFrame set, otherwise the hub defaults (mirrors the settings view).
+    const inheritedQuickActionsAreDefault = clientAiConfig?.quickActionsIsDefault ?? true;
+    const inheritedQuickActions = inheritedQuickActionsAreDefault
+      ? hubDefaults.actions
+      : (clientAiConfig?.quickActions ?? []);
 
     const hasAiOverride = !!orgConfig && !orgConfig.inheritDefault;
     const hasAnyOverride = !!orgView || hasAiOverride;
@@ -252,15 +266,29 @@ export const CustomerAiConfiguration = forwardRef<CustomerAiConfigurationHandle,
         {toggleRow}
 
         {useDefault ? (
-          <AiSettingsPreviews
-            assistantName={fallbackDefault.assistantName}
-            avatarUrl={getFullImageUrl(
-              fallbackDefault.assistantAvatar?.imageUrl,
-              fallbackDefault.assistantAvatar?.hash,
-            )}
-            accentColor={fallbackDefault.accentColor}
-            theme={fallbackDefault.applicationTheme}
-          />
+          <>
+            <AiSettingsPreviews
+              assistantName={fallbackDefault.assistantName}
+              avatarUrl={getFullImageUrl(
+                fallbackDefault.assistantAvatar?.imageUrl,
+                fallbackDefault.assistantAvatar?.hash,
+              )}
+              accentColor={fallbackDefault.accentColor}
+              theme={fallbackDefault.applicationTheme}
+            />
+
+            {/* Quick actions stay visible while inheriting the default config —
+                read-only, showing the tenant default set (editing lives in
+                custom mode). */}
+            <div className="flex flex-col gap-[var(--spacing-system-l)]">
+              <span className="text-h2 text-ods-text-primary">Assistant Quick Actions</span>
+              <AiSettingsQuickActions
+                actions={inheritedQuickActions}
+                isDefault={inheritedQuickActionsAreDefault}
+                agentConfig={ASSISTANT_QUICK_ACTIONS_CONFIG}
+              />
+            </div>
+          </>
         ) : (
           <>
             <div className="flex flex-col md:flex-row md:items-start gap-[var(--spacing-system-l)]">

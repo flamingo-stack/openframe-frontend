@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { AiSettingsOverview } from '@/app/(app)/settings/ai-settings/components/ai-settings-overview';
 import { ASSISTANT_QUICK_ACTIONS_CONFIG } from '@/app/(app)/settings/ai-settings/components/ai-settings-quick-actions';
 import { AiSettingsPreviews } from '@/app/(app)/settings/ai-settings/components/previews/ai-settings-previews';
+import { useClientAiConfig } from '@/app/(app)/settings/ai-settings/hooks/use-agent-ai-config';
 import { useClientView } from '@/app/(app)/settings/ai-settings/hooks/use-client-view';
 import { useHubDefaultQuickActions } from '@/app/(app)/settings/ai-settings/hooks/use-hub-default-quick-actions';
 import { useOrganizationClientAiConfig } from '@/app/(app)/settings/ai-settings/hooks/use-organization-ai-config';
@@ -65,8 +66,14 @@ function CustomerAiConfigurationReadOnly({ organizationId }: CustomerCustomAiAss
   const hubDefaults = useHubDefaultQuickActions(ASSISTANT_QUICK_ACTIONS_CONFIG.agentSlug, {
     enabled: featureFlags.customerAiAssistantSettings.enabled(),
   });
+  // Tenant CLIENT default config — the source of truth for what an inheriting
+  // customer's quick actions are (and whether they're OpenFrame's set or the
+  // tenant's own customs). The org config alone can't tell those apart.
+  const { config: clientAiConfig, isLoading: isClientConfigLoading } = useClientAiConfig({
+    enabled: featureFlags.customerAiAssistantSettings.enabled(),
+  });
 
-  if (isViewLoading || isConfigLoading) {
+  if (isViewLoading || isConfigLoading || isClientConfigLoading) {
     return (
       <div className="flex flex-col gap-[var(--spacing-system-l)]">
         <Skeleton className="h-16 w-full rounded-md" />
@@ -88,13 +95,17 @@ function CustomerAiConfigurationReadOnly({ organizationId }: CustomerCustomAiAss
   // Fully inheriting = no appearance override AND the AI logic inherits.
   const inheritsDefault = !orgView && (orgConfig?.inheritDefault ?? true);
   const effectiveView = orgView ?? defaultView ?? getDefaultClientView(organizationId);
-  // Show what the customer effectively gets: their (or the inherited tenant's)
-  // custom list, else the OpenFrame hub defaults.
-  const quickActions = orgConfig?.quickActions ?? hubDefaults.actions;
-  // "Using your custom actions" is only accurate when THIS customer owns an
-  // override — while inheriting, the actions belong to the default/tenant set,
-  // so the banner must stay consistent with the "using default" banner above.
-  const quickActionsIsDefault = inheritsDefault || !orgConfig?.quickActions;
+  // Quick actions follow whichever config applies: the tenant CLIENT default
+  // while inheriting, else the org's own override. Whether that set is
+  // OpenFrame's curated one is an explicit flag on the tenant config, and a
+  // null custom list on an org override — the inheriting case MUST read the
+  // tenant flag, not assume "default" (a customized tenant default otherwise
+  // shows the wrong "Using OpenFrame default actions" banner).
+  const quickActionsIsDefault = inheritsDefault
+    ? (clientAiConfig?.quickActionsIsDefault ?? true)
+    : !orgConfig?.quickActions;
+  const customQuickActions = inheritsDefault ? clientAiConfig?.quickActions : orgConfig?.quickActions;
+  const quickActions = quickActionsIsDefault ? hubDefaults.actions : (customQuickActions ?? hubDefaults.actions);
   // AiSettingsOverview consumes the tenant-level AgentAiConfig shape; project
   // the effective org values onto it (nullable fields fall back like the
   // global screen's defaults).

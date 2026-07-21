@@ -7,8 +7,8 @@ import { isNativeShell } from '@/lib/native-shell';
 
 /**
  * Mounted once the user is authenticated (app-layout): asks for notification
- * permission, registers with APNs, and deep-links notification taps through
- * the client router. Renders nothing; no-ops outside the native shell.
+ * permission, obtains the FCM registration token, and deep-links notification
+ * taps through the client router. Renders nothing; no-ops outside the native shell.
  */
 export function NativePushInitializer() {
   const router = useRouter();

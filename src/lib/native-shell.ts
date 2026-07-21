@@ -51,16 +51,18 @@ export interface NativeAuthPlugin {
 
 export type PushPermissionState = 'prompt' | 'prompt-with-rationale' | 'granted' | 'denied';
 
-/** Subset of @capacitor/push-notifications used by this app (plugin ships with the shell, not npm). */
-export interface PushNotificationsPlugin {
+/** Subset of @capacitor-firebase/messaging used by this app (plugin ships with the shell, not npm). */
+export interface FirebaseMessagingPlugin {
   checkPermissions(): Promise<{ receive: PushPermissionState }>;
   requestPermissions(): Promise<{ receive: PushPermissionState }>;
-  register(): Promise<void>;
-  addListener(eventName: 'registration', listenerFunc: (token: { value: string }) => void): Promise<unknown>;
-  addListener(eventName: 'registrationError', listenerFunc: (error: unknown) => void): Promise<unknown>;
+  /** Registers with APNs/FCM and resolves the FCM registration token (both platforms). */
+  getToken(): Promise<{ token: string }>;
+  deleteToken(): Promise<void>;
+  /** Fires when FCM first issues or later rotates the registration token. */
+  addListener(eventName: 'tokenReceived', listenerFunc: (event: { token: string }) => void): Promise<unknown>;
   addListener(
-    eventName: 'pushNotificationActionPerformed',
-    listenerFunc: (action: { notification: { data?: Record<string, unknown> } }) => void,
+    eventName: 'notificationActionPerformed',
+    listenerFunc: (event: { notification: { data?: Record<string, unknown> } }) => void,
   ): Promise<unknown>;
 }
 
@@ -83,9 +85,9 @@ export function nativeAuthPlugin(): NativeAuthPlugin | null {
   return isNativeShell() ? (capacitorGlobal()?.Plugins?.NativeAuth ?? null) : null;
 }
 
-/** Null until @capacitor/push-notifications is installed in the shell — callers no-op. */
-export function pushNotificationsPlugin(): PushNotificationsPlugin | null {
-  return isNativeShell() ? (capacitorGlobal()?.Plugins?.PushNotifications ?? null) : null;
+/** Null on web and until @capacitor-firebase/messaging is present in the shell — callers no-op. */
+export function firebaseMessagingPlugin(): FirebaseMessagingPlugin | null {
+  return isNativeShell() ? (capacitorGlobal()?.Plugins?.FirebaseMessaging ?? null) : null;
 }
 
 const TENANT_HOST_STORAGE_KEY = 'native:tenant-host-url';

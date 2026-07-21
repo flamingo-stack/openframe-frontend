@@ -1,5 +1,6 @@
 import { clearMingoContext } from '@/app/(app)/mingo/stores/mingo-context-store';
 import { authApiClient } from '@/lib/auth-api-client';
+import { unregisterNativePush } from '@/lib/native-push';
 import { isNativeShell } from '@/lib/native-shell';
 import { runtimeEnv } from '@/lib/runtime-config';
 import { clearTokens, isBearerAuthMode } from '@/lib/token-store';
@@ -12,6 +13,17 @@ import { useAuthStore } from '../stores/auth-store';
 export async function performLogout() {
   const { tenantId, user, logout: storeLogout } = useAuthStore.getState();
   const effectiveTenantId = tenantId || user?.tenantId || user?.organizationId;
+
+  // Deregister this device's push token while still authenticated — the
+  // unregister call needs the bearer, so it must run before the session is torn
+  // down. Best-effort. (useAuth.logout does the same on its path.)
+  if (isNativeShell()) {
+    try {
+      await unregisterNativePush();
+    } catch {
+      // Best-effort.
+    }
+  }
 
   if (effectiveTenantId) {
     await authApiClient.logoutAsync(effectiveTenantId);

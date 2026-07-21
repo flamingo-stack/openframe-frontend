@@ -26,6 +26,7 @@ import { CancelOfferModal } from './cancel-offer-modal';
 import { type CancelReason, CancelSubscriptionModal } from './cancel-subscription-modal';
 import { InvoicesHistory } from './invoices-history';
 import { SubscriptionCancelledModal } from './subscription-cancelled-modal';
+import { TestClockPanel } from './test-clock-panel';
 
 export function BillingUsageView() {
   return (
@@ -125,6 +126,9 @@ function BillingUsageContent() {
       actions={[primaryAction]}
       menuActions={menuActions}
     >
+      {/* Dev-only; renders nothing (and issues no requests) unless the test-clock env flag is on. */}
+      <TestClockPanel onClockChanged={() => setRefreshKey(k => k + 1)} />
+
       <TestModeBanner />
 
       <div

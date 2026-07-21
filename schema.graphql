@@ -1505,6 +1505,20 @@ type Query {
   subscriptionCancellationPreview: Date
 
   """
+  This tenant's current Stripe test-clock time (dev/stage only). Null when no test
+  clock has been attached yet — the tenant is running on real time.
+  """
+  testClockTime: TestClockResult
+
+  """
+  How far along the tenant's billing provisioning is. READY means subscription, Stripe customer and
+  Stripe subscription all exist and are in sync — the tenant is safe to test against. PENDING means the
+  schedulers are still rebuilding it (normal for the first minutes after registration, or after a
+  dev/stage test-clock reset).
+  """
+  billingProvisioningStatus: BillingProvisioningStatus!
+
+  """
   Currently active AI model rate version — how provider tokens convert to OpenFrame tokens.
   Empty list when no rate version has been published yet.
   """
@@ -2137,6 +2151,38 @@ enum TenantOnboardingStep {
 
 type TestClockResult {
   frozenTime: String!
+}
+
+type BillingProvisioningStatus {
+  state: BillingProvisioningState!
+
+  """Why provisioning is still pending. Null when state is READY."""
+  reason: BillingProvisioningPendingReason
+
+  """Human-readable explanation, safe to show as-is."""
+  message: String!
+}
+
+enum BillingProvisioningState {
+  """Subscription, Stripe customer and Stripe subscription all exist and are in sync."""
+  READY
+
+  """Provisioning is still in progress; see reason."""
+  PENDING
+}
+
+enum BillingProvisioningPendingReason {
+  """No subscription document yet — waiting for registration or the gap-fill scheduler."""
+  NO_SUBSCRIPTION
+
+  """Subscription exists but the tenant has no Stripe customer yet."""
+  NO_STRIPE_CUSTOMER
+
+  """Stripe customer exists but the paused Stripe subscription has not been created yet."""
+  NO_STRIPE_SUBSCRIPTION
+
+  """Everything exists in Stripe, but pending actions have not been pushed yet."""
+  STRIPE_SYNC_PENDING
 }
 
 " Ticket fields exposed for AssignableTarget resolution. Full type in ai-agent (ticket.graphqls).\n All fields below come from the Ticket @Document entity (denormalized at write time).\n Fields requiring DataLoaders (assignee User, attachments, notes, dialog, labels) are\n only on the ai-agent side; query ticket(id) there for full detail.\n TODO: Remove after Apollo Federation migration — single shared Ticket type."

@@ -37,6 +37,7 @@ import {
 } from '@flamingo-stack/openframe-frontend-core/components/chat';
 import { useEffect, useMemo } from 'react';
 import { featureFlags } from '@/lib/feature-flags';
+import { getFullImageUrl } from '@/lib/image-url';
 import { MINGO_CONTEXT_ENTITY_TYPES } from '../(app)/mingo/context/context-sources';
 import { CONTEXT_ITEMS_MAX } from '../(app)/mingo/context/context-types';
 import { renderMingoContextItem, renderMingoMention } from '../(app)/mingo/context/mention-chips/render-mention';
@@ -69,6 +70,8 @@ export function OpenframeEmbeddableChatEntry({ open, onOpenChange }: OpenframeEm
     const full = [authUser.firstName, authUser.lastName].filter(Boolean).join(' ').trim();
     return full || authUser.email?.trim() || undefined;
   }, [authUser]);
+  // Header-avatar counterpart of the display name (New Chat compose view).
+  const userAvatarUrl = getFullImageUrl(authUser?.image?.imageUrl, authUser?.image?.hash);
 
   // Queued launcher prompt (`sendToMingo(prompt)` — e.g. the onboarding "Meet
   // Mingo" quick-action chips): drain straight into a fresh Mingo dialog. The
@@ -168,6 +171,7 @@ export function OpenframeEmbeddableChatEntry({ open, onOpenChange }: OpenframeEm
         // Fallback for the lib's server identity when the tenant identity route
         // returns no name — sourced from the host auth store.
         userDisplayName={userDisplayName}
+        userAvatarUrl={userAvatarUrl}
         // Mingo mode is host-owned via `mingoState`, so we do NOT pass
         // `modes.mingo` — that keeps the lib's built-in NATS adapter idle.
         // The EXPLICIT empty object matters: omitting `modes` entirely makes

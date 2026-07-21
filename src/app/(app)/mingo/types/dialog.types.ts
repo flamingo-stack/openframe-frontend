@@ -14,7 +14,10 @@ export interface DialogNode {
   title: string;
   status: string;
   streamState: DialogStreamState;
+  /** DialogOwner union — ClientDialogOwner (machine fields) or AdminDialogOwner
+   *  (userId/user fields), depending on the query's inline fragments. */
   owner?: {
+    type?: 'CLIENT' | 'ADMIN';
     machineId?: string;
     machine?: {
       id: string;
@@ -22,6 +25,16 @@ export interface DialogNode {
       hostname: string;
       organizationId: string;
     };
+    userId?: string;
+    user?: {
+      id: string;
+      firstName?: string | null;
+      lastName?: string | null;
+      image?: {
+        imageUrl?: string | null;
+        hash?: string | null;
+      } | null;
+    } | null;
   };
   createdAt: string;
   statusUpdatedAt?: string;
@@ -67,4 +80,7 @@ export interface UseMingoDialogsOptions {
   enabled?: boolean;
   search?: string;
   limit?: number;
+  /** Ownership scope: 'my' keeps only the signed-in admin's dialogs.
+   *  Server-side — maps to the `DialogFilterInput.scope` ChatScope enum. */
+  scope?: 'my' | 'all';
 }

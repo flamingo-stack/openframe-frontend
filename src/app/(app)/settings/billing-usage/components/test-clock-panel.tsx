@@ -7,8 +7,8 @@ import { graphql, useLazyLoadQuery } from 'react-relay';
 import type { testClockPanelQuery as TestClockPanelQueryType } from '@/__generated__/testClockPanelQuery.graphql';
 import { ConfirmDialog } from '@/app/components/shared/confirm-dialog';
 import { BillingProvisioningState } from '@/generated/schema-enums';
+import { featureFlags } from '@/lib/feature-flags';
 import { formatDateTime } from '@/lib/format-date';
-import { runtimeEnv } from '@/lib/runtime-config';
 import { useBillingProvisioningStatus } from '../hooks/use-billing-provisioning-status';
 import { useAdvanceTestClock, useResetTestClock } from '../hooks/use-test-clock';
 
@@ -25,13 +25,14 @@ interface TestClockPanelProps {
  * Dev-only panel for driving the tenant's Stripe test clock (virtual billing time)
  * so trials, renewals and invoices can be exercised without waiting for real time.
  *
- * Hidden — and, critically, silent — unless `NEXT_PUBLIC_ENABLE_BILLING_TEST_CLOCK`
- * is on. The backend gates the same feature behind `openframe.billing.test-clock.enabled`
- * and strips these fields from the schema when it is off, so an ungated render would
- * fire requests that fail GraphQL validation on prod.
+ * Hidden — and, critically, silent — unless the `test-clock` flag is on. The backend
+ * gates the same feature behind `openframe.billing.test-clock.enabled` and strips these
+ * fields from the schema when it is off, so an ungated render would fire requests that
+ * fail GraphQL validation on prod. The FE flag prefers the server value (so it tracks
+ * that BE switch) and falls back to `NEXT_PUBLIC_ENABLE_BILLING_TEST_CLOCK`.
  */
 export function TestClockPanel({ onClockChanged }: TestClockPanelProps) {
-  if (!runtimeEnv.enableBillingTestClock()) return null;
+  if (!featureFlags.testClock.enabled()) return null;
 
   return (
     <Suspense fallback={<Skeleton className="h-[104px] w-full rounded-md" />}>

@@ -21,6 +21,7 @@ export const FEATURE_FLAG_NAMES = [
   'scripts-v2',
   'cancel-subscription',
   'new-onboarding',
+  'test-clock',
 ] as const;
 
 /**
@@ -122,6 +123,18 @@ export const featureFlags = {
   newOnboarding: {
     enabled(): boolean {
       return getFlagValue('new-onboarding', () => runtimeEnv.newOnboardingFlag());
+    },
+  },
+  /**
+   * Dev/stage-only Stripe test-clock panel on Settings → Billing. Prefers the
+   * server flag (BE's `openframe.billing.test-clock.enabled`, surfaced via
+   * feFeatureFlags), so FE visibility tracks the same switch that shapes the schema
+   * and can't drift. Falls back to the `NEXT_PUBLIC_ENABLE_BILLING_TEST_CLOCK` env
+   * when the server doesn't return the flag.
+   */
+  testClock: {
+    enabled(): boolean {
+      return getFlagValue('test-clock', () => runtimeEnv.enableBillingTestClock());
     },
   },
 } as const;

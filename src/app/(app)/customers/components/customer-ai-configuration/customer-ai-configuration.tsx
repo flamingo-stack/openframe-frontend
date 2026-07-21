@@ -365,10 +365,20 @@ export const CustomerAiConfiguration = forwardRef<CustomerAiConfigurationHandle,
 
             <AiAnswerStyleFields control={form.control} answerStyle={answerStyle} />
 
+            {/* "Default" here inherits the tenant's configured quick actions
+                (which may be customs), NOT OpenFrame's set — so the preview and
+                copy reflect the global config, unlike the tenant-wide screen. */}
             <AiSettingsQuickActionsEditor
               control={form.control}
               agentConfig={ASSISTANT_QUICK_ACTIONS_CONFIG}
-              defaultActions={hubDefaults.actions}
+              defaultActions={inheritedQuickActions}
+              defaultActionsCopy={{
+                title: 'Use default quick actions',
+                description: 'Inherits the quick actions from your global AI-Assistant configuration.',
+                confirmDescription:
+                  'This replaces your customized quick actions with the ones from your global AI-Assistant configuration. Any actions you added or edited will be removed.',
+                previewIsOpenFrame: inheritedQuickActionsAreDefault,
+              }}
             />
           </>
         )}

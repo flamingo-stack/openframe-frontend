@@ -4,7 +4,11 @@ import { featureFlags } from '@/lib/feature-flags';
 import { getFullImageUrl } from '@/lib/image-url';
 import type { AgentAiConfig, AiQuickAction, ClientView } from '../types/ai-settings';
 import { AiSettingsCustomerCard } from './ai-settings-customer-card';
-import { AiSettingsQuickActionsSection, ASSISTANT_QUICK_ACTIONS_CONFIG } from './ai-settings-quick-actions';
+import {
+  AiSettingsQuickActionsSection,
+  ASSISTANT_QUICK_ACTIONS_CONFIG,
+  type QuickActionsBannerCopy,
+} from './ai-settings-quick-actions';
 import { AiSettingsPreviews } from './previews/ai-settings-previews';
 
 interface AiSettingsOverviewProps {
@@ -16,6 +20,12 @@ interface AiSettingsOverviewProps {
   providerModelLabel?: string;
   /** Renders the quick actions list when provided. */
   quickActions?: AiQuickAction[];
+  /**
+   * Overrides the quick-actions source banner. The per-customer view passes it
+   * because there the banner must read "inherited from the global config", not
+   * the tenant-screen "your custom actions" wording.
+   */
+  quickActionsBanner?: QuickActionsBannerCopy;
 }
 
 /**
@@ -23,7 +33,13 @@ interface AiSettingsOverviewProps {
  * customer card plus previews. The ADMIN/Mingo tab renders its own read-only
  * view (AiSettingsAdminCard + quick actions table).
  */
-export function AiSettingsOverview({ aiConfig, view, providerModelLabel, quickActions }: AiSettingsOverviewProps) {
+export function AiSettingsOverview({
+  aiConfig,
+  view,
+  providerModelLabel,
+  quickActions,
+  quickActionsBanner,
+}: AiSettingsOverviewProps) {
   return (
     <div className="flex flex-col gap-[var(--spacing-system-l)]">
       {aiConfig && view && (
@@ -49,6 +65,7 @@ export function AiSettingsOverview({ aiConfig, view, providerModelLabel, quickAc
           actions={quickActions}
           isDefault={aiConfig.quickActionsIsDefault}
           agentConfig={ASSISTANT_QUICK_ACTIONS_CONFIG}
+          bannerCopy={quickActionsBanner}
         />
       )}
     </div>

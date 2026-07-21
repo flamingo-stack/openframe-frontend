@@ -14,6 +14,7 @@ import { useOrganizationClientAiConfig } from '@/app/(app)/settings/ai-settings/
 import { getProviderModelLabel, useSupportedModels } from '@/app/(app)/settings/ai-settings/hooks/use-supported-models';
 import {
   type AgentAiConfig,
+  type AiQuickAction,
   getDefaultAgentAiConfig,
   getDefaultClientView,
 } from '@/app/(app)/settings/ai-settings/types/ai-settings';
@@ -25,6 +26,16 @@ import { routes } from '@/lib/routes';
 
 interface CustomerCustomAiAssistantTabProps {
   organizationId: string;
+}
+
+/**
+ * Positional name+instructions equality. Quick actions carry no id that's stable
+ * across the override snapshot, and the org config exposes no "is default" flag
+ * (see organization-ai-settings.graphqls), so "custom vs inherited" can only be
+ * derived by comparing the effective list against the tenant default's.
+ */
+function sameQuickActions(a: AiQuickAction[], b: AiQuickAction[]): boolean {
+  return a.length === b.length && a.every((x, i) => x.name === b[i].name && x.instructions === b[i].instructions);
 }
 
 /**
@@ -73,7 +84,7 @@ function CustomerAiConfigurationReadOnly({ organizationId }: CustomerCustomAiAss
     enabled: featureFlags.customerAiAssistantSettings.enabled(),
   });
 
-  if (isViewLoading || isConfigLoading || isClientConfigLoading) {
+  if (isViewLoading || isConfigLoading || isClientConfigLoading || hubDefaults.loading) {
     return (
       <div className="flex flex-col gap-[var(--spacing-system-l)]">
         <Skeleton className="h-16 w-full rounded-md" />
@@ -95,17 +106,21 @@ function CustomerAiConfigurationReadOnly({ organizationId }: CustomerCustomAiAss
   // Fully inheriting = no appearance override AND the AI logic inherits.
   const inheritsDefault = !orgView && (orgConfig?.inheritDefault ?? true);
   const effectiveView = orgView ?? defaultView ?? getDefaultClientView(organizationId);
-  // Quick actions follow whichever config applies: the tenant CLIENT default
-  // while inheriting, else the org's own override. Whether that set is
-  // OpenFrame's curated one is an explicit flag on the tenant config, and a
-  // null custom list on an org override — the inheriting case MUST read the
-  // tenant flag, not assume "default" (a customized tenant default otherwise
-  // shows the wrong "Using OpenFrame default actions" banner).
-  const quickActionsIsDefault = inheritsDefault
-    ? (clientAiConfig?.quickActionsIsDefault ?? true)
-    : !orgConfig?.quickActions;
-  const customQuickActions = inheritsDefault ? clientAiConfig?.quickActions : orgConfig?.quickActions;
-  const quickActions = quickActionsIsDefault ? hubDefaults.actions : (customQuickActions ?? hubDefaults.actions);
+  // The org config has no "quick actions are default" flag (an override always
+  // snapshots a self-contained list), and orgConfig.quickActions is the effective
+  // list (the tenant default's when inheriting). So the only way to tell whether
+  // this customer's actions are the global default or their own is to compare
+  // against the tenant default's effective list — null means the built-in MPH set.
+  const quickActions = orgConfig?.quickActions ?? hubDefaults.actions;
+  const tenantUsesMph = clientAiConfig?.quickActionsIsDefault ?? true;
+  const tenantDefaultQuickActions = tenantUsesMph
+    ? hubDefaults.actions
+    : (clientAiConfig?.quickActions ?? hubDefaults.actions);
+  const usesGlobalDefault = sameQuickActions(quickActions, tenantDefaultQuickActions);
+  // Only when the effective list is OpenFrame's built-in set does the shared
+  // "OpenFrame …" header + "curated by OpenFrame" banner apply.
+  const isOpenFrameSet = usesGlobalDefault && tenantUsesMph;
+
   // AiSettingsOverview consumes the tenant-level AgentAiConfig shape; project
   // the effective org values onto it (nullable fields fall back like the
   // global screen's defaults).
@@ -115,9 +130,18 @@ function CustomerAiConfigurationReadOnly({ organizationId }: CustomerCustomAiAss
     providerModel: orgConfig?.providerModel ?? '',
     answerStyle: orgConfig?.answerStyle ?? null,
     customPrompt: orgConfig?.customPrompt ?? null,
-    quickActionsIsDefault,
+    quickActionsIsDefault: isOpenFrameSet,
     quickActions,
   };
+
+  // Banner: OpenFrame set keeps the shared "curated by OpenFrame" copy; a list
+  // matching the (customized) tenant default reads as inherited; anything else
+  // is this customer's own set.
+  const quickActionsBanner = isOpenFrameSet
+    ? undefined
+    : usesGlobalDefault
+      ? { value: 'Using default quick actions', label: 'Inherited from your global AI-Assistant configuration.' }
+      : { value: 'Using custom actions', label: 'These quick actions were configured for this customer.' };
 
   return (
     <div className="flex flex-col gap-[var(--spacing-system-l)]">
@@ -148,6 +172,7 @@ function CustomerAiConfigurationReadOnly({ organizationId }: CustomerCustomAiAss
         view={effectiveView}
         providerModelLabel={getProviderModelLabel(modelsByProvider, aiConfig.llmProvider, aiConfig.providerModel)}
         quickActions={quickActions}
+        quickActionsBanner={quickActionsBanner}
       />
     </div>
   );

@@ -2,10 +2,14 @@
 
 import { OSTypeBadgeGroup } from '@flamingo-stack/openframe-frontend-core/components';
 import {
+  ArrowRightUpIcon,
   BoxArchiveIcon,
   Filter02Icon,
   HourglassClockIcon,
+  LaptopIcon,
   ListBulletIcon,
+  PenEditIcon,
+  PlusCircleIcon,
   RadarIcon,
   SearchIcon,
   TimerIcon,
@@ -51,6 +55,7 @@ import {
   scriptSchedulesTableRelayQuery,
 } from '@/graphql/scripts/script-schedules-table-relay';
 import { unarchiveScriptScheduleMutation } from '@/graphql/scripts/unarchive-script-schedule-mutation';
+import { openInNewTab } from '@/lib/open-in-new-tab';
 import { routes } from '@/lib/routes';
 import { platformsToEnums, platformsToIds } from '../utils/script-mappers';
 import { ArchiveScheduleModal } from './archive-schedule-modal';
@@ -172,15 +177,40 @@ function SchedulesTableContent({
 
   const renderRowActions = useCallback(
     (schedule: UiScheduleEntry) => {
+      const editHref = routes.scriptsV2.schedules.edit(schedule.id);
+      const devicesHref = routes.scriptsV2.schedules.devices(schedule.id);
+      const newTabIcon = <ArrowRightUpIcon className="w-5 h-5 text-ods-text-secondary" />;
       const mutating = isArchiving || isUnarchiving;
 
       // Archive (active list) ↔ Unarchive (archived list). The action only opens
       // a confirmation modal; the mutation runs on confirm.
-      // TODO(scripts-v2): add Edit Schedule / Edit Devices once the v2 schedule
-      // detail/edit pages exist (backend mutations are already available).
       const groups: ActionsMenuGroup[] = [
         {
           items: [
+            {
+              id: 'edit-schedule',
+              label: 'Edit Schedule',
+              icon: <PenEditIcon className="w-6 h-6 text-ods-text-secondary" />,
+              href: editHref,
+              iconAction: {
+                icon: newTabIcon,
+                'aria-label': 'Open Edit Schedule in new tab',
+                href: editHref,
+                openInNewTab: true,
+              },
+            },
+            {
+              id: 'edit-devices',
+              label: 'Edit Devices',
+              icon: <LaptopIcon className="w-6 h-6 text-ods-text-secondary" />,
+              href: devicesHref,
+              iconAction: {
+                icon: newTabIcon,
+                'aria-label': 'Open Edit Devices in new tab',
+                href: devicesHref,
+                openInNewTab: true,
+              },
+            },
             {
               id: archived ? 'unarchive-schedule' : 'archive-schedule',
               label: archived ? 'Unarchive Schedule' : 'Archive Schedule',
@@ -321,6 +351,23 @@ function SchedulesTableContent({
         enableSorting: false,
         meta: { width: 'w-12 shrink-0 flex-none', align: 'right' },
       },
+      {
+        id: 'open',
+        cell: ({ row }: { row: Row<UiScheduleEntry> }) => (
+          <div data-no-row-click className="flex items-center justify-end pointer-events-auto">
+            <Button
+              onClick={openInNewTab(routes.scriptsV2.schedules.details(row.original.id))}
+              variant="outline"
+              size="icon"
+              leftIcon={<ArrowRightUpIcon className="w-5 h-5" />}
+              aria-label="Open in new tab"
+              className="bg-ods-card"
+            />
+          </div>
+        ),
+        enableSorting: false,
+        meta: { width: 'w-12 shrink-0 flex-none', hideAt: 'md', align: 'right' },
+      },
     ],
     [renderRowActions, platformOptions],
   );
@@ -358,6 +405,11 @@ function SchedulesTableContent({
     state: { columnFilters },
     onColumnFiltersChange: handleColumnFiltersChange,
   });
+
+  const scheduleRowHref = useCallback(
+    (schedule: UiScheduleEntry) => routes.scriptsV2.schedules.details(schedule.id),
+    [],
+  );
 
   const hasActiveFilters = Object.values(tableFilters).some(values => values.length > 0);
   const showEmptyState = !debouncedSearch && !hasActiveFilters && !isPending && transformedSchedules.length === 0;
@@ -407,6 +459,7 @@ function SchedulesTableContent({
                 : 'No schedules found. Try adjusting your filters or add a new schedule.'
             }
             rowClassName="mb-1"
+            rowHref={scheduleRowHref}
           />
           <DataTable.InfiniteFooter
             hasNextPage={hasNext}
@@ -476,6 +529,7 @@ function SchedulesTableSkeleton({ stickyHeaderOffset }: { stickyHeaderOffset: st
       // Mirror the real table's trailing actions column so the loading header
       // reserves the same width and stays aligned.
       { id: 'actions', enableSorting: false, meta: { width: 'w-12 shrink-0 flex-none', align: 'right' } },
+      { id: 'open', enableSorting: false, meta: { width: 'w-12 shrink-0 flex-none', hideAt: 'md', align: 'right' } },
     ],
     [],
   );
@@ -554,10 +608,12 @@ export function ScriptSchedulesTable({ archived = false }: ScriptSchedulesTableP
     router.push(routes.scriptsV2.schedules.archived);
   }, [router]);
 
-  // Archived list has no header actions (back button only). The active list
-  // shows Archive (→ archived page). The design's "Add Schedule" action is
-  // intentionally omitted — TODO(scripts-v2): add it when the v2 create-schedule
-  // flow exists (the backend `createScriptSchedule` mutation is already there).
+  const handleNewSchedule = useCallback(() => {
+    router.push(routes.scriptsV2.schedules.new);
+  }, [router]);
+
+  // Archived list has no header actions (back button only); the active list
+  // shows Archive (→ archived page) + Add Schedule.
   const actions = useMemo(
     () =>
       archived
@@ -569,8 +625,16 @@ export function ScriptSchedulesTable({ archived = false }: ScriptSchedulesTableP
               icon: <BoxArchiveIcon className="w-6 h-6 text-ods-text-secondary" />,
               onClick: handleOpenArchive,
             },
+            {
+              label: 'Add Schedule',
+              variant: (isEmpty ? 'accent' : 'outline') as 'accent' | 'outline',
+              icon: (
+                <PlusCircleIcon size={24} className={isEmpty ? 'text-ods-text-on-accent' : 'text-ods-text-secondary'} />
+              ),
+              onClick: handleNewSchedule,
+            },
           ],
-    [archived, handleOpenArchive],
+    [archived, handleOpenArchive, handleNewSchedule, isEmpty],
   );
 
   const mobileFilterButton = (

@@ -7,7 +7,7 @@ import { DevTicketObserver } from '@/app/(auth)/auth/components/dev-ticket-obser
 import { azeretMono, dmSans } from '@/lib/fonts';
 import { NatsAppProvider } from '@/lib/nats/nats-app-provider';
 import { sidebarWidthFoucScript } from '@/lib/navigation-sidebar-state';
-import { GlobalOverlayScrollbars, Toaster } from '@/lib/openframe-core-ui';
+import { Toaster } from '@/lib/openframe-core-ui';
 import { FeatureFlagsGate } from '../components/feature-flags-gate';
 import { RouteGuard } from '../components/route-guard';
 import { isAuthEnabled } from '../lib/app-mode';
@@ -138,8 +138,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </QueryClientProvider>
         </RelayProvider>
         <Toaster />
-        {/* Standardized overlay scrollbar for the page scroller (desktop only) */}
-        <GlobalOverlayScrollbars />
       </body>
     </html>
   );

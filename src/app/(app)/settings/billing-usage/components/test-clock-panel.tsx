@@ -145,15 +145,11 @@ function TestClockPanelContent({ onClockChanged }: TestClockPanelProps) {
         <Button type="submit" variant="accent" loading={advance.isPending} disabled={!isDaysValid || isBusy}>
           Advance
         </Button>
-        {/* With no clock attached the backend has nothing to delete and answers 409
-            CONFLICT, so don't offer the action at all in that state. */}
-        <Button
-          type="button"
-          variant="outline"
-          disabled={isBusy || frozenTime === null}
-          title={frozenTime === null ? 'No test clock to reset' : undefined}
-          onClick={() => setConfirmResetOpen(true)}
-        >
+        {/* Always available: the backend now handles the no-clock case itself
+            (creating one if needed), so it's the tenant's reset switch regardless of
+            whether a clock is currently attached. `isBusy` only guards a concurrent
+            in-flight mutation. */}
+        <Button type="button" variant="outline" disabled={isBusy} onClick={() => setConfirmResetOpen(true)}>
           Reset
         </Button>
       </form>

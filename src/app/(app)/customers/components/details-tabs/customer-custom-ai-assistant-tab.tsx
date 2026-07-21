@@ -106,16 +106,22 @@ function CustomerAiConfigurationReadOnly({ organizationId }: CustomerCustomAiAss
   // Fully inheriting = no appearance override AND the AI logic inherits.
   const inheritsDefault = !orgView && (orgConfig?.inheritDefault ?? true);
   const effectiveView = orgView ?? defaultView ?? getDefaultClientView(organizationId);
-  // The org config has no "quick actions are default" flag (an override always
-  // snapshots a self-contained list), and orgConfig.quickActions is the effective
-  // list (the tenant default's when inheriting). So the only way to tell whether
-  // this customer's actions are the global default or their own is to compare
-  // against the tenant default's effective list — null means the built-in MPH set.
-  const quickActions = orgConfig?.quickActions ?? hubDefaults.actions;
+  // The tenant CLIENT default's effective quick actions — what a customer that
+  // inherits actually runs. null quickActions / quickActionsIsDefault → the
+  // built-in MPH set.
   const tenantUsesMph = clientAiConfig?.quickActionsIsDefault ?? true;
   const tenantDefaultQuickActions = tenantUsesMph
     ? hubDefaults.actions
     : (clientAiConfig?.quickActions ?? hubDefaults.actions);
+  // When the AI config inherits, the applied actions are the tenant default's —
+  // show THOSE, not orgConfig.quickActions, which can still echo this customer's
+  // old override snapshot (view would then disagree with what's applied). With an
+  // override, the org's own self-contained list is what runs.
+  const aiConfigInherits = orgConfig?.inheritDefault ?? true;
+  const quickActions = aiConfigInherits ? tenantDefaultQuickActions : (orgConfig?.quickActions ?? hubDefaults.actions);
+  // No org-level "is default" flag exists (see organization-ai-settings.graphqls),
+  // so custom-vs-default is decided by comparing the shown list to the tenant
+  // default's — inheriting matches by construction.
   const usesGlobalDefault = sameQuickActions(quickActions, tenantDefaultQuickActions);
   // Only when the effective list is OpenFrame's built-in set does the shared
   // "OpenFrame …" header + "curated by OpenFrame" banner apply.

@@ -138,14 +138,14 @@ function NavigationSidebarSkeleton() {
  */
 function OnboardingStepCardSkeleton() {
   return (
-    <div className="bg-ods-card border border-ods-border rounded-[6px] min-h-[80px] md:h-[80px] flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-4 px-4 py-4 md:py-0">
+    <div className="bg-ods-card border border-ods-border rounded-[6px] min-h-[80px] md:h-[80px] flex flex-col md:flex-row items-start md:items-center gap-[var(--spacing-system-m)] px-[var(--spacing-system-mf)] py-[var(--spacing-system-mf)] md:py-0">
       {/* Left - title and description */}
-      <div className="flex-1 w-full md:w-auto min-w-0 flex flex-col justify-center gap-1">
+      <div className="flex-1 w-full md:w-auto min-w-0 flex flex-col justify-center gap-[var(--spacing-system-xxs)]">
         <Skeleton className="h-6 w-40" /> {/* title - 18px/24px line height */}
         <Skeleton className="h-5 w-64" /> {/* description - 14px/20px line height, h-[20px] explicit */}
       </div>
       {/* Right - buttons */}
-      <div className="flex items-center gap-2 w-full md:w-auto justify-start md:justify-end shrink-0">
+      <div className="flex items-center gap-[var(--spacing-system-xsf)] w-full md:w-auto justify-start md:justify-end shrink-0">
         <Skeleton className="h-14 w-full md:w-[100px] rounded-[6px]" />{' '}
         {/* Skip button - h-14 matches Button default */}
         <Skeleton className="h-14 w-full md:w-[160px] rounded-[6px]" />{' '}
@@ -167,15 +167,15 @@ function OnboardingStepCardSkeleton() {
  */
 function OnboardingSkeleton() {
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-[var(--spacing-system-mf)]">
       {/* Header - title + button */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-0">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-[var(--spacing-system-sf)] md:gap-0">
         <Skeleton className="h-8 w-36" /> {/* "Get Started" title - 24px/32px line height */}
         <Skeleton className="h-12 w-full md:w-[180px] rounded-[6px]" />{' '}
         {/* "Skip Onboarding" button - w-full md:w-auto matches actual Button */}
       </div>
       {/* Step cards - 5 vertical cards */}
-      <div className="space-y-4">
+      <div className="space-y-[var(--spacing-system-mf)]">
         {Array.from({ length: 5 }, (_, i) => (
           <OnboardingStepCardSkeleton key={i} />
         ))}
@@ -186,7 +186,7 @@ function OnboardingSkeleton() {
 
 /**
  * DashboardInfoCard skeleton - matches DashboardInfoCard exactly
- * Structure: bg-ods-card, rounded-[6px], p-4, flex gap-3 items-center
+ * Structure: bg-ods-card, rounded-md, ODS-token padding/gap, flex items-center
  *
  * NOTE: this is the pre-existing GENERIC dashboard mock, kept ONLY for the
  * standard (non-dashboard) shell fallback. The /dashboard route uses the
@@ -194,13 +194,13 @@ function OnboardingSkeleton() {
  */
 function InfoCardSkeleton() {
   return (
-    <div className="bg-ods-card border border-ods-border rounded-[6px] p-4 flex gap-3 items-center">
+    <div className="bg-ods-card border border-ods-border rounded-[6px] p-[var(--spacing-system-mf)] flex gap-[var(--spacing-system-sf)] items-center">
       {/* Content section */}
       <div className="flex-1 flex flex-col">
         {/* Title - uppercase 14px */}
-        <Skeleton className="h-4 w-20 mb-1" />
+        <Skeleton className="h-4 w-20 mb-[var(--spacing-system-xxs)]" />
         {/* Value + percentage row */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-[var(--spacing-system-xsf)]">
           <Skeleton className="h-10 w-12" /> {/* 32px number */}
           <Skeleton className="h-5 w-8" /> {/* percentage */}
         </div>
@@ -217,13 +217,13 @@ function InfoCardSkeleton() {
  */
 function DevicesSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-[var(--spacing-system-mf)]">
       {/* h2 title */}
       <Skeleton className="h-8 w-44" />
       {/* p subtitle */}
       <Skeleton className="h-5 w-36" />
       {/* Grid of 2 info cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[var(--spacing-system-mf)]">
         <InfoCardSkeleton />
         <InfoCardSkeleton />
       </div>
@@ -237,13 +237,13 @@ function DevicesSkeleton() {
  */
 function TicketsSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-[var(--spacing-system-mf)]">
       {/* h2 title */}
       <Skeleton className="h-8 w-40" />
       {/* p subtitle */}
       <Skeleton className="h-5 w-32" />
       {/* Grid of 4 info cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[var(--spacing-system-mf)]">
         <InfoCardSkeleton />
         <InfoCardSkeleton />
         <InfoCardSkeleton />
@@ -258,9 +258,9 @@ function TicketsSkeleton() {
  */
 function CustomerCardSkeleton() {
   return (
-    <div className="bg-ods-card border border-ods-border rounded-[6px] p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0 space-y-2">
+    <div className="bg-ods-card border border-ods-border rounded-[6px] p-[var(--spacing-system-mf)]">
+      <div className="flex items-start gap-[var(--spacing-system-sf)]">
+        <div className="flex-1 min-w-0 space-y-[var(--spacing-system-xsf)]">
           <Skeleton className="h-6 w-3/4" /> {/* org name */}
           <Skeleton className="h-4 w-1/2" /> {/* org details */}
         </div>
@@ -276,15 +276,18 @@ function CustomerCardSkeleton() {
  */
 function CustomersSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-[var(--spacing-system-mf)]">
       {/* h2 title */}
       <Skeleton className="h-8 w-52" />
       {/* p subtitle */}
       <Skeleton className="h-5 w-48" />
       {/* Rows of org + info cards */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-[var(--spacing-system-sf)]">
         {[1, 2, 3].map(i => (
-          <div key={i} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+          <div
+            key={i}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[var(--spacing-system-mf)] items-stretch"
+          >
             <CustomerCardSkeleton />
             <InfoCardSkeleton />
             <InfoCardSkeleton />
@@ -389,12 +392,14 @@ export function AppShellSkeleton() {
             </PageLayout>
           </main>
         ) : (
-          <main className="flex-1 overflow-y-auto p-6 pt-0">
-            {/* ContentPageContainer wrapper - EXACT flex flex-col w-full gap-8 */}
+          <main className="flex-1 overflow-y-auto p-[var(--spacing-system-lf)] pt-0">
+            {/* ContentPageContainer wrapper. `gap-8` (32px) has no ODS spacing token
+                (the scale is …lf 24 → xlf 40), and it's a no-op here anyway — a single
+                child — so it's left as-is rather than force-fitting a non-matching token. */}
             <div className="flex flex-col w-full gap-8">
               <div className="flex-1">
-                {/* Dashboard content skeleton - EXACT space-y-10 pt-6 */}
-                <div className="space-y-10 pt-6">
+                {/* Dashboard content skeleton */}
+                <div className="space-y-[var(--spacing-system-xlf)] pt-[var(--spacing-system-lf)]">
                   <OnboardingSkeleton />
                   <DevicesSkeleton />
                   <TicketsSkeleton />

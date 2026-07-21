@@ -4,6 +4,7 @@ import { PageLayout } from '@flamingo-stack/openframe-frontend-core';
 import { Skeleton } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { useLgUp, useLocalStorage, useMdUp } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
+import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import {
   CustomersOverviewSkeleton,
@@ -19,6 +20,7 @@ import {
   SIDEBAR_MINIMIZED_WIDTH,
   SIDEBAR_WIDTH_CSS_VAR,
 } from '@/lib/navigation-sidebar-state';
+import { routes } from '@/lib/routes';
 
 /**
  * AppHeader action-button cell skeleton — mirrors `HeaderButton`
@@ -183,6 +185,117 @@ function OnboardingSkeleton() {
 }
 
 /**
+ * DashboardInfoCard skeleton - matches DashboardInfoCard exactly
+ * Structure: bg-ods-card, rounded-[6px], p-4, flex gap-3 items-center
+ *
+ * NOTE: this is the pre-existing GENERIC dashboard mock, kept ONLY for the
+ * standard (non-dashboard) shell fallback. The /dashboard route uses the
+ * canonical section skeletons instead (see the route-aware branch below).
+ */
+function InfoCardSkeleton() {
+  return (
+    <div className="bg-ods-card border border-ods-border rounded-[6px] p-4 flex gap-3 items-center">
+      {/* Content section */}
+      <div className="flex-1 flex flex-col">
+        {/* Title - uppercase 14px */}
+        <Skeleton className="h-4 w-20 mb-1" />
+        {/* Value + percentage row */}
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-10 w-12" /> {/* 32px number */}
+          <Skeleton className="h-5 w-8" /> {/* percentage */}
+        </div>
+      </div>
+      {/* Circular progress */}
+      <Skeleton className="h-12 w-12 rounded-full" />
+    </div>
+  );
+}
+
+/**
+ * Devices skeleton - matches DevicesOverviewSection exactly
+ * Structure: h2 title + p subtitle + grid of InfoCards
+ */
+function DevicesSkeleton() {
+  return (
+    <div className="space-y-4">
+      {/* h2 title */}
+      <Skeleton className="h-8 w-44" />
+      {/* p subtitle */}
+      <Skeleton className="h-5 w-36" />
+      {/* Grid of 2 info cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <InfoCardSkeleton />
+        <InfoCardSkeleton />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Tickets skeleton - matches TicketsOverviewSection exactly
+ * Structure: h2 title + p subtitle + grid of 4 InfoCards
+ */
+function TicketsSkeleton() {
+  return (
+    <div className="space-y-4">
+      {/* h2 title */}
+      <Skeleton className="h-8 w-40" />
+      {/* p subtitle */}
+      <Skeleton className="h-5 w-32" />
+      {/* Grid of 4 info cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <InfoCardSkeleton />
+        <InfoCardSkeleton />
+        <InfoCardSkeleton />
+        <InfoCardSkeleton />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * OrganizationCard skeleton - matches OrganizationCard exactly
+ */
+function CustomerCardSkeleton() {
+  return (
+    <div className="bg-ods-card border border-ods-border rounded-[6px] p-4">
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0 space-y-2">
+          <Skeleton className="h-6 w-3/4" /> {/* org name */}
+          <Skeleton className="h-4 w-1/2" /> {/* org details */}
+        </div>
+        <Skeleton className="h-4 w-20" /> {/* device count badge */}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Organizations skeleton - matches CustomersOverviewSection exactly
+ * Structure: h2 title + p subtitle + rows of [OrgCard, InfoCard, InfoCard]
+ */
+function CustomersSkeleton() {
+  return (
+    <div className="space-y-4">
+      {/* h2 title */}
+      <Skeleton className="h-8 w-52" />
+      {/* p subtitle */}
+      <Skeleton className="h-5 w-48" />
+      {/* Rows of org + info cards */}
+      <div className="flex flex-col gap-3">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+            <CustomerCardSkeleton />
+            <InfoCardSkeleton />
+            <InfoCardSkeleton />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Skeleton that mirrors the AppShell structure:
  * - NavigationSidebar (left): responsive width tracking the real sidebar's
  *   minimized/expanded + tablet states
@@ -209,6 +322,14 @@ export function AppShellSkeleton() {
   // doesn't shift: the new "Initial Setup" card skeleton when `new-onboarding` is
   // on, the legacy "Get Started" walkthrough skeleton otherwise.
   const newOnboardingEnabled = featureFlags.newOnboarding.enabled();
+
+  // Route-scope the fixed dashboard body: only /dashboard renders the canonical
+  // section skeletons (+ onboarding). This shell is the app-WIDE loading fallback
+  // (root layout Suspense, session check, feature-flags gate, root redirect), so
+  // every OTHER route keeps the pre-existing generic mock below — the dashboard
+  // fix must not leak onto Settings, Devices, etc.
+  const pathname = usePathname();
+  const isDashboardRoute = pathname === routes.dashboard || pathname.startsWith(`${routes.dashboard}/`);
 
   return (
     <output className="flex h-screen bg-ods-bg" aria-label="Loading application">
@@ -248,24 +369,41 @@ export function AppShellSkeleton() {
           )}
         </header>
 
-        {/* Main content — mirrors the real app: the core `AppLayout` `<main>` is
-            `flex-1 overflow-y-auto` with only the bottom padding from `mainClassName`
-            (`pb-14`, per `(app)/layout.tsx`); the dashboard supplies its own `px-l`
-            via `PageLayout`. We render the SAME canonical section skeletons as the
-            dashboard route `loading.tsx`, so the shell fallback → route skeleton →
-            data transition has no card-count/height/layout jump. The onboarding
-            skeleton sits OUTSIDE `PageLayout`, matching `DashboardContent`'s
-            `ONBOARDING_WRAPPER_CLASS` (px-l pt-l), while onboarding progress loads. */}
-        <main className="flex-1 overflow-y-auto pb-14">
-          <div className="px-[var(--spacing-system-l)] pt-[var(--spacing-system-l)]">
-            {newOnboardingEnabled ? <InitialSetupSkeleton /> : <OnboardingSkeleton />}
-          </div>
-          <PageLayout className="px-[var(--spacing-system-l)] pb-[var(--spacing-system-l)]">
-            <DevicesOverviewSkeleton />
-            {showTickets && <TicketsOverviewSkeleton />}
-            <CustomersOverviewSkeleton />
-          </PageLayout>
-        </main>
+        {/* Main content. On /dashboard we render the SAME canonical section
+            skeletons as the dashboard route `loading.tsx` (so the shell → route →
+            data transition has no card-count/height/layout jump): the core
+            `AppLayout` `<main>` is `flex-1 overflow-y-auto` with only bottom padding
+            from `mainClassName` (`pb-14`, per `(app)/layout.tsx`), and the dashboard
+            supplies its own `px-l` via `PageLayout`; the onboarding skeleton sits
+            OUTSIDE `PageLayout`, matching `DashboardContent`'s `ONBOARDING_WRAPPER_CLASS`
+            (px-l pt-l). Every other route keeps the pre-existing generic mock. */}
+        {isDashboardRoute ? (
+          <main className="flex-1 overflow-y-auto pb-14">
+            <div className="px-[var(--spacing-system-l)] pt-[var(--spacing-system-l)]">
+              {newOnboardingEnabled ? <InitialSetupSkeleton /> : <OnboardingSkeleton />}
+            </div>
+            <PageLayout className="px-[var(--spacing-system-l)] pb-[var(--spacing-system-l)]">
+              <DevicesOverviewSkeleton />
+              {showTickets && <TicketsOverviewSkeleton />}
+              <CustomersOverviewSkeleton />
+            </PageLayout>
+          </main>
+        ) : (
+          <main className="flex-1 overflow-y-auto p-6 pt-0">
+            {/* ContentPageContainer wrapper - EXACT flex flex-col w-full gap-8 */}
+            <div className="flex flex-col w-full gap-8">
+              <div className="flex-1">
+                {/* Dashboard content skeleton - EXACT space-y-10 pt-6 */}
+                <div className="space-y-10 pt-6">
+                  <OnboardingSkeleton />
+                  <DevicesSkeleton />
+                  <TicketsSkeleton />
+                  <CustomersSkeleton />
+                </div>
+              </div>
+            </div>
+          </main>
+        )}
       </div>
     </output>
   );

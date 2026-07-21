@@ -1,5 +1,6 @@
 'use client';
 
+import { FAE_AVATAR_DATA_URI } from '@flamingo-stack/openframe-frontend-core/assets';
 import { EntityImage } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
 import type { ReactNode } from 'react';
@@ -29,7 +30,11 @@ export function AiSettingsCustomerCard({ aiConfig, view, providerModelLabel }: A
   const cells: ReactNode[] = [
     <>
       <EntityImage
-        src={getFullImageUrl(view.assistantAvatar?.imageUrl, view.assistantAvatar?.hash)}
+        // Fall back to the packaged default Fae avatar when no custom image is
+        // configured — matches the previews (AiSettingsPreviews), which use the
+        // same fallback; otherwise EntityImage would render bare initials here
+        // while the previews show the default avatar.
+        src={getFullImageUrl(view.assistantAvatar?.imageUrl, view.assistantAvatar?.hash) || FAE_AVATAR_DATA_URI}
         alt={view.assistantName}
         // EntityImage defaults to size-[52px] md:size-[60px]; override both
         // breakpoints so the avatar stays 40×40 (the md: default would otherwise win).

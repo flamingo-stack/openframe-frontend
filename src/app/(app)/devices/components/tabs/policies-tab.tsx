@@ -1,10 +1,16 @@
 'use client';
 
-import { FolderShieldIcon, SearchIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
+import {
+  BellCheckIcon,
+  FolderShieldIcon,
+  Hierarchy02Icon,
+  RadarIcon,
+  SearchIcon,
+} from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import { Input } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { PoliciesTable, type PolicyTableRow } from '@/app/components/shared';
+import { EmptyState, onboardingGuideButton, PoliciesTable, type PolicyTableRow } from '@/app/components/shared';
 import { useStickyToolbar } from '@/app/hooks/use-sticky-toolbar';
 import { routes } from '@/lib/routes';
 import type { Device, DevicePolicy } from '../../types/device.types';
@@ -64,6 +70,25 @@ export function PoliciesTab({ device }: PoliciesTabProps) {
         icon={<FolderShieldIcon />}
         title="No policies applied"
         description="Compliance policies for this device will appear here."
+      />
+    );
+  }
+
+  // Genuinely no policies (no data before any search/filter manipulation) → the rich
+  // onboarding EmptyState replaces the whole table. A search with zero matches keeps
+  // the table chrome and its compact empty state below.
+  if (policies.length === 0) {
+    return (
+      <EmptyState
+        icon={<FolderShieldIcon />}
+        title="No policies applied"
+        description="Compliance policies for this device will appear here."
+        actions={[
+          { icon: <Hierarchy02Icon />, label: 'See every compliance rule enforced on this device' },
+          { icon: <RadarIcon />, label: 'Check pass/fail status for each policy' },
+          { icon: <BellCheckIcon />, label: 'Get alerts when the device falls out of compliance' },
+        ]}
+        {...onboardingGuideButton('policies', 'Learn more about Policies')}
       />
     );
   }

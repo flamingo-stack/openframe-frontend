@@ -24,12 +24,20 @@ export interface QuickActionsAgentConfig {
 export const MINGO_QUICK_ACTIONS_CONFIG: QuickActionsAgentConfig = { agentLabel: 'Mingo', agentSlug: 'mingo' };
 export const ASSISTANT_QUICK_ACTIONS_CONFIG: QuickActionsAgentConfig = { agentLabel: 'AI Assistant', agentSlug: 'fae' };
 
+/** Overrides the source banner's two text lines (title + caption). */
+export interface QuickActionsBannerCopy {
+  value: string;
+  label: string;
+}
+
 /**
  * Info banner above the list: whose actions are in effect (view mode).
  * A single-row lib StackedRowsPanel; `leadingIcon` centers the 24px glyph
  * against both text lines per the mock (matches the lib's InfoBanner story).
+ * `copy` overrides the default OpenFrame-vs-org wording — the per-customer view
+ * uses it because there "default" means "inherited from the global config".
  */
-export function QuickActionsSourceBanner({ isDefault }: { isDefault: boolean }) {
+export function QuickActionsSourceBanner({ isDefault, copy }: { isDefault: boolean; copy?: QuickActionsBannerCopy }) {
   return (
     <StackedRowsPanel
       rows={[
@@ -40,10 +48,12 @@ export function QuickActionsSourceBanner({ isDefault }: { isDefault: boolean }) 
             {
               key: 'source',
               leadingIcon: <InfoCircleIcon className="size-6 text-ods-text-secondary" />,
-              value: isDefault ? 'Using OpenFrame default actions' : 'Using your custom actions',
-              label: isDefault
-                ? 'These quick actions are curated and approved by OpenFrame.'
-                : 'These quick actions were configured by your organization.',
+              value: copy?.value ?? (isDefault ? 'Using OpenFrame default actions' : 'Using your custom actions'),
+              label:
+                copy?.label ??
+                (isDefault
+                  ? 'These quick actions are curated and approved by OpenFrame.'
+                  : 'These quick actions were configured by your organization.'),
             },
           ],
         },
@@ -58,16 +68,19 @@ export function AiSettingsQuickActionsSection({
   actions,
   isDefault,
   agentConfig,
+  bannerCopy,
 }: {
   title: string;
   actions: AiQuickAction[];
   isDefault: boolean;
   agentConfig: QuickActionsAgentConfig;
+  /** Overrides the source banner copy (leaves the list header on `isDefault`). */
+  bannerCopy?: QuickActionsBannerCopy;
 }) {
   return (
     <div className="flex flex-col gap-[var(--spacing-system-l)]">
       <span className="text-h2 text-ods-text-primary">{title}</span>
-      <QuickActionsSourceBanner isDefault={isDefault} />
+      <QuickActionsSourceBanner isDefault={isDefault} copy={bannerCopy} />
       <AiSettingsQuickActions actions={actions} isDefault={isDefault} agentConfig={agentConfig} />
     </div>
   );

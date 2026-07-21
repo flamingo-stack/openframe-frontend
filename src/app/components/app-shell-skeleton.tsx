@@ -10,6 +10,7 @@ import {
   DevicesOverviewSkeleton,
   TicketsOverviewSkeleton,
 } from '@/app/(app)/dashboard/components/dashboard-skeletons';
+import { InitialSetupSkeleton } from '@/app/(app)/onboarding/components/initial-setup-card';
 import { isSaasTenantMode } from '@/lib/app-mode';
 import { featureFlags } from '@/lib/feature-flags';
 import {
@@ -204,6 +205,10 @@ export function AppShellSkeleton() {
   // Tickets overview is SaaS-tenant only — gate it exactly like the dashboard
   // route (`loading.tsx` / `DashboardContent`) so the shell and route skeletons agree.
   const showTickets = isSaasTenantMode();
+  // Match `DashboardContent`'s onboarding variant so the shell → dashboard swap
+  // doesn't shift: the new "Initial Setup" card skeleton when `new-onboarding` is
+  // on, the legacy "Get Started" walkthrough skeleton otherwise.
+  const newOnboardingEnabled = featureFlags.newOnboarding.enabled();
 
   return (
     <output className="flex h-screen bg-ods-bg" aria-label="Loading application">
@@ -253,7 +258,7 @@ export function AppShellSkeleton() {
             `ONBOARDING_WRAPPER_CLASS` (px-l pt-l), while onboarding progress loads. */}
         <main className="flex-1 overflow-y-auto pb-14">
           <div className="px-[var(--spacing-system-l)] pt-[var(--spacing-system-l)]">
-            <OnboardingSkeleton />
+            {newOnboardingEnabled ? <InitialSetupSkeleton /> : <OnboardingSkeleton />}
           </div>
           <PageLayout className="px-[var(--spacing-system-l)] pb-[var(--spacing-system-l)]">
             <DevicesOverviewSkeleton />

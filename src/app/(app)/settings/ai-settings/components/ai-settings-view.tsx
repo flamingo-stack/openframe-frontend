@@ -2,6 +2,7 @@
 
 import { LoadError, Skeleton } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { useToast } from '@flamingo-stack/openframe-frontend-core/hooks';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import {
@@ -10,7 +11,8 @@ import {
   useUpdateAdminAiConfig,
   useUpdateClientAiConfig,
 } from '../hooks/use-agent-ai-config';
-import { useClientView, useUpdateClientView } from '../hooks/use-client-view';
+import { clientViewQueryKeys, useClientView, useUpdateClientView } from '../hooks/use-client-view';
+import type { CommitAvatar } from '../hooks/use-customer-ai-assistant-form';
 import { useUpdateAiConfiguration } from '../hooks/use-update-ai-configuration';
 import {
   type AgentAiConfig,
@@ -60,8 +62,12 @@ export function AiSettings() {
   const clientView = useClientView(null, { enabled: isCustomer });
   const adminAi = useAdminAiConfig({ enabled: isMingo });
 
+  const queryClient = useQueryClient();
   const { update: updateClientAiConfig } = useUpdateClientAiConfig();
-  const { update: updateClientView } = useUpdateClientView(null);
+  // The avatar is attached AFTER the save resolves (commitAvatar below) —
+  // auto-invalidating here would refetch the pre-upload avatar and flicker
+  // the preview, so invalidation happens once, after the avatar commit.
+  const { update: updateClientView } = useUpdateClientView(null, { invalidateOnSuccess: false });
   const { update: updateAdminAiConfig } = useUpdateAdminAiConfig();
   const { updateAiConfiguration } = useUpdateAiConfiguration();
 
@@ -118,12 +124,28 @@ export function AiSettings() {
   );
 
   const handleCustomerSubmit = useCallback(
-    (payload: CustomerAiAssistantSubmit) => {
+    (payload: CustomerAiAssistantSubmit, commitAvatar: CommitAvatar) => {
       // The CLIENT screen writes two collections; surface one combined toast.
       void (async () => {
         try {
-          await Promise.all([updateClientAiConfig(payload.ai), updateClientView(payload.view)]);
+          const [, savedView] = await Promise.all([updateClientAiConfig(payload.ai), updateClientView(payload.view)]);
           syncAiConfiguration(payload.ai, clientAiConfig);
+
+          // Attach the staged avatar to the SAVED view id — on a fresh tenant
+          // the record only exists after the save above created it.
+          try {
+            const savedViewId = savedView?.id || clientView.view?.id;
+            if (savedViewId) {
+              await commitAvatar(savedViewId);
+            }
+          } catch (err) {
+            toast({
+              title: 'Avatar upload failed',
+              description: err instanceof Error ? err.message : 'Settings saved, but the avatar was not updated',
+              variant: 'destructive',
+            });
+          }
+
           toast({ title: 'Saved', description: 'AI assistant settings updated', variant: 'success' });
           setIsEditMode(false);
         } catch (err) {
@@ -132,10 +154,12 @@ export function AiSettings() {
             description: err instanceof Error ? err.message : 'Failed to save settings',
             variant: 'destructive',
           });
+        } finally {
+          queryClient.invalidateQueries({ queryKey: clientViewQueryKeys.detail(null) });
         }
       })();
     },
-    [updateClientAiConfig, updateClientView, syncAiConfiguration, clientAiConfig, toast],
+    [updateClientAiConfig, updateClientView, syncAiConfiguration, clientAiConfig, clientView.view, toast, queryClient],
   );
 
   const handleMingoSubmit = useCallback(

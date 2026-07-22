@@ -18,11 +18,11 @@ import { routes } from '@/lib/routes';
 import type { Device } from '../../../devices/types/device.types';
 import { getFleetHostId } from '../../../devices/utils/device-action-utils';
 import { ScriptEditor } from '../../../scripts/components/script/script-editor';
-import { LiveTestPanel } from '../../components/live-test-panel';
 import { useLiveCampaign } from '../../hooks/use-live-campaign';
 import { usePolicyDetails } from '../hooks/use-policy-details';
 import { usePolicyDevices } from '../hooks/use-policy-devices';
 import { usePolicyResponseHosts } from '../hooks/use-policy-response-hosts';
+import { PolicyRunResultsPanel } from './policy-run-results-panel';
 
 interface RunPolicyViewProps {
   policyId: string;
@@ -138,8 +138,7 @@ export function RunPolicyView({ policyId }: RunPolicyViewProps) {
     >
       <div className="space-y-6 md:space-y-8">
         {showResultsPanel && (
-          <LiveTestPanel
-            mode="policy"
+          <PolicyRunResultsPanel
             isRunning={campaign.isRunning}
             startedAt={campaign.startedAt}
             results={campaign.results}
@@ -149,7 +148,7 @@ export function RunPolicyView({ policyId }: RunPolicyViewProps) {
             hostsResponded={campaign.hostsResponded}
             hostsFailed={campaign.hostsFailed}
             campaignStatus={campaign.campaignStatus}
-            onTestAgain={handleRun}
+            onRunAgain={handleRun}
             onStop={campaign.stopCampaign}
             onClose={handleClosePanel}
           />

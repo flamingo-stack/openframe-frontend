@@ -6,7 +6,11 @@ import { useState } from 'react';
 import { isSaasSharedMode } from '@/lib/app-mode';
 import { authApiClient, SAAS_DOMAIN_SUFFIX } from '@/lib/auth-api-client';
 import { AUTH_ERROR_CODE } from '../constants/auth-error-codes';
-import { useDomainAvailability, useEmailAvailability } from '../hooks/use-registration-availability';
+import {
+  BLOCKED_EMAIL_DOMAIN_MESSAGE,
+  useDomainAvailability,
+  useEmailAvailability,
+} from '../hooks/use-registration-availability';
 import { ForgotPasswordModal } from './forgot-password-modal';
 
 interface AuthChoiceSectionProps {
@@ -53,8 +57,8 @@ export function AuthChoiceSection({ onCreateOrganization, onSignIn, isLoading }:
     if (!orgName.trim() || !isOrgNameValid || !isOrgEmailValid) return;
 
     // Block submit while the email check is pending or if it flagged the email as
-    // registered — keeps the Enter-key paths aligned with the disabled Continue button.
-    if (emailStatus === 'checking' || emailStatus === 'taken') return;
+    // registered or blocked — keeps the Enter-key paths aligned with the disabled Continue button.
+    if (emailStatus === 'checking' || emailStatus === 'taken' || emailStatus === 'blocked') return;
 
     if (isSaasShared && domain.trim()) {
       setIsCheckingDomain(true);
@@ -163,6 +167,9 @@ export function AuthChoiceSection({ onCreateOrganization, onSignIn, isLoading }:
               )}
               {isOrgEmailValid && emailStatus === 'taken' && (
                 <p className="text-h6 text-ods-error mt-1">This email is already registered. Sign in instead.</p>
+              )}
+              {isOrgEmailValid && emailStatus === 'blocked' && (
+                <p className="text-h6 text-ods-error mt-1">{BLOCKED_EMAIL_DOMAIN_MESSAGE}</p>
               )}
               {isOrgEmailValid && emailStatus === 'available' && (
                 <p className="text-h6 text-ods-success mt-1">Email is available</p>
@@ -277,6 +284,7 @@ export function AuthChoiceSection({ onCreateOrganization, onSignIn, isLoading }:
                   !orgName.trim() ||
                   !isOrgEmailValid ||
                   emailStatus === 'taken' ||
+                  emailStatus === 'blocked' ||
                   emailStatus === 'checking' ||
                   (isSaasShared && !domain.trim()) ||
                   (isSaasShared && (domainStatus === 'taken' || domainStatus === 'checking')) ||

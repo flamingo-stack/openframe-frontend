@@ -107,9 +107,9 @@ export const CustomerAiConfiguration = forwardRef<CustomerAiConfigurationHandle,
     // the inherit view shows them when the tenant default keeps OpenFrame's set.
     const hubDefaults = useHubDefaultQuickActions(ASSISTANT_QUICK_ACTIONS_CONFIG.agentSlug);
     // Tenant CLIENT default config — the source of the quick actions this
-    // customer inherits while `useDefault` is on. The org config's own
-    // `quickActions` can hold this customer's leftover customs, so it must NOT
-    // drive the inherit-mode list.
+    // customer inherits (the inherit view and the editor's "default" seed).
+    // The org config's `quickActions` is the customer's own list when
+    // customized, so it can't serve as the inherited set.
     const { config: clientAiConfig } = useClientAiConfig();
     // Effective inherited quick actions: the tenant's customs when it overrode
     // the OpenFrame set, otherwise the hub defaults (mirrors the settings view).
@@ -173,10 +173,10 @@ export const CustomerAiConfiguration = forwardRef<CustomerAiConfigurationHandle,
 
           await updateAiConfig(toAgentAiConfigInput(values));
           // The update omits `quickActions` while defaults are on, and the
-          // backend ignores `quickActionsIsDefault` for orgs — re-checking
-          // "use defaults" over an existing custom list needs the dedicated
-          // reset mutation or it would be a silent no-op.
-          if (values.quickActionsIsDefault && hasAiOverride && orgConfig?.quickActions?.length) {
+          // backend ignores `quickActionsIsDefault` for orgs — clearing an
+          // existing custom list back to "follow the tenant" needs the
+          // dedicated reset mutation or it would be a silent no-op.
+          if (values.quickActionsIsDefault && orgConfig?.quickActionsIsDefault === false) {
             await resetQuickActions();
           }
 

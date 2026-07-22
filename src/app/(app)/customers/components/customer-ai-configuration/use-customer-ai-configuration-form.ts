@@ -26,6 +26,7 @@ function getCustomerAiConfigurationDefaults(
   config: OrganizationClientAiConfig | null,
 ): CustomerAiAssistantFormValues {
   const baseConfig = getDefaultAgentAiConfig('CLIENT');
+  const quickActionsIsDefault = config?.quickActionsIsDefault ?? true;
   return {
     assistantName: view.assistantName,
     applicationTheme: view.applicationTheme,
@@ -34,11 +35,13 @@ function getCustomerAiConfigurationDefaults(
     providerModel: config?.providerModel ?? baseConfig.providerModel,
     answerStyle: config?.answerStyle ?? baseConfig.answerStyle ?? 'STANDARD',
     customPrompt: config?.customPrompt ?? '',
-    // The org config has no explicit flag — a null action list means "no
-    // customs" (hub defaults apply). Mirrors getAiLogicDefaults: rows stay
-    // empty while defaults are active; the editor seeds them on uncheck.
-    quickActionsIsDefault: !config?.quickActions,
-    quickActions: (config?.quickActions ?? []).map(q => ({ id: q.id, name: q.name, instructions: q.instructions })),
+    quickActionsIsDefault,
+    // Mirrors getAiLogicDefaults: rows stay empty while defaults are active —
+    // `config.quickActions` then holds the tenant's inherited list, not this
+    // customer's customs; the editor seeds the rows on uncheck.
+    quickActions: quickActionsIsDefault
+      ? []
+      : (config?.quickActions ?? []).map(q => ({ id: q.id, name: q.name, instructions: q.instructions })),
   };
 }
 

@@ -214,7 +214,11 @@ export function PolicyDetailsView({ policyId }: PolicyDetailsViewProps) {
       <div className="mt-6">
         <h1 className="text-h2 text-ods-text-primary pt-6">Devices</h1>
         <div className="pt-4">
-          <PolicyDevicesTable policyId={numericId} assignedHostIds={policyDetails.hosts_include_any} />
+          <PolicyDevicesTable
+            policyId={numericId}
+            assignedHostIds={policyDetails.hosts_include_any}
+            policyQuery={policyDetails.query}
+          />
         </div>
       </div>
       <ConfirmDeleteMonitoringModal

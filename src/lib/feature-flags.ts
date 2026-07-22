@@ -19,6 +19,7 @@ export const FEATURE_FLAG_NAMES = [
   'customer-guardrails',
   'time-tracker',
   'scripts-v2',
+  'script-schedules',
   'cancel-subscription',
   'new-onboarding',
   'test-clock',
@@ -108,6 +109,19 @@ export const featureFlags = {
   scriptsV2: {
     enabled(): boolean {
       return getFlagValue('scripts-v2', () => false);
+    },
+  },
+  /**
+   * Scripts Schedules module (`/scripts-v2/schedules/*`) — the scheduled-run
+   * list, detail, create/edit, and device-assignment pages. Nested under the
+   * `scripts-v2` flag: schedules require the v2 Scripts area, and this flag
+   * gates the schedules sub-module independently on top of it. Off → the
+   * schedules routes redirect to the Scripts list and the "Scripts Schedules"
+   * tab is hidden. Defaults off when unset.
+   */
+  scriptSchedules: {
+    enabled(): boolean {
+      return getFlagValue('script-schedules', () => false);
     },
   },
   cancelSubscription: {

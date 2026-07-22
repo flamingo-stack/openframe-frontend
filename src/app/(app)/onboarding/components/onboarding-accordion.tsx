@@ -48,6 +48,12 @@ export interface OnboardingAccordionItemProps {
   /** Ref to the row's root element — the scroll anchor for the auto-advance flow. */
   ref?: React.Ref<HTMLDivElement>;
   /**
+   * DOM id for the row's root element — the URL-hash anchor target
+   * (`/onboarding#step-…`, see `onboardingStepAnchorId`). Optional: surfaces
+   * without hash deep-linking (the dashboard card) omit it.
+   */
+  id?: string;
+  /**
    * Loading state: renders the row frame exactly as an `active` step, but the title,
    * description and trailing status control are all skeleton bars (only the leading
    * icon stays real), and the body is not mounted. Kept pixel-identical in height to
@@ -78,6 +84,7 @@ export function OnboardingAccordionItem({
   loading = false,
   children,
   ref,
+  id,
 }: OnboardingAccordionItemProps) {
   const isDisabled = !loading && status === 'disabled';
   const isCompleted = !loading && status === 'completed';
@@ -94,6 +101,7 @@ export function OnboardingAccordionItem({
   return (
     <div
       ref={ref}
+      id={id}
       className={cn(
         // Top offset for the auto-advance anchor lives in the hook (`scrollElementIntoView`
         // headerOffset), not in a scroll-mt here — the helper ignores scroll-margin-top.
@@ -167,6 +175,10 @@ export function OnboardingAccordionItem({
           never mounts a step's (suspending) data hooks. */}
       {!isDisabled && !loading && (
         <div
+          // The auto-advance click anchor measures this wrapper (its height is the
+          // row's visible body) to pre-subtract a collapsing row above the clicked
+          // one — see STEP_BODY_SELECTOR in `useOnboardingAutoAdvance`.
+          data-onboarding-step-body
           className={cn(
             'grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none',
             expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',

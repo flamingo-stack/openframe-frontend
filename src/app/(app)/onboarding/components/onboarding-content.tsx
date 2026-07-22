@@ -2,16 +2,23 @@
 
 import { CheckCircleIcon, FastForwardIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import { PageLayout } from '@flamingo-stack/openframe-frontend-core/components/ui';
+import { navigateSamePageHash } from '@flamingo-stack/openframe-frontend-core/utils';
 import { useRouter } from 'next/navigation';
-import { type ComponentType, useEffect, useState } from 'react';
+import { type ComponentType, useCallback, useEffect, useState } from 'react';
 import { ConfirmDialog } from '@/app/components/shared/confirm-dialog';
 import { UserOnboardingStep } from '@/generated/schema-enums';
 import { useOnboardingMutations } from '@/graphql/onboarding/use-onboarding-mutations';
 import { EVENT_SUBTYPE, trackDashboardActivity } from '@/lib/analytics';
 import { routes } from '@/lib/routes';
 import { useOnboardingStore } from '@/stores/onboarding-store';
-import { useOnboardingAutoAdvance } from '../hooks/use-onboarding-auto-advance';
-import { countCompleted, isStepDone, USER_ONBOARDING_STEPS } from '../onboarding-steps';
+import { ANCHOR_TOP_OFFSET_PX, useOnboardingAutoAdvance } from '../hooks/use-onboarding-auto-advance';
+import {
+  countCompleted,
+  isStepDone,
+  onboardingStepAnchorId,
+  onboardingStepFromAnchorId,
+  USER_ONBOARDING_STEPS,
+} from '../onboarding-steps';
 import { USER_ONBOARDING_GROUPS } from '../user-onboarding-groups';
 import { CustomerSetupStep } from './customer-setup-step';
 import { DeviceSetupStep } from './device-setup-step';
@@ -101,11 +108,53 @@ function LoadedOnboardingContent() {
 
   const completedSteps = user?.completedSteps ?? [];
 
+  // The URL hash mirrors the open accordion block (`/onboarding#step-tickets`) —
+  // the hub's same-page anchor model. Each row's DOM id is its anchor
+  // (`onboardingStepAnchorId`); the fragment parses back to a step here, unknown
+  // fragments → null. Lazy initializer: this component only mounts client-side
+  // (behind the `isLoaded` gate), so reading `location.hash` during the first
+  // render is safe and gives the deep-linked step to the auto-advance hook from
+  // the start — an effect would run after the hook's mount anchor.
+  const [hashStep, setHashStep] = useState<UserOnboardingStep | null>(() =>
+    typeof window === 'undefined'
+      ? null
+      : onboardingStepFromAnchorId(USER_ONBOARDING_STEPS, window.location.hash.slice(1)),
+  );
+  // Back/forward + the synthetic `hashchange` that `navigateSamePageHash` fires
+  // for our own writes — both funnel into the same parsed-state refresh.
+  useEffect(() => {
+    const refresh = () => setHashStep(onboardingStepFromAnchorId(USER_ONBOARDING_STEPS, window.location.hash.slice(1)));
+    window.addEventListener('hashchange', refresh);
+    return () => window.removeEventListener('hashchange', refresh);
+  }, []);
+
+  // Open/close → hash write. Opening goes through the canonical
+  // `navigateSamePageHash` (replaceState — a step toggle is not a history step —
+  // + synthetic `hashchange` + anchoring-proof tween aimed at the same offset the
+  // hook scrolls to). Closing clears the fragment; the helper deliberately
+  // refuses hash-less targets, so replicate its replaceState + synthetic-event
+  // pair (`replaceState` fires no native `hashchange` per the HTML spec).
+  const syncHashToStep = useCallback((step: UserOnboardingStep | null) => {
+    if (step) {
+      navigateSamePageHash(`#${onboardingStepAnchorId(step)}`, {
+        headerOffset: ANCHOR_TOP_OFFSET_PX,
+        history: 'replace',
+      });
+    } else {
+      const oldUrl = window.location.href;
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      // biome-ignore lint/style/useNamingConvention: oldURL/newURL are the DOM HashChangeEventInit field names
+      window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL: oldUrl, newURL: window.location.href }));
+    }
+  }, []);
+
   // Guided flow: the first incomplete step opens automatically (anchored on mount —
   // the next step may be a group or two below the fold) and, as steps complete, the
   // flow advances: finished step folds, the next one opens and scrolls into view.
   const { expandedOf, onExpandedChangeOf, refOf } = useOnboardingAutoAdvance(USER_ONBOARDING_STEPS, completedSteps, {
     scrollOnMount: true,
+    urlStep: hashStep,
+    onOpenStepChange: syncHashToStep,
   });
   const total = USER_ONBOARDING_STEPS.length;
   const done = countCompleted(USER_ONBOARDING_STEPS, completedSteps);
@@ -164,6 +213,7 @@ function LoadedOnboardingContent() {
               <OnboardingAccordionItem
                 key={item.step}
                 ref={refOf(item.step)}
+                id={onboardingStepAnchorId(item.step)}
                 icon={item.icon}
                 status={statusOf(item.step)}
                 title={item.title}

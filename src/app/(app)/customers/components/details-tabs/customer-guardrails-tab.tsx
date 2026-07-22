@@ -70,7 +70,7 @@ export function CustomerGuardrailsTab({ organizationId }: CustomerGuardrailsTabP
       {inheritsDefault && (
         <div className="bg-ods-card border border-ods-border rounded-md flex flex-col md:flex-row md:items-center gap-[var(--spacing-system-s)] p-[var(--spacing-system-s)]">
           <div className="flex items-center gap-[var(--spacing-system-s)] flex-1 min-w-0">
-            <InfoCircleIcon className="size-6 text-ods-text-primary shrink-0" />
+            <InfoCircleIcon className="size-6 text-ods-text-secondary shrink-0" />
             <div className="flex flex-col min-w-0">
               <p className="text-h4 text-ods-text-primary">Using Default Settings</p>
               <p className="text-h6 text-ods-text-secondary">This customer follows guardrails defaults.</p>

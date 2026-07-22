@@ -4,9 +4,12 @@ import { useDebounce } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { useEffect, useState } from 'react';
 import { authApiClient, SAAS_DOMAIN_SUFFIX } from '@/lib/auth-api-client';
 
-export type AvailabilityStatus = 'idle' | 'checking' | 'available' | 'taken' | 'error';
+export type AvailabilityStatus = 'idle' | 'checking' | 'available' | 'taken' | 'blocked' | 'error';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export const BLOCKED_EMAIL_DOMAIN_MESSAGE =
+  'Disposable and privacy-focused email providers are not allowed. Please use your work or personal email.';
 
 /** Debounced check of whether an email is already registered. Runs only on valid email format. */
 export function useEmailAvailability(email: string, delay = 400): AvailabilityStatus {
@@ -30,8 +33,9 @@ export function useEmailAvailability(email: string, delay = 400): AvailabilitySt
           setStatus('error');
           return;
         }
-        const { available } = res.data as { available?: boolean };
-        setStatus(available ? 'available' : 'taken');
+        const { available, reason } = res.data as { available?: boolean; reason?: 'TAKEN' | 'BLOCKED_DOMAIN' };
+        // Older backends omit `reason` — treat unavailable-without-reason as taken.
+        setStatus(available ? 'available' : reason === 'BLOCKED_DOMAIN' ? 'blocked' : 'taken');
       })
       .catch(() => {
         if (!cancelled) setStatus('error');

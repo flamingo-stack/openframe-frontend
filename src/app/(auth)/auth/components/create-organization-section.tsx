@@ -8,7 +8,11 @@ import { Button } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { useToast } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { useState } from 'react';
 import { AUTH_ERROR_CODE } from '@/app/(auth)/auth/constants/auth-error-codes';
-import { useDomainAvailability, useEmailAvailability } from '@/app/(auth)/auth/hooks/use-registration-availability';
+import {
+  BLOCKED_EMAIL_DOMAIN_MESSAGE,
+  useDomainAvailability,
+  useEmailAvailability,
+} from '@/app/(auth)/auth/hooks/use-registration-availability';
 import { isSaasSharedMode } from '@/lib/app-mode';
 import { authApiClient, SAAS_DOMAIN_SUFFIX } from '@/lib/auth-api-client';
 
@@ -49,7 +53,7 @@ export function CreateOrganizationSection({
   const isOrgNameValid = orgNameRegex.test(organizationName.trim());
 
   const emailStatus = useEmailAvailability(email);
-  const isEmailBlocked = emailStatus === 'taken' || emailStatus === 'checking';
+  const isEmailBlocked = emailStatus === 'taken' || emailStatus === 'blocked' || emailStatus === 'checking';
 
   // Live subdomain availability — saas-shared only.
   const { status: domainStatus, suggestions: liveDomainSuggestions } = useDomainAvailability(
@@ -141,9 +145,11 @@ export function CreateOrganizationSection({
       ? { message: 'Checking availability…', variant: 'muted' as const }
       : emailStatus === 'taken'
         ? { message: 'This email is already registered. Sign in instead.', variant: 'error' as const }
-        : emailStatus === 'available'
-          ? { message: 'Email is available', variant: 'success' as const }
-          : undefined;
+        : emailStatus === 'blocked'
+          ? { message: BLOCKED_EMAIL_DOMAIN_MESSAGE, variant: 'error' as const }
+          : emailStatus === 'available'
+            ? { message: 'Email is available', variant: 'success' as const }
+            : undefined;
 
   const domainStatusMessage =
     !isSaasShared || !domain.trim()

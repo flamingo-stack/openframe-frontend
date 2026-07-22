@@ -33,7 +33,7 @@ import type {
   UnifiedChatState,
   UnifiedSendMessageOptions,
 } from '@flamingo-stack/openframe-frontend-core/components/chat';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { useAiModelStatus } from '@/app/hooks/use-ai-model';
 import { EVENT_SUBTYPE, trackDashboardActivity } from '@/lib/analytics';
 import { featureFlags } from '@/lib/feature-flags';
@@ -107,6 +107,14 @@ export function useMingoUnifiedChatState(): MingoUnifiedChat {
   // "My Chats / All Chats" rail selector — MY by default. Server-side filter:
   // rides the `useMingoDialogs` query key as `DialogFilterInput.scope`.
   const [dialogScope, setDialogScope] = useState<'my' | 'all'>('my');
+  // The scope the QUERY runs with, deferred by one render. `dialogScope` itself
+  // stays urgent, so the rail's selector repaints the moment it's clicked;
+  // swapping the infinite query (new key → mount + request + skeleton across the
+  // whole list) is heavy enough that batching it into the same commit visibly
+  // held the highlight on the OLD tab for a frame — most noticeable on the first
+  // switch, when nothing is cached for the target scope yet. React renders the
+  // deferred value in a background pass, so the tab no longer waits on it.
+  const deferredDialogScope = useDeferredValue(dialogScope);
 
   const {
     dialogs,
@@ -116,7 +124,7 @@ export function useMingoUnifiedChatState(): MingoUnifiedChat {
     hasNextPage: hasMoreDialogs,
     fetchNextPage: fetchNextDialogPage,
     refetch: refetchDialogs,
-  } = useMingoDialogs({ search: searchQuery || undefined, scope: dialogScope });
+  } = useMingoDialogs({ search: searchQuery || undefined, scope: deferredDialogScope });
 
   const { renameDialog, archiveDialog, unarchiveDialog, fetchArchivedDialogs } = useMingoDialogActions();
 

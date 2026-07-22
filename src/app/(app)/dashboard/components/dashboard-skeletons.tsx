@@ -1,7 +1,8 @@
 'use client';
 
-import { Skeleton, TitleBlock } from '@flamingo-stack/openframe-frontend-core';
+import { Skeleton, TicketStatusTag } from '@flamingo-stack/openframe-frontend-core';
 import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
+import type { ReactNode } from 'react';
 
 /**
  * Single source of truth for the dashboard section skeletons.
@@ -11,16 +12,17 @@ import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
  * is byte-identical to the one shown while the section fetches its data — no
  * shape-shift flash between the two phases, and no drift over time.
  *
- * This is a FULL skeleton — no real text anywhere. The section HEADER (title +
- * subtitle) renders through the real core `TitleBlock` with its `loading` prop, so
- * the title ("Devices Overview", …) and subtitle are line-box-accurate skeleton
- * bars yet still pixel-identical in height to the loaded header. Inside the cards,
- * every label — the info-card titles ("Online Devices", …) and the ticket status
- * tags — is a skeleton bar too; the card frame is fixed-height so nothing jumps.
+ * Principle: show as much NON-query-dependent information as possible. Every
+ * static label is rendered as its REAL text/element — the section titles
+ * ("Devices Overview", …), the "… in Total" units, each info card's title
+ * ("Online Devices", …) and the ticket status tags — and only the values that
+ * actually come from the request (counts, percentages, the progress ring, and
+ * the per-customer rows) are skeletons. Because the real elements are used, the
+ * loading card is pixel-identical in height to the loaded one and nothing jumps
+ * when the data arrives.
  */
 
-const DEVICE_CARD_KEYS = ['online', 'offline', 'pending', 'archived'] as const;
-const TICKET_CARD_KEYS = ['ai', 'tech', 'resolved', 'other'] as const;
+const DEVICE_CARDS = ['Online Devices', 'Offline Devices', 'Pending Devices', 'Archived Devices'] as const;
 const CUSTOMER_ROW_KEYS = ['row-1', 'row-2', 'row-3'] as const;
 
 /**
@@ -44,29 +46,29 @@ const INFO_CARD_CLASS =
   'flex h-16 items-center gap-[var(--spacing-system-s)] rounded-md border border-ods-border bg-ods-card p-[var(--spacing-system-xsf)] transition-all md:h-[104px] md:gap-[var(--spacing-system-m)] md:p-[var(--spacing-system-m)]';
 
 /**
- * One `DashboardInfoCard` in its loading state — a FULL skeleton. The card frame is
- * fixed-height (`h-16 md:h-[104px]`), so every part is a skeleton bar: the title/label
- * (in a `text-h5` line box so its height matches the loaded card's label / status tag),
- * the value, the optional percentage, and the optional progress ring.
+ * One `DashboardInfoCard` in its loading state. The title (or the status-tag
+ * `titleSlot`) is REAL, static content; only the value, optional percentage and
+ * optional progress ring are skeletons — matching the real card's markup exactly.
  */
 function InfoCardSkeleton({
+  title,
+  titleSlot,
   showProgress = false,
   showPercentage = false,
 }: {
+  title?: string;
+  titleSlot?: ReactNode;
   showProgress?: boolean;
   showPercentage?: boolean;
 }) {
   return (
     <div className={INFO_CARD_CLASS}>
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Title/label — skeleton bar in a text-h5 line box. */}
-        <p className="text-h5 text-ods-text-secondary">
-          <InlineSkeleton className="h-2.5 w-24 md:h-3" />
-        </p>
-        {/* Value (+ optional percentage) — the query-dependent part. Value typography
-            mirrors the real card (`text-h3 md:text-h2`) so the line box matches at every breakpoint. */}
+      <div className="flex flex-1 flex-col">
+        {/* Title — real static text (text-h5 uppercases it) or a real status tag. */}
+        {titleSlot ?? <p className="text-h5 text-ods-text-secondary">{title}</p>}
+        {/* Value (+ optional percentage) — the query-dependent part. */}
         <div className="flex items-center gap-[var(--spacing-system-xs)]">
-          <p className="text-h3 text-ods-text-primary md:text-h2">
+          <p className="text-h2 text-ods-text-primary">
             <InlineSkeleton className="h-4 w-8 md:h-6" />
           </p>
           {showPercentage && (
@@ -105,40 +107,80 @@ function CustomerInfoCardSkeleton() {
 }
 
 /**
- * Overview section header in loading state — the REAL core `TitleBlock` with its
- * `loading` prop. That renders the title and subtitle as line-box-accurate skeleton
- * bars (a true skeleton, no real "Devices Overview" text) while staying pixel-identical
- * in height to the loaded header, since the section renders the same `TitleBlock` with
- * the real strings once data arrives. `[&_p]:hidden lg:[&_p]:block` matches the loaded
- * header — the subtitle line shows only from `lg` up.
+ * Overview section header in loading state. Faithfully mirrors the FROZEN
+ * `TitleBlock` (its subtitle branch) so it doesn't jump when the real header
+ * mounts — but shows the REAL static section title and the static "… in Total"
+ * unit, skeletoning only the count. Callers pass the same className the real
+ * `TitleBlock` gets (`[&_p]:hidden lg:[&_p]:block`), so the subtitle line appears
+ * only from `lg` up, exactly as in the loaded header.
  */
-function OverviewHeaderSkeleton({ title, unit }: { title: string; unit: string }) {
-  return <TitleBlock title={title} subtitle={unit} loading className="[&_p]:hidden lg:[&_p]:block" />;
+function OverviewHeaderSkeleton({ title, unit, className }: { title: string; unit: string; className?: string }) {
+  return (
+    <div
+      className={cn(
+        'flex items-end justify-between gap-[var(--spacing-system-m)]',
+        'md:flex-col md:items-start md:justify-start lg:flex-row lg:items-end lg:justify-between',
+        'pt-[var(--spacing-system-l)] mb-[var(--spacing-system-l)]',
+        className,
+      )}
+    >
+      <div className="flex min-h-11 min-w-0 flex-1 flex-col justify-center gap-[var(--spacing-system-xs)] md:min-h-12">
+        <div className="flex w-full min-w-0 items-center gap-[var(--spacing-system-m)]">
+          <div className="flex min-w-0 flex-1 flex-col justify-center">
+            <h1 className="truncate text-h2 text-ods-text-primary">{title}</h1>
+            <p className="truncate text-h6 text-ods-text-secondary">
+              <InlineSkeleton className="h-2.5 w-8 md:h-3" /> {unit}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-/** Devices Overview loading state — skeleton header + 4 info-card skeletons with real titles. */
+/** Devices Overview loading state — real header + 4 info-card skeletons with real titles. */
 export function DevicesOverviewSkeleton() {
   return (
     <div>
-      <OverviewHeaderSkeleton title="Devices Overview" unit="Devices in Total" />
+      <OverviewHeaderSkeleton
+        title="Devices Overview"
+        unit="Devices in Total"
+        className="[&_p]:hidden lg:[&_p]:block"
+      />
       <div className="grid grid-cols-2 gap-[var(--spacing-system-mf)] lg:grid-cols-4">
-        {DEVICE_CARD_KEYS.map(key => (
-          <InfoCardSkeleton key={key} showProgress showPercentage />
+        {DEVICE_CARDS.map(title => (
+          <InfoCardSkeleton key={title} title={title} showProgress showPercentage />
         ))}
       </div>
     </div>
   );
 }
 
-/** Tickets Overview loading state — skeleton header + 4 fully-skeleton ticket cards. */
+/** Tickets Overview loading state — real header + 4 ticket cards with their real status tags. */
 export function TicketsOverviewSkeleton() {
   return (
     <div>
-      <OverviewHeaderSkeleton title="Tickets Overview" unit="Tickets in Total" />
+      <OverviewHeaderSkeleton
+        title="Tickets Overview"
+        unit="Tickets in Total"
+        className="[&_p]:hidden lg:[&_p]:block"
+      />
       <div className="grid grid-cols-1 gap-[var(--spacing-system-mf)] md:grid-cols-2 lg:grid-cols-4">
-        {TICKET_CARD_KEYS.map(key => (
-          <InfoCardSkeleton key={key} />
-        ))}
+        <InfoCardSkeleton titleSlot={<TicketStatusTag status="AI_ASSISTANCE" />} />
+        <InfoCardSkeleton
+          titleSlot={
+            <TicketStatusTag
+              status="TECH_REQUIRED"
+              className="bg-ods-warning text-ods-text-on-accent hover:bg-ods-warning"
+            />
+          }
+        />
+        <InfoCardSkeleton titleSlot={<TicketStatusTag status="RESOLVED" />} />
+        <InfoCardSkeleton
+          titleSlot={
+            <span className="flex h-8 items-center text-h5 uppercase text-ods-text-secondary">Other Statuses</span>
+          }
+        />
       </div>
     </div>
   );
@@ -151,19 +193,23 @@ function CustomersRowsSkeleton() {
       {CUSTOMER_ROW_KEYS.map(key => (
         <div key={key} className="grid grid-cols-2 items-stretch gap-[var(--spacing-system-mf)] lg:grid-cols-4">
           <CustomerInfoCardSkeleton />
-          <InfoCardSkeleton showProgress showPercentage />
-          <InfoCardSkeleton showProgress showPercentage />
+          <InfoCardSkeleton title="Online Devices" showProgress showPercentage />
+          <InfoCardSkeleton title="Offline Devices" showProgress showPercentage />
         </div>
       ))}
     </div>
   );
 }
 
-/** Customers Overview loading state — skeleton header + the row skeletons. */
+/** Customers Overview loading state — real header + the row skeletons. */
 export function CustomersOverviewSkeleton() {
   return (
     <div>
-      <OverviewHeaderSkeleton title="Customers Overview" unit="Customers in Total" />
+      <OverviewHeaderSkeleton
+        title="Customers Overview"
+        unit="Customers in Total"
+        className="[&_p]:hidden lg:[&_p]:block"
+      />
       <CustomersRowsSkeleton />
     </div>
   );

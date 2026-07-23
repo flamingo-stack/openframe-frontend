@@ -2,7 +2,6 @@
 
 import { ListCheckIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import { AnnouncementBarView, Button } from '@flamingo-stack/openframe-frontend-core/components/ui';
-import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
 
 /**
  * Full-width banner rendered in the app layout's `topBar` slot (above sidebar +
@@ -12,17 +11,16 @@ import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
  * decided by the caller.
  *
  * Markup/responsiveness come from the shared {@link AnnouncementBarView}
- * (Figma 9364-40603 / 9418-43969 / 9418-44006): one row from `md` up with the
- * CTA at content width, stacked below `md` with the CTA full-width on its own
- * row. The CTA reads "Start Setup" until the first step is done, then
- * "Continue Setup" (`started`). Button uses `variant="outline" size="small"` —
- * a dark card surface with an uppercase Azeret Mono (`text-h5`) label,
- * matching Figma.
+ * (Figma 9364-40603 / 9418-43969 / ODS 2862-8391 mobile): one row from `md` up
+ * with the CTA at content width, below `md` the CTA is full-width on its own
+ * row under the icon + wrapping title. The CTA reads "Start Setup" until the
+ * first step is done, then "Continue Setup" (`started`). Button uses
+ * `variant="outline" size="small"` — a dark card surface with an uppercase
+ * Azeret Mono (`text-h5`) label, matching Figma.
  *
- * `showAction` (default true) — when false the CTA stays in the DOM but is made
- * `invisible` (non-clickable, non-focusable, still occupies space) so the banner
- * keeps a consistent height on the page that already hosts the setup card
- * (the dashboard) as on every other page.
+ * `showAction` (default true) — when false the CTA is not rendered at all and
+ * the bar collapses to its content height (per the updated mockup), e.g. on
+ * the page that already hosts the setup card (the dashboard).
  */
 export function InitialSetupBar({
   onStart,
@@ -39,15 +37,11 @@ export function InitialSetupBar({
       startAdornment={<ListCheckIcon className="size-[var(--icon-size-icon-size)] shrink-0" />}
       title="Complete your Initial Setup to start using OpenFrame."
       actionBlock={
-        <Button
-          variant="outline"
-          size="small"
-          onClick={onStart}
-          aria-hidden={!showAction}
-          className={cn(!showAction && 'invisible')}
-        >
-          {started ? 'Continue Setup' : 'Start Setup'}
-        </Button>
+        showAction ? (
+          <Button variant="outline" size="small" onClick={onStart}>
+            {started ? 'Continue Setup' : 'Start Setup'}
+          </Button>
+        ) : undefined
       }
     />
   );

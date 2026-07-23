@@ -2,7 +2,6 @@
 
 import { CompassIcon, RouteIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import { AnnouncementBarView, Button } from '@flamingo-stack/openframe-frontend-core/components/ui';
-import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
 
 /**
  * Full-width banner rendered in the app layout's `topBar` slot (above sidebar +
@@ -12,16 +11,17 @@ import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
  * the caller.
  *
  * Markup/responsiveness come from the shared {@link AnnouncementBarView}
- * (Figma 9364-40603 / 9418-43969 / 9418-44006, mirrors {@link InitialSetupBar}):
- * one row from `md` up with the CTA at content width, stacked below `md` with
- * the CTA full-width on its own row. The CTA reads "Take the Tour" until the
- * first step is done, then "Continue Onboarding" (`started`). Button matches
- * Figma — `variant="outline" size="small"` (dark card surface, uppercase
- * `text-h5` label) with a leading route glyph.
+ * (Figma 9364-40603 / 9418-43969 / ODS 2862-8391 mobile, mirrors
+ * {@link InitialSetupBar}): one row from `md` up with the CTA at content
+ * width, below `md` the CTA is full-width on its own row under the icon +
+ * wrapping title. The CTA reads "Take the Tour" until the first step is done,
+ * then "Continue Onboarding" (`started`). Button matches Figma —
+ * `variant="outline" size="small"` (dark card surface, uppercase `text-h5`
+ * label) with a leading route glyph.
  *
- * `showAction` (default true) — when false the CTA stays in the DOM but is made
- * `invisible` (non-clickable, non-focusable, still occupies space) so the banner
- * keeps a consistent height on `/onboarding` itself as on every other page.
+ * `showAction` (default true) — when false the CTA is not rendered at all and
+ * the bar collapses to its content height (per the updated mockup), as on
+ * `/onboarding` itself.
  */
 export function OnboardingTourBar({
   onStart,
@@ -38,16 +38,16 @@ export function OnboardingTourBar({
       startAdornment={<CompassIcon className="size-[var(--icon-size-icon-size)] shrink-0" />}
       title="Learn the basics with a quick guided tour."
       actionBlock={
-        <Button
-          variant="outline"
-          size="small"
-          leftIcon={<RouteIcon className="text-ods-text-secondary" />}
-          onClick={onStart}
-          aria-hidden={!showAction}
-          className={cn(!showAction && 'invisible')}
-        >
-          {started ? 'Continue Onboarding' : 'Take the Tour'}
-        </Button>
+        showAction ? (
+          <Button
+            variant="outline"
+            size="small"
+            leftIcon={<RouteIcon className="text-ods-text-secondary" />}
+            onClick={onStart}
+          >
+            {started ? 'Continue Onboarding' : 'Take the Tour'}
+          </Button>
+        ) : undefined
       }
     />
   );

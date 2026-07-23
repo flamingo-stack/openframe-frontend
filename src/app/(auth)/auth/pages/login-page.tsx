@@ -66,7 +66,7 @@ export default function LoginPage() {
     <TabSelector
       value="login"
       onValueChange={value => {
-        if (value === 'signup') router.replace('/auth');
+        if (value === 'signup') router.replace(routes.auth.root);
       }}
       variant="primary"
       items={[

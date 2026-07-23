@@ -17,6 +17,7 @@ export const REFRESH_TOKEN_KEY = 'of_refresh_token';
 let cachedAccessToken: string | null = null;
 let cachedRefreshToken: string | null = null;
 let hydration: Promise<void> | null = null;
+let tokenUpdateListenerRegistered = false;
 
 /**
  * Cold-start outcome of the biometric-gated Keychain read (native only).
@@ -114,11 +115,17 @@ export function initTokenStore(): Promise<void> {
       // Shells with a shell-side refresher rotate tokens while the webview is
       // idle — mirror every rotation into the cache. The event carries the
       // full stored set, so an empty payload means the session is over.
-      onNativeTokenUpdate(tokens => {
-        cachedAccessToken = tokens.accessToken || null;
-        cachedRefreshToken = tokens.refreshToken || null;
-        emitTokenChange();
-      });
+      // Once-guarded: a biometric retry re-runs this hydration body
+      // (retryTokenHydration drops the memoized promise), and each
+      // registration would stack another listener firing emitTokenChange.
+      if (!tokenUpdateListenerRegistered) {
+        tokenUpdateListenerRegistered = true;
+        onNativeTokenUpdate(tokens => {
+          cachedAccessToken = tokens.accessToken || null;
+          cachedRefreshToken = tokens.refreshToken || null;
+          emitTokenChange();
+        });
+      }
       try {
         const tokens = await nativeAuthPlugin()?.getTokens();
         cachedAccessToken = tokens?.accessToken || null;

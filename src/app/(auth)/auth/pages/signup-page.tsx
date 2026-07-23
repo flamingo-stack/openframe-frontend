@@ -95,7 +95,7 @@ export default function SignupPage() {
     <TabSelector
       value="signup"
       onValueChange={value => {
-        if (value === 'login') router.replace('/auth/login');
+        if (value === 'login') router.replace(routes.auth.login);
       }}
       variant="primary"
       items={[

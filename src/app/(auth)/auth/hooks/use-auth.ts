@@ -227,7 +227,7 @@ export function useAuth() {
           if (tenantHostChanged) {
             // replace, not assign: keep /auth out of the history stack so
             // native/browser back can't return to the login screen post-login.
-            window.location.replace('/dashboard');
+            window.location.replace(routes.dashboard);
             return;
           }
           triggerAuthRecheck();
@@ -311,7 +311,7 @@ export function useAuth() {
       // After an explicit logout the user goes straight to the Login tab.
       // replace, not assign: keep the just-signed-out page out of history.
       const sharedHostUrl = runtimeEnv.sharedHostUrl();
-      window.location.replace(`${sharedHostUrl}/auth/login`);
+      window.location.replace(`${sharedHostUrl}${routes.auth.login}`);
     }
   }, [clearTokens, setEmail, setTenantInfo, setHasDiscoveredTenants, setAvailableProviders, tenantInfo, queryClient]);
 

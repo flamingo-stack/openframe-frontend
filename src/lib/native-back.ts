@@ -37,22 +37,37 @@ export function initNativeBack(): void {
   const app = appPlugin();
   if (!app) return;
   initialized = true;
-  void app.addListener('backButton', ({ canGoBack }) => {
-    const close = dismissibles.pop();
-    if (close) {
-      try {
-        close();
-      } catch (error) {
-        console.error('[Native Back] dismissible close failed:', error);
+  try {
+    // The natively-injected plugin proxy returns a bare synchronous handle from
+    // addListener — NOT the Promise the plugin type suggests. Chaining .catch
+    // on it directly threw at boot and killed the shell initializer before the
+    // splash could hide (app stuck on splash). Promise.resolve absorbs both
+    // shapes; the try/catch covers a synchronously-throwing bridge.
+    const registration = app.addListener('backButton', ({ canGoBack }) => {
+      const close = dismissibles.pop();
+      if (close) {
+        try {
+          close();
+        } catch (error) {
+          console.error('[Native Back] dismissible close failed:', error);
+        }
+        return;
       }
-      return;
-    }
-    if (canGoBack ?? window.history.length > 1) {
-      window.history.back();
-      return;
-    }
-    void app.exitApp();
-  });
+      if (canGoBack ?? window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+      void app.exitApp();
+    });
+    void Promise.resolve(registration).catch(error => {
+      // Registration failed — clear the guard so a later call can retry.
+      initialized = false;
+      console.error('[Native Back] backButton listener registration failed:', error);
+    });
+  } catch (error) {
+    initialized = false;
+    console.error('[Native Back] backButton listener registration failed:', error);
+  }
 }
 
 /**

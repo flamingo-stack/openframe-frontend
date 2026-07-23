@@ -104,12 +104,17 @@ export interface StatusBarPlugin {
 /**
  * Subset of @capacitor/app. `backButton` is Android-only (hardware/gesture back);
  * iOS has no hardware back and uses the WKWebView edge-swipe instead.
+ *
+ * addListener's return is typed as a union on purpose: the natively-injected
+ * bridge proxy hands back the handle synchronously, not the Promise the npm
+ * plugin types advertise. Normalize with Promise.resolve() before chaining —
+ * calling .catch/.then on it directly crashes at boot on a sync bridge.
  */
 export interface AppPlugin {
   addListener(
     eventName: 'backButton',
     listenerFunc: (event: { canGoBack?: boolean }) => void,
-  ): Promise<{ remove: () => void }>;
+  ): Promise<{ remove: () => void }> | { remove: () => void };
   exitApp(): Promise<void>;
 }
 

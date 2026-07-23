@@ -2,6 +2,7 @@ import { clearMingoContext } from '@/app/(app)/mingo/stores/mingo-context-store'
 import { authApiClient } from '@/lib/auth-api-client';
 import { unregisterNativePush } from '@/lib/native-push';
 import { isNativeShell } from '@/lib/native-shell';
+import { routes } from '@/lib/routes';
 import { runtimeEnv } from '@/lib/runtime-config';
 import { clearTokens, isBearerAuthMode } from '@/lib/token-store';
 import { useAuthStore } from '../stores/auth-store';
@@ -45,15 +46,15 @@ export async function performLogout() {
     // SPA root instead — with tokens cleared it boots to the sign-in screen.
     // replace, not assign: drop the just-authed pages from history so back after
     // a later re-login can't return to a stale logged-out dashboard.
-    window.location.replace('/');
+    window.location.replace(routes.root);
     return;
   }
 
   // After an explicit Log Out the user goes straight to the Login tab.
   const sharedHostUrl = runtimeEnv.sharedHostUrl();
   if (sharedHostUrl) {
-    window.location.replace(`${sharedHostUrl}/auth/login`);
+    window.location.replace(`${sharedHostUrl}${routes.auth.login}`);
   } else {
-    window.location.replace('/auth/login');
+    window.location.replace(routes.auth.login);
   }
 }

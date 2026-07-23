@@ -73,9 +73,6 @@ export async function initNativePush(navigate: (route: string) => void): Promise
 
   // FCM issues the token here and re-emits it on rotation — re-register each time.
   await plugin.addListener('tokenReceived', ({ token }) => {
-    // TEMP(push test): log the FCM token so it can be copied off-device via Safari
-    // Web Inspector for a Firebase Console "Send test message". Remove after testing.
-    console.log('[FCM-DEBUG] token (rotated):', token);
     void registerPushDevice(token);
   });
 
@@ -85,9 +82,6 @@ export async function initNativePush(navigate: (route: string) => void): Promise
   // Session-start registration. FCM tokens rotate; the backend upsert is
   // idempotent, so overlapping with the tokenReceived path is harmless.
   const { token } = await plugin.getToken();
-  // TEMP(push test): log the FCM token for the Firebase Console test (copy via
-  // Safari Web Inspector, filter "[FCM-DEBUG]"). Remove once push is verified.
-  console.log('[FCM-DEBUG] token:', token);
   await registerPushDevice(token);
 }
 

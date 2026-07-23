@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@flamingo-stack/openframe-frontend-core/components/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { biometryLabel, isBiometricAvailable } from '@/lib/native-biometrics';
 import { retryTokenHydration } from '@/lib/token-store';
 
@@ -30,6 +30,14 @@ export function BiometricUnlockGate({ onUnlocked, onUseAnotherLogin }: Biometric
   const [label, setLabel] = useState('Biometrics');
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // The gate replaces the whole app tree on mount — move focus to the heading
+  // so assistive tech announces the lock context instead of staying on a
+  // no-longer-rendered element.
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -61,9 +69,11 @@ export function BiometricUnlockGate({ onUnlocked, onUseAnotherLogin }: Biometric
   }, [onUseAnotherLogin]);
 
   return (
-    <div className="min-h-screen bg-ods-bg flex items-center justify-center p-6">
+    <main className="min-h-screen bg-ods-bg flex items-center justify-center p-6">
       <div className="max-w-md w-full space-y-6 text-center">
-        <h1 className="text-h2 text-ods-text-primary">Unlock OpenFrame</h1>
+        <h1 ref={headingRef} tabIndex={-1} className="text-h2 text-ods-text-primary focus:outline-none">
+          Unlock OpenFrame
+        </h1>
         <p className="text-ods-text-secondary">Use {label} to unlock your account.</p>
         <div className="mx-auto flex w-full max-w-xs flex-col gap-3">
           <Button className="w-full" onClick={handleRetry} disabled={isUnlocking || isLeaving}>
@@ -74,6 +84,6 @@ export function BiometricUnlockGate({ onUnlocked, onUseAnotherLogin }: Biometric
           </Button>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

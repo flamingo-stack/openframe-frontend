@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { authSessionQueryKey, invalidateAuthSession } from '@/app/(auth)/auth/hooks/use-auth-session';
 import { forceLogout } from '@/lib/force-logout';
+import { routes } from '@/lib/routes';
 import {
   type BiometricLockState,
   dismissBiometricLock,
@@ -47,7 +48,7 @@ export function BiometricLockBoundary({ children }: { children: React.ReactNode 
   // route is actually current — releasing on dismiss alone would flash the
   // stale cold-start route (e.g. `/` redirecting by persisted auth state).
   useEffect(() => {
-    if (leavingToLogin && pathname?.startsWith('/auth')) {
+    if (leavingToLogin && pathname?.startsWith(routes.auth.root)) {
       setLeavingToLogin(false);
     }
   }, [leavingToLogin, pathname]);
@@ -62,7 +63,7 @@ export function BiometricLockBoundary({ children }: { children: React.ReactNode 
     dismissBiometricLock();
     await forceLogout({ shouldRedirect: false });
     queryClient.setQueryData(authSessionQueryKey, null);
-    router.replace('/auth');
+    router.replace(routes.auth.root);
   }, [queryClient, router]);
 
   // Prompt canceled/failed at cold start: the tokens are still in the Keychain,

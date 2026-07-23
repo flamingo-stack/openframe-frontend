@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fleetApiClient, type PolicyHost } from '@/lib/fleet-api-client';
 import { handleApiError } from '@/lib/handle-api-error';
 import { policiesQueryKeys } from '../../hooks/use-policies';
+import { policyResponseHostsQueryKeys } from './use-policy-response-hosts';
 
 const EMPTY_POLICY_HOSTS: PolicyHost[] = [];
 
@@ -69,6 +70,10 @@ export function useReplacePolicyHosts() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: policyHostsQueryKeys.list(variables.policyId) });
       queryClient.invalidateQueries({ queryKey: policiesQueryKeys.all });
+      // Fleet's stored failing/passing membership feeds the details-page device
+      // statuses - refetch it after (re)assignment so the table doesn't serve
+      // a stale pre-assignment snapshot from the cache.
+      queryClient.invalidateQueries({ queryKey: policyResponseHostsQueryKeys.all });
     },
     onError: error => {
       handleApiError(error, toast, 'Failed to assign devices to policy');

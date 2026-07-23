@@ -88,15 +88,21 @@ export function usePolicyDevicesTable(
   const rows: PolicyDeviceRow[] = useMemo(() => {
     if (!devicesQuery.data) return [];
 
+    // The policy's assigned hosts are the source of truth for WHICH devices
+    // appear; Fleet's failing/passing membership only supplies their status.
+    // Fleet keeps a host's last policy response until its next check-in, so an
+    // unassigned host can still come back as failing/passing - without this
+    // filter it would linger in the table as a stale "Non-Compliant" row.
+    const assignedIds = new Set((assignedHostIds ?? []).map(h => h.id));
     const statusMap = new Map<number, ComplianceStatus>();
-    for (const host of failingHosts) statusMap.set(host.id, 'non-compliant');
-    for (const host of passingHosts) {
-      if (!statusMap.has(host.id)) statusMap.set(host.id, 'passing');
+    for (const host of failingHosts) {
+      if (assignedIds.has(host.id)) statusMap.set(host.id, 'non-compliant');
     }
-    if (assignedHostIds) {
-      for (const host of assignedHostIds) {
-        if (!statusMap.has(host.id)) statusMap.set(host.id, 'pending');
-      }
+    for (const host of passingHosts) {
+      if (assignedIds.has(host.id) && !statusMap.has(host.id)) statusMap.set(host.id, 'passing');
+    }
+    for (const host of assignedHostIds ?? []) {
+      if (!statusMap.has(host.id)) statusMap.set(host.id, 'pending');
     }
 
     const deviceByFleetId = new Map<number, Device>();

@@ -48,6 +48,16 @@ export const runtimeEnv = {
   enableDevTicketObserver(): boolean {
     return (getEnvVar('NEXT_PUBLIC_ENABLE_DEV_TICKET_OBSERVER') || 'false') === 'true';
   },
+  /**
+   * Shows the Stripe test-clock panel on Settings → Billing (dev environments only).
+   * The backend gates the same feature behind `openframe.billing.test-clock.enabled`;
+   * when that is off the query/mutations are absent from the schema entirely, so this
+   * must stay false anywhere the backend flag is off — otherwise the panel's requests
+   * fail GraphQL validation.
+   */
+  enableBillingTestClock(): boolean {
+    return (getEnvVar('NEXT_PUBLIC_ENABLE_BILLING_TEST_CLOCK') || 'false') === 'true';
+  },
   /** Shows the optional PR Number field on the signup form (dev environments only). */
   prNumberEnabled(): boolean {
     return (getEnvVar('NEXT_PUBLIC_PR_NUMBER_ENABLED') || 'false') === 'true';

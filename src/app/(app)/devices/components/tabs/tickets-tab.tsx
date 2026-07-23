@@ -10,13 +10,13 @@ import {
 } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { useDebounce } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { useCallback, useMemo, useState } from 'react';
-import { EmptyState } from '@/app/components/shared';
 import { useStickyToolbar } from '@/app/hooks/use-sticky-toolbar';
 import {
   getTicketOpenColumn,
   getTicketTableColumns,
   ticketRowHref,
 } from '../../../tickets/components/ticket-table-columns';
+import { TicketsEmptyState } from '../../../tickets/components/tickets-empty-state';
 import { useTicketsQuery } from '../../../tickets/hooks/use-tickets-query';
 import type { ClientDialogOwner, Dialog } from '../../../tickets/types/dialog.types';
 import type { Device } from '../../types/device.types';
@@ -132,11 +132,7 @@ export function TicketsTab({ device }: TicketsTabProps) {
   // A search with zero matches keeps the table chrome and its compact empty state below.
   if (!isLoading && isEmpty && !hasSearch) {
     return (
-      <EmptyState
-        icon={<TagIcon />}
-        title="Ticket history empty"
-        description="Tickets will appear here when available"
-      />
+      <TicketsEmptyState />
     );
   }
 

@@ -196,12 +196,14 @@ export function EditPolicyPage({ policyId }: EditPolicyPageProps) {
   }, [campaign]);
 
   const actions = useMemo(() => {
+    const hasSelectedDevices = selectedFleetHostIds.size > 0;
     const items = [];
     items.push({
       label: 'Test Policy',
       onClick: handleTestPolicy,
       variant: 'outline' as const,
-      disabled: !hasQuery || campaign.isRunning,
+      disabled: !hasQuery || campaign.isRunning || !hasSelectedDevices,
+      tooltip: hasSelectedDevices ? undefined : 'Select at least one device to test this policy',
     });
     items.push({
       label: 'Save Policy',
@@ -210,7 +212,17 @@ export function EditPolicyPage({ policyId }: EditPolicyPageProps) {
       disabled: isSaving || !hasName,
     });
     return items;
-  }, [handleSubmit, onSubmit, onFormError, isSaving, hasName, handleTestPolicy, hasQuery, campaign.isRunning]);
+  }, [
+    handleSubmit,
+    onSubmit,
+    onFormError,
+    isSaving,
+    hasName,
+    handleTestPolicy,
+    hasQuery,
+    campaign.isRunning,
+    selectedFleetHostIds,
+  ]);
 
   if (isLoadingPolicy && isExistingPolicy) {
     return <CardLoader items={4} />;

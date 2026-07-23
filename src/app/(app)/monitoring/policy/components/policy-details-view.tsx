@@ -80,8 +80,11 @@ export function PolicyDetailsView({ policyId }: PolicyDetailsViewProps) {
   }
 
   // Run the policy query as a regular live test query (same mechanism as the
-  // Queries screen) against the policy's assigned hosts; with no assignment the
-  // campaign falls back to all hosts.
+  // Queries screen) against the policy's assigned hosts. Without assigned
+  // devices the action is disabled, so the hook's all-hosts fallback is
+  // intentionally unreachable from here.
+  const hasAssignedDevices = (policyDetails?.hosts_include_any?.length ?? 0) > 0;
+
   const handleRunNow = async () => {
     const started = await campaign.startCampaign(
       policyDetails.query || '',
@@ -110,7 +113,8 @@ export function PolicyDetailsView({ policyId }: PolicyDetailsViewProps) {
       icon: <PlayIcon size={24} />,
       variant: 'accent',
       onClick: handleRunNow,
-      disabled: !policyDetails.query?.trim() || campaign.isRunning,
+      disabled: !policyDetails.query?.trim() || campaign.isRunning || !hasAssignedDevices,
+      tooltip: hasAssignedDevices ? undefined : 'Assign at least one device to this policy to run it',
     },
   ];
 

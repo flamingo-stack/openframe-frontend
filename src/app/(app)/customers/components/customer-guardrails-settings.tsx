@@ -267,8 +267,8 @@ export const CustomerGuardrailsSettings = forwardRef<CustomerGuardrailsHandle, C
       <div className="flex flex-col gap-[var(--spacing-system-l)]">
         <CheckboxBlock
           id="use-default-guardrails"
-          label="Use the default guardrails settings"
-          description="This customer follows guardrails defaults."
+          label="Use the default AI-Assistant guardrails"
+          description="Inherits all guardrail settings from your global configuration."
           checked={useDefault}
           onCheckedChange={checked => handleToggle(Boolean(checked))}
           trailing={

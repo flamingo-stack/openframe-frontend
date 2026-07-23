@@ -8,18 +8,18 @@
  *
  * Init runs post-login (registration is an authenticated call; the permission
  * prompt belongs after sign-in, not at launch).
- *
- * The register/unregister calls below are SEAMS for the push contract's
- * `registerPushDevice` / `unregisterPushDevice` GraphQL mutations. They are
- * stubbed until the backend lands those types in the introspected schema —
- * adding Relay mutations against a schema that lacks them breaks relay-compiler.
- * Swap the seam bodies for the mutations once the schema is live.
  */
+import { commitMutation, type GraphQLTaggedNode } from 'react-relay';
+import type { MutationParameters } from 'relay-runtime';
+import type { registerPushDeviceMutation as RegisterPushDeviceMutationType } from '@/__generated__/registerPushDeviceMutation.graphql';
+import type { unregisterPushDeviceMutation as UnregisterPushDeviceMutationType } from '@/__generated__/unregisterPushDeviceMutation.graphql';
+import type { PushPlatform } from '@/generated/schema-enums';
+import { registerPushDeviceMutation } from '@/graphql/notifications/register-push-device-mutation';
+import { unregisterPushDeviceMutation } from '@/graphql/notifications/unregister-push-device-mutation';
 import { firebaseMessagingPlugin, nativePlatform } from './native-shell';
+import { getRelayEnvironment } from './relay';
 
 const PUSH_TOKEN_STORAGE_KEY = 'native:push-token';
-
-type PushPlatform = 'IOS' | 'ANDROID';
 
 let initialized = false;
 
@@ -29,11 +29,24 @@ function pushPlatform(): PushPlatform | null {
   return platform ? (platform.toUpperCase() as PushPlatform) : null;
 }
 
+function commitPushMutation<T extends MutationParameters>(
+  mutation: GraphQLTaggedNode,
+  variables: T['variables'],
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    commitMutation<T>(getRelayEnvironment(), {
+      mutation,
+      variables,
+      onCompleted: () => resolve(),
+      onError: reject,
+    });
+  });
+}
+
 /**
- * SEAM — push contract `registerPushDevice(token, platform)`: idempotent upsert
- * by token, re-binding a token previously owned by another user. For now only
- * persists the token locally (needed for logout-time unregister); the mutation
- * lands with the backend schema.
+ * Push contract `registerPushDevice(token, platform)`: idempotent upsert by
+ * token, re-binding a token previously owned by another user. The token is also
+ * persisted locally for logout-time deregistration.
  */
 async function registerPushDevice(token: string): Promise<void> {
   const platform = pushPlatform();
@@ -43,16 +56,24 @@ async function registerPushDevice(token: string): Promise<void> {
   } catch {
     // Best-effort: only affects logout-time deregistration.
   }
-  // TODO(push-contract v1): commit registerPushDevice(token, platform) via Relay.
+  try {
+    await commitPushMutation<RegisterPushDeviceMutationType>(registerPushDeviceMutation, { token, platform });
+  } catch (error) {
+    // Non-fatal: FCM re-emits the token on rotation and every init re-registers.
+    console.warn('[native-push] registerPushDevice failed:', error);
+  }
 }
 
 /**
- * SEAM — push contract `unregisterPushDevice(token)`: best-effort; an unknown
- * token is not an error.
+ * Push contract `unregisterPushDevice(token)`: best-effort; an unknown token is
+ * not an error, and a failure must not block logout.
  */
 async function unregisterPushDevice(token: string): Promise<void> {
-  void token;
-  // TODO(push-contract v1): commit unregisterPushDevice(token) via Relay.
+  try {
+    await commitPushMutation<UnregisterPushDeviceMutationType>(unregisterPushDeviceMutation, { token });
+  } catch (error) {
+    console.warn('[native-push] unregisterPushDevice failed:', error);
+  }
 }
 
 export async function initNativePush(navigate: (route: string) => void): Promise<void> {

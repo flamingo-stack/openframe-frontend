@@ -1,7 +1,7 @@
 'use client';
 
 import { Skeleton, Tag } from '@flamingo-stack/openframe-frontend-core';
-import { AlertCircleIcon, PenEditIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
+import { AlertCircleIcon, BellIcon, PenEditIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import { ActionsMenuDropdown, PageError, SquareAvatar } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { RotateCcw } from 'lucide-react';
 import { useState } from 'react';
@@ -10,6 +10,8 @@ import { ConfirmDialog } from '@/app/components/shared/confirm-dialog';
 import { useOnboardingMutations } from '@/graphql/onboarding/use-onboarding-mutations';
 import { featureFlags } from '@/lib/feature-flags';
 import { getFullImageUrl } from '@/lib/image-url';
+import { isNativeShell } from '@/lib/native-shell';
+import { NotificationSettingsModal } from './notification-settings-modal';
 
 interface ProfileCardProps {
   onEditProfile: () => void;
@@ -25,6 +27,10 @@ export function ProfileCard({ onEditProfile, onVerifyEmail }: ProfileCardProps) 
   const newOnboardingEnabled = featureFlags.newOnboarding.enabled();
   const { resetUser, isMutating: isResettingOnboarding } = useOnboardingMutations();
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+
+  // Push settings only make sense in the mobile shell — hide on web/desktop.
+  const showNotificationSettings = featureFlags.notifications.enabled() && isNativeShell();
+  const [isNotificationSettingsOpen, setIsNotificationSettingsOpen] = useState(false);
 
   const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : '—';
 
@@ -87,6 +93,16 @@ export function ProfileCard({ onEditProfile, onVerifyEmail }: ProfileCardProps) 
                     icon: <PenEditIcon className="w-5 h-5 text-ods-text-secondary" />,
                     onClick: onEditProfile,
                   },
+                  ...(showNotificationSettings
+                    ? [
+                        {
+                          id: 'notifications',
+                          label: 'Notifications',
+                          icon: <BellIcon className="w-5 h-5 text-ods-text-secondary" />,
+                          onClick: () => setIsNotificationSettingsOpen(true),
+                        },
+                      ]
+                    : []),
                   ...(newOnboardingEnabled
                     ? [
                         {
@@ -104,6 +120,13 @@ export function ProfileCard({ onEditProfile, onVerifyEmail }: ProfileCardProps) 
           />
         </div>
       </div>
+
+      {showNotificationSettings && (
+        <NotificationSettingsModal
+          isOpen={isNotificationSettingsOpen}
+          onClose={() => setIsNotificationSettingsOpen(false)}
+        />
+      )}
 
       {/* Reset Onboarding confirmation */}
       <ConfirmDialog

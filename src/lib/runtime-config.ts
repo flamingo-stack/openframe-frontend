@@ -1,5 +1,5 @@
 import { env } from 'next-runtime-env';
-import { getStoredTenantHost } from './native-shell';
+import { getStoredTenantHost, MOBILE_APP_SCHEME } from './native-shell';
 
 function getEnvVar(key: string): string | undefined {
   try {
@@ -28,6 +28,15 @@ export const runtimeEnv = {
   },
   sharedHostUrl(): string {
     return getEnvVar('NEXT_PUBLIC_SHARED_HOST_URL') || '';
+  },
+  /**
+   * OAuth callback scheme for the mobile shell. Per-env builds (stage/dev)
+   * override it so side-by-side installs don't fight over one scheme — the
+   * value must match the shell's Info.plist / manifest registration for the
+   * same env (iOS: OPENFRAME_URL_SCHEME build setting).
+   */
+  mobileAppScheme(): string {
+    return getEnvVar('NEXT_PUBLIC_MOBILE_APP_SCHEME') || MOBILE_APP_SCHEME;
   },
   gtmContainerId(): string | undefined {
     return getEnvVar('NEXT_PUBLIC_GTM_CONTAINER_ID');

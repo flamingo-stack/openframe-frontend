@@ -20,6 +20,7 @@ import {
   Button,
   type ColumnDef,
   DataTable,
+  type DataTableSortState,
   FilterModal,
   Input,
   multiSelectFilterFn,
@@ -40,6 +41,7 @@ import type { scriptSchedulesTableRelayPaginationQuery as SchedulesPaginationQue
 import type {
   scriptSchedulesTableRelayQuery as SchedulesTableQueryType,
   ScriptScheduleFilterInput,
+  SortInput,
 } from '@/__generated__/scriptSchedulesTableRelayQuery.graphql';
 import type { unarchiveScriptScheduleMutation as UnarchiveScheduleMutationType } from '@/__generated__/unarchiveScriptScheduleMutation.graphql';
 import { EmptyState, onboardingGuideButton } from '@/app/components/shared';
@@ -57,6 +59,7 @@ import {
 import { unarchiveScriptScheduleMutation } from '@/graphql/scripts/unarchive-script-schedule-mutation';
 import { openInNewTab } from '@/lib/open-in-new-tab';
 import { routes } from '@/lib/routes';
+import { formatScheduleStartAt, repeatToLabel } from '../utils/schedule-timing';
 import { platformsToEnums, platformsToIds } from '../utils/script-mappers';
 import { ArchiveScheduleModal } from './archive-schedule-modal';
 import { RestoreScheduleModal } from './restore-schedule-modal';
@@ -69,6 +72,8 @@ interface UiScheduleEntry {
   description: string;
   supportedPlatforms: string[];
   deviceCount: number;
+  startAt: string | null;
+  repeat: number | null;
 }
 
 // ----------------------------------------------------------------
@@ -78,7 +83,12 @@ interface UiScheduleEntry {
 interface SchedulesTableContentProps {
   backendFilters: ScriptScheduleFilterInput;
   debouncedSearch: string;
+  /** Deferred sort — feeds the query (lags the live indicator during a refetch). */
+  sort: SortInput | null;
   tableFilters: Record<string, string[]>;
+  /** Live sort — drives the header indicator so it flips instantly on click. */
+  sortState: DataTableSortState | null;
+  onSortChange: (columnId: string) => void;
   /**
    * True while the deferred query variables lag the live filter/search state
    * (a refetch is in flight and the rows on screen are the previous result) —
@@ -96,7 +106,10 @@ interface SchedulesTableContentProps {
 function SchedulesTableContent({
   backendFilters,
   debouncedSearch,
+  sort,
   tableFilters,
+  sortState,
+  onSortChange,
   isPending,
   onFilterChange,
   onEmptyChange,
@@ -121,6 +134,7 @@ function SchedulesTableContent({
     {
       filter: backendFilters,
       search: debouncedSearch || null,
+      sort,
       first: PAGE_SIZE,
       after: null,
     },
@@ -151,6 +165,8 @@ function SchedulesTableContent({
           description: node.description ?? '',
           supportedPlatforms: platformsToIds(node.supportedPlatforms),
           deviceCount: node.deviceCount,
+          startAt: node.startAt ?? null,
+          repeat: node.repeat ?? null,
         },
       ];
     });
@@ -314,23 +330,33 @@ function SchedulesTableContent({
         },
       },
       {
-        // TODO(backend): the design's DATE & TIME column — ScriptSchedule has no
-        // timing/trigger fields in the GraphQL schema yet. Placeholder until the
-        // backend exposes them.
         id: 'dateTime',
         header: 'Date & Time',
-        cell: () => <span className="text-h4 text-ods-text-secondary">—</span>,
+        cell: ({ row }: { row: Row<UiScheduleEntry> }) => {
+          const { date, time } = formatScheduleStartAt(row.original.startAt);
+          if (!row.original.startAt) {
+            return <span className="text-h4 text-ods-text-secondary">—</span>;
+          }
+          return (
+            <div className="flex flex-col justify-center gap-1 min-w-0">
+              <TruncateText>{date}</TruncateText>
+              <TruncateText variant="h6" tone="secondary">
+                {time}
+              </TruncateText>
+            </div>
+          );
+        },
         enableSorting: false,
         meta: { width: 'w-[100px] md:w-[160px]', hideAt: 'md' },
       },
       {
-        // TODO(backend): the design's REPEAT column — no repeat/interval field on
-        // ScriptSchedule yet. Placeholder until the backend exposes it.
         id: 'repeat',
         header: 'Repeat',
-        cell: () => <span className="text-h4 text-ods-text-secondary">—</span>,
+        cell: ({ row }: { row: Row<UiScheduleEntry> }) => (
+          <span className="text-h4 text-ods-text-primary">{repeatToLabel(row.original.repeat)}</span>
+        ),
         enableSorting: false,
-        meta: { width: 'w-[120px]', hideAt: 'md' },
+        meta: { width: 'w-[120px]', hideAt: 'md', sortable: true },
       },
       {
         accessorKey: 'deviceCount',
@@ -339,7 +365,7 @@ function SchedulesTableContent({
           <span className="text-h4 text-ods-text-primary">{row.original.deviceCount}</span>
         ),
         enableSorting: false,
-        meta: { width: 'w-[100px] md:w-[140px]', hideAt: 'lg' },
+        meta: { width: 'w-[100px] md:w-[140px]', hideAt: 'lg', sortable: true },
       },
       {
         id: 'actions',
@@ -450,7 +476,13 @@ function SchedulesTableContent({
           flight — the subtle fade is the pending feedback. */}
       <div className={`transition-opacity duration-200 ${isPending ? 'opacity-60' : ''}`}>
         <DataTable table={table}>
-          <DataTable.Header stickyHeader stickyHeaderOffset={stickyHeaderOffset} rightSlot={<DataTable.RowCount />} />
+          <DataTable.Header
+            stickyHeader
+            stickyHeaderOffset={stickyHeaderOffset}
+            rightSlot={<DataTable.RowCount />}
+            sort={sortState}
+            onSortChange={onSortChange}
+          />
           <DataTable.Body
             skeletonRows={PAGE_SIZE}
             emptyMessage={
@@ -565,6 +597,10 @@ export function ScriptSchedulesTable({ archived = false }: ScriptSchedulesTableP
   const { params, setParam, setParams } = useApiParams({
     search: { type: 'string', default: '' },
     supportedPlatforms: { type: 'array', default: [] },
+    // Server-side sort: column id (backend sort field: 'repeat' | 'deviceCount')
+    // + direction. Empty sortBy = backend default order (newest-first by _id).
+    sortBy: { type: 'string', default: '' },
+    sortDir: { type: 'string', default: 'desc' },
   });
 
   // Local search input keeps typing responsive; the shared hook debounces it to
@@ -589,10 +625,23 @@ export function ScriptSchedulesTable({ archived = false }: ScriptSchedulesTableP
     };
   }, [archived, params.supportedPlatforms]);
 
-  // Deferred query variables: on a filter/search interaction the table keeps
-  // rendering the current rows while the refetch is in flight, instead of
-  // dropping to the Suspense skeleton.
-  const { deferredFilters, deferredSearch, isPending } = useDeferredQuery(backendFilters, debouncedSearch);
+  // Backend SortInput for the query; null = no sort (backend default order).
+  const sortInput = useMemo<SortInput | null>(
+    () => (params.sortBy ? { field: params.sortBy, direction: params.sortDir === 'asc' ? 'ASC' : 'DESC' } : null),
+    [params.sortBy, params.sortDir],
+  );
+
+  // Live descriptor the header renders its indicator from (flips instantly on click).
+  const sortState = useMemo<DataTableSortState | null>(
+    () => (params.sortBy ? { id: params.sortBy, desc: params.sortDir !== 'asc' } : null),
+    [params.sortBy, params.sortDir],
+  );
+
+  // Filter + sort travel together as one deferred object so the query lags in
+  // lockstep and `isPending` covers both; the LIVE params keep driving the
+  // controls (checkboxes, header indicator) so they respond instantly.
+  const queryVars = useMemo(() => ({ filter: backendFilters, sort: sortInput }), [backendFilters, sortInput]);
+  const { deferredFilters: deferredVars, deferredSearch, isPending } = useDeferredQuery(queryVars, debouncedSearch);
 
   const tableFilters = useMemo(() => ({ supportedPlatforms: params.supportedPlatforms }), [params.supportedPlatforms]);
 
@@ -602,6 +651,23 @@ export function ScriptSchedulesTable({ archived = false }: ScriptSchedulesTableP
       document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' });
     },
     [setParams],
+  );
+
+  // 3-state toggle owned by the consumer (per DataTable.Header contract):
+  // unsorted → desc → asc → unsorted. `columnId` is the column's id, which
+  // equals the backend sort field ('repeat' | 'deviceCount').
+  const handleSortChange = useCallback(
+    (columnId: string) => {
+      if (params.sortBy !== columnId) {
+        setParams({ sortBy: columnId, sortDir: 'desc' });
+      } else if (params.sortDir === 'desc') {
+        setParams({ sortDir: 'asc' });
+      } else {
+        setParams({ sortBy: '', sortDir: 'desc' });
+      }
+      document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' });
+    },
+    [params.sortBy, params.sortDir, setParams],
   );
 
   const handleOpenArchive = useCallback(() => {
@@ -674,9 +740,12 @@ export function ScriptSchedulesTable({ archived = false }: ScriptSchedulesTableP
 
         <Suspense fallback={<SchedulesTableSkeleton stickyHeaderOffset={stickyHeaderOffset} />}>
           <SchedulesTableContent
-            backendFilters={deferredFilters}
+            backendFilters={deferredVars.filter}
             debouncedSearch={deferredSearch}
+            sort={deferredVars.sort}
             tableFilters={tableFilters}
+            sortState={sortState}
+            onSortChange={handleSortChange}
             isPending={isPending}
             onFilterChange={handleFilterChange}
             onEmptyChange={setIsEmpty}

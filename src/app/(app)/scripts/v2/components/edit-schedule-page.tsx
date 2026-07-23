@@ -2,7 +2,19 @@
 
 import { SelectButton } from '@flamingo-stack/openframe-frontend-core/components/features';
 import { PlusCircleIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
-import { Button, Input, Label, type PageActionButton } from '@flamingo-stack/openframe-frontend-core/components/ui';
+import {
+  Button,
+  CheckboxBlock,
+  DatePickerInputSimple,
+  Input,
+  Label,
+  type PageActionButton,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { useMdUp, useToast } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
@@ -17,6 +29,13 @@ import { createScriptScheduleMutation } from '@/graphql/scripts/create-script-sc
 import { updateScriptScheduleMutation } from '@/graphql/scripts/update-script-schedule-mutation';
 import { routes } from '@/lib/routes';
 import { AVAILABLE_PLATFORMS, DISABLED_PLATFORMS } from '../../utils/script-utils';
+import {
+  fromScheduleInstant,
+  REPEAT_UNIT_OPTIONS,
+  repeatPartsToSeconds,
+  secondsToRepeatParts,
+  toScheduleInstant,
+} from '../utils/schedule-timing';
 import { platformsToEnums, platformsToIds } from '../utils/script-mappers';
 import { type ScheduleDetailData, ScheduleDetailGate } from './schedule-detail-gate';
 import { ScheduleScriptPickerCard } from './schedule-script-picker-card';
@@ -26,23 +45,32 @@ import { ScriptPageChrome } from './script-page-chrome';
 // Form model
 // ----------------------------------------------------------------
 
-// TODO(backend): no scheduledDate / repeat fields — CreateScriptScheduleInput
-// carries only name/description/platforms/scriptIds. The legacy date & repeat
-// controls return when the schema exposes schedule timing
-// (see docs/script-schedules-v2-graphql-gaps.md).
-const editScheduleFormSchema = z.object({
-  name: z.string().min(1, 'Please enter a schedule name').max(255, 'Name must not exceed 255 characters'),
-  description: z.string(),
-  supportedPlatforms: z.array(z.string()).min(1, 'Please select at least one platform'),
-  scripts: z
-    .array(
-      z.object({
-        scriptId: z.string().min(1, 'Please select a script'),
-        name: z.string(),
-      }),
-    )
-    .min(1, 'Please add at least one script'),
-});
+// Timing maps to two backend fields: `startAt` (Instant, 30-min boundary — the
+// picker's `timeInterval={30}` enforces it) and `repeat` (Long seconds). A
+// repeating schedule needs a start to anchor the recurrence, so `repeat` requires
+// a `scheduledDate` (enforced by the refine below).
+const editScheduleFormSchema = z
+  .object({
+    name: z.string().min(1, 'Please enter a schedule name').max(255, 'Name must not exceed 255 characters'),
+    description: z.string(),
+    scheduledDate: z.date().nullable(),
+    repeatEnabled: z.boolean(),
+    repeatInterval: z.number().int().min(1, 'Interval must be at least 1'),
+    repeatUnit: z.enum(['hour', 'day', 'week', 'month']),
+    supportedPlatforms: z.array(z.string()).min(1, 'Please select at least one platform'),
+    scripts: z
+      .array(
+        z.object({
+          scriptId: z.string().min(1, 'Please select a script'),
+          name: z.string(),
+        }),
+      )
+      .min(1, 'Please add at least one script'),
+  })
+  .refine(data => !data.repeatEnabled || data.scheduledDate != null, {
+    message: 'Pick a start date & time to repeat from',
+    path: ['scheduledDate'],
+  });
 
 export type EditScheduleFormData = z.infer<typeof editScheduleFormSchema>;
 
@@ -51,14 +79,23 @@ const EMPTY_SCRIPT_ROW: EditScheduleFormData['scripts'][number] = { scriptId: ''
 const DEFAULT_VALUES: EditScheduleFormData = {
   name: '',
   description: '',
+  scheduledDate: null,
+  repeatEnabled: false,
+  repeatInterval: 1,
+  repeatUnit: 'day',
   supportedPlatforms: ['windows'],
   scripts: [EMPTY_SCRIPT_ROW],
 };
 
 function scheduleToFormValues(schedule: ScheduleDetailData): EditScheduleFormData {
+  const repeatParts = schedule.repeat ? secondsToRepeatParts(schedule.repeat) : null;
   return {
     name: schedule.name,
     description: schedule.description ?? '',
+    scheduledDate: schedule.startAt ? fromScheduleInstant(schedule.startAt) : null,
+    repeatEnabled: Boolean(schedule.repeat),
+    repeatInterval: repeatParts?.interval ?? 1,
+    repeatUnit: repeatParts?.unit ?? 'day',
     supportedPlatforms: platformsToIds(schedule.supportedPlatforms),
     scripts:
       schedule.scripts.length > 0 ? schedule.scripts.map(s => ({ scriptId: s.id, name: s.name })) : [EMPTY_SCRIPT_ROW],
@@ -98,6 +135,7 @@ function EditScheduleForm({ scheduleId, initialValues, loading = false }: EditSc
 
   const { fields, append, remove } = useFieldArray({ control, name: 'scripts' });
   const supportedPlatforms = watch('supportedPlatforms');
+  const repeatEnabled = watch('repeatEnabled');
 
   // Errors stay hidden on a pristine form and appear only once the user
   // attempts Save; from then on they track validation live (mirrors the
@@ -137,6 +175,11 @@ function EditScheduleForm({ scheduleId, initialValues, loading = false }: EditSc
         description: data.description.trim() || null,
         supportedPlatforms: platformsToEnums(data.supportedPlatforms),
         scriptIds: data.scripts.map(s => s.scriptId),
+        // PUT semantics: null clears the timing / recurrence. `repeat` requires a
+        // start to anchor it (guaranteed by the schema refine).
+        startAt: data.scheduledDate ? toScheduleInstant(data.scheduledDate) : null,
+        repeat:
+          data.repeatEnabled && data.scheduledDate ? repeatPartsToSeconds(data.repeatInterval, data.repeatUnit) : null,
       };
 
       if (isEditMode && scheduleId) {
@@ -252,6 +295,85 @@ function EditScheduleForm({ scheduleId, initialValues, loading = false }: EditSc
                 />
               )}
             />
+          </div>
+
+          {/* Date & Time + Repeat. `scheduledDate` → backend `startAt` (30-min
+              boundary, enforced by timeInterval); the repeat toggle + interval +
+              unit → `repeat` seconds. */}
+          <div className="flex flex-col gap-2">
+            <Label className="text-h4">Date &amp; Time</Label>
+            <div className="flex flex-wrap items-start gap-3">
+              <Controller
+                name="scheduledDate"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <DatePickerInputSimple
+                    placeholder="Select date & time"
+                    value={field.value ?? undefined}
+                    onChange={date => field.onChange(date ?? null)}
+                    showTime
+                    timeInterval={30}
+                    disabled={loading}
+                    className="w-full md:w-auto"
+                    error={showErrors ? fieldState.error?.message : undefined}
+                    invalid={showErrors && !!fieldState.error}
+                  />
+                )}
+              />
+
+              <Controller
+                name="repeatEnabled"
+                control={control}
+                render={({ field }) => (
+                  <CheckboxBlock
+                    label="Repeat Script Run"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={loading}
+                    className="w-full md:max-w-[220px]"
+                  />
+                )}
+              />
+
+              {repeatEnabled && (
+                <div className="flex items-start gap-3">
+                  <Controller
+                    name="repeatInterval"
+                    control={control}
+                    render={({ field, fieldState }) => (
+                      <Input
+                        type="number"
+                        min={1}
+                        className="w-[100px]"
+                        value={String(field.value ?? '')}
+                        onChange={e => field.onChange(e.target.value ? Number(e.target.value) : 1)}
+                        disabled={loading}
+                        error={showErrors ? fieldState.error?.message : undefined}
+                        invalid={showErrors && !!fieldState.error}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="repeatUnit"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange} disabled={loading}>
+                        <SelectTrigger className="w-[140px] bg-ods-card border border-ods-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {REPEAT_UNIT_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Supported Platforms. The min-1 error overlays the section gap below

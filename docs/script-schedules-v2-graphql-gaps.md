@@ -5,18 +5,20 @@ pages (list, details, create/edit, edit-devices). The frontend for all of these 
 already built on Relay against the current schema — each gap below is the backend
 work that would light up the corresponding UI.
 
-## 1. Schedule timing & repeat — the core gap
+## 1. Schedule timing & repeat — ✅ DELIVERED
 
-`ScriptSchedule` has **no timing fields at all**: no run date/time, no cron, no repeat
-interval, no event trigger. `CreateScriptScheduleInput` / `UpdateScriptScheduleInput`
-can't write them either. The design needs both a concrete date+time
-(`09/15/2024 02:00 AM`) and an event trigger (`Device Online`), plus repeat intervals
-(`5 Minutes`, `3 Days`, `1 Week`, `1 Month`, one-off).
+`ScriptSchedule` now exposes `startAt: Instant` (first run, pinned to a 30-minute
+boundary), `repeat: Long` (recurrence interval in seconds, a whole number of 30-min
+slots; null = one-shot), plus read-only `nextRunAt` / `lastRunAt`. Both
+`CreateScriptScheduleInput` and `UpdateScriptScheduleInput` accept `startAt` + `repeat`.
 
-Suggested shape: `trigger: DATE_TIME | DEVICE_ONLINE`, `runAt: Instant`,
-`repeatIntervalSeconds: Int` (or an enum'd interval) — readable on the type, writable
-on both inputs, and **sortable** in `scriptSchedules(sort:)` (the list design sorts by
-the REPEAT column).
+The frontend is wired to these: the list's DATE & TIME / REPEAT columns, the detail
+info bar, and the create/edit form's date-time picker + repeat controls all read/write
+them (`src/app/(app)/scripts/v2/utils/schedule-timing.ts`).
+
+**Still not modelled (deferred, not blocking):** the event trigger (`Device Online`)
+and sub-30-minute intervals (`5 Minutes`) from the original design — the backend model
+is seconds on a 30-minute grid only, so the UI offers hour/day/week/month units.
 
 ## 2. `assignedDevices` resolver hangs — request dies with 504 (bug)
 
@@ -53,12 +55,17 @@ the input needs something like
 `scriptEntries: [{ scriptId, timeoutSeconds, args, envVars }]` (and the type a matching
 read shape).
 
-## 4. Execution history
+## 4. Execution history — partially unblocked; read surface still missing
 
-There is no per-schedule run-history query (`scriptScheduleExecutions(...)` or
-similar), so the "Execution History" tab cannot exist. Needs a cursor-paginated log:
-schedule id → runs (device, status, retcode, stdout/stderr, started/finished at),
-ideally filterable by device and status.
+`ScriptExecution` now carries `scheduleId` (stamped at dispatch) and the full run
+record (status / exitCode / stdout / stderr / timings), but there is still **no query
+keyed by schedule** — `scriptExecutions(...)` requires `scriptId` and the filter has no
+`scheduleId`. So the "Execution History" tab ships as a stub
+(`schedule-executions-tab.tsx`).
+
+Full ask + the exact Relay operation the frontend will use once it lands:
+**`docs/script-schedules-v2-execution-history-spec.md`** (recommended:
+`scriptScheduleExecutions(scheduleId, …): ScriptExecutionConnection!`).
 
 ## 5. Enable / pause toggle
 
@@ -74,8 +81,10 @@ Also note `Machine.organization` fans out one lookup per machine (N+1) unless ba
 
 ## 7. Sorting & search (minor)
 
-- `scriptSchedules(sort:)` supports only `_id`, `name`, `createdAt`, `updatedAt` —
-  no `deviceCount` (the list design sorts the DEVICES column) and no
-  `statusChangedAt` (no "recently archived first" on the archive page).
+- `scriptSchedules(sort:)` now accepts `_id`, `name`, `createdAt`, `updatedAt`,
+  **`repeat`, `deviceCount`** — the REPEAT and DEVICES columns are sortable
+  server-side (the frontend table hasn't wired the sort UI to it yet). Still no
+  `statusChangedAt` (no "recently archived first" on the archive page) and no
+  `startAt` sort (the DATE & TIME column).
 - `search` is a name-only substring match; the list UI also shows `description`,
   which is not searched.

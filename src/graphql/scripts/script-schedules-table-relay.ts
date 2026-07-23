@@ -18,11 +18,12 @@ export const scriptSchedulesTableRelayQuery = graphql`
   query scriptSchedulesTableRelayQuery(
     $filter: ScriptScheduleFilterInput
     $search: String
+    $sort: SortInput
     $first: Int!
     $after: String
   ) {
     ...scriptSchedulesTableRelay_query
-      @arguments(filter: $filter, search: $search, first: $first, after: $after)
+      @arguments(filter: $filter, search: $search, sort: $sort, first: $first, after: $after)
     scriptScheduleFilters(filter: $filter) {
       platforms {
         value
@@ -39,10 +40,11 @@ export const scriptSchedulesTableRelayFragment = graphql`
     @argumentDefinitions(
       filter: { type: "ScriptScheduleFilterInput" }
       search: { type: "String" }
+      sort: { type: "SortInput" }
       first: { type: "Int", defaultValue: 20 }
       after: { type: "String" }
     ) {
-    scriptSchedules(filter: $filter, search: $search, first: $first, after: $after)
+    scriptSchedules(filter: $filter, search: $search, sort: $sort, first: $first, after: $after)
       @connection(key: "scriptSchedulesTableRelay_scriptSchedules") {
       __id
       filteredCount
@@ -53,6 +55,8 @@ export const scriptSchedulesTableRelayFragment = graphql`
           description
           supportedPlatforms
           deviceCount
+          startAt
+          repeat
         }
       }
       pageInfo {

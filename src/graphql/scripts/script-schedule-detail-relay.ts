@@ -17,6 +17,10 @@ export const scriptScheduleDetailRelayQuery = graphql`
       supportedPlatforms
       status
       deviceCount
+      startAt
+      repeat
+      nextRunAt
+      lastRunAt
       scripts {
         id
         name

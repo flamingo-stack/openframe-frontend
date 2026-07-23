@@ -5,6 +5,7 @@ import {
   BracketCurlyIcon,
   Chevron01DownIcon,
   LaptopIcon,
+  ListBulletIcon,
   MonitorIcon,
   PenEditIcon,
 } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
@@ -26,16 +27,20 @@ import { scriptScheduleDevicesRelayQuery } from '@/graphql/scripts/script-schedu
 import { routes } from '@/lib/routes';
 import type { Device } from '../../../devices/types/device.types';
 import { ScheduleInfoBarFromData } from '../../components/schedule/schedule-info-bar';
+import { formatScheduleStartAt, repeatToLabel } from '../utils/schedule-timing';
 import { envVarsToStrings, platformsToIds } from '../utils/script-mappers';
 import { NotFoundBoundary, NotFoundSignal } from './not-found-boundary';
 import type { ScheduleDetailData } from './schedule-detail-gate';
+import { ScheduleExecutionsTab } from './schedule-executions-tab';
 import { ScriptPageChrome } from './script-page-chrome';
 
-// Execution History is intentionally absent — there is no schedule-run history
-// query in the GraphQL schema yet (see docs/script-schedules-v2-graphql-gaps.md).
+// Execution History is a stub tab: the schedule-run history query is not in the
+// GraphQL schema yet (only the `ScriptExecution.scheduleId` field exists). See
+// docs/script-schedules-v2-execution-history-spec.md for the backend ask.
 const SCHEDULE_DETAIL_TABS: TabItem[] = [
   { id: 'scripts', label: 'Scheduled Scripts', icon: BracketCurlyIcon },
   { id: 'devices', label: 'Assigned Devices', icon: MonitorIcon },
+  { id: 'executions', label: 'Execution History', icon: ListBulletIcon },
 ];
 
 interface ScheduleDetailsViewProps {
@@ -63,15 +68,15 @@ function ScheduleHeaderSection({ scheduleId }: ScheduleDetailsViewProps) {
     throw new NotFoundSignal();
   }
 
+  const { date, time } = formatScheduleStartAt(schedule.startAt);
+
   return (
-    // TODO(backend): Date / Time / Repeat are placeholders — ScriptSchedule has
-    // no timing or repeat fields in the GraphQL schema yet.
     <ScheduleInfoBarFromData
       name={schedule.name}
       note={schedule.description ?? ''}
-      date="—"
-      time="—"
-      repeat="—"
+      date={date}
+      time={time}
+      repeat={repeatToLabel(schedule.repeat)}
       platforms={platformsToIds(schedule.supportedPlatforms)}
     />
   );
@@ -360,17 +365,23 @@ export function ScheduleDetailsView({ scheduleId }: ScheduleDetailsViewProps) {
           </Suspense>
 
           <TabNavigation tabs={SCHEDULE_DETAIL_TABS} urlSync defaultTab="scripts">
-            {activeTab =>
-              activeTab === 'devices' ? (
-                <Suspense fallback={<ScheduleDevicesTabSkeleton />}>
-                  <ScheduleDevicesTabSection scheduleId={scheduleId} />
-                </Suspense>
-              ) : (
+            {activeTab => {
+              if (activeTab === 'devices') {
+                return (
+                  <Suspense fallback={<ScheduleDevicesTabSkeleton />}>
+                    <ScheduleDevicesTabSection scheduleId={scheduleId} />
+                  </Suspense>
+                );
+              }
+              if (activeTab === 'executions') {
+                return <ScheduleExecutionsTab scheduleId={scheduleId} />;
+              }
+              return (
                 <Suspense fallback={<ScheduleScriptsTabSkeleton />}>
                   <ScheduleScriptsTabSection scheduleId={scheduleId} />
                 </Suspense>
-              )
-            }
+              );
+            }}
           </TabNavigation>
         </div>
       </ScriptPageChrome>

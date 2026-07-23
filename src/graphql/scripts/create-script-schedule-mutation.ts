@@ -14,6 +14,10 @@ export const createScriptScheduleMutation = graphql`
       supportedPlatforms
       status
       deviceCount
+      startAt
+      repeat
+      nextRunAt
+      lastRunAt
       scripts {
         id
         name

@@ -52,7 +52,7 @@ export const TAB_IDS = {
   scripts: ['list', 'schedules'],
   scheduleDetails: ['schedule-scripts', 'schedule-devices', 'schedule-history'],
   scriptsV2Details: ['details', 'executions'],
-  scriptsV2ScheduleDetails: ['scripts', 'devices'],
+  scriptsV2ScheduleDetails: ['scripts', 'devices', 'executions'],
   monitoring: ['policies', 'queries'],
   settings: ['ai-settings', 'architecture', 'company-and-users', 'api-keys', 'sso-configuration', 'profile'],
   aiSettings: ['mingo', 'customer', 'guardrails'],

@@ -196,12 +196,23 @@ export function EditPolicyPage({ policyId }: EditPolicyPageProps) {
   }, [campaign]);
 
   const actions = useMemo(() => {
+    // First applicable disable reason doubles as the button tooltip, so every
+    // disabled state explains itself.
+    const testPolicyDisabledReason = !hasQuery
+      ? 'Enter a query to test this policy'
+      : campaign.isRunning
+        ? 'A test is already in progress'
+        : selectedFleetHostIds.size === 0
+          ? 'Select at least one device to test this policy'
+          : undefined;
+
     const items = [];
     items.push({
       label: 'Test Policy',
       onClick: handleTestPolicy,
       variant: 'outline' as const,
-      disabled: !hasQuery || campaign.isRunning,
+      disabled: Boolean(testPolicyDisabledReason),
+      tooltip: testPolicyDisabledReason,
     });
     items.push({
       label: 'Save Policy',
@@ -210,7 +221,17 @@ export function EditPolicyPage({ policyId }: EditPolicyPageProps) {
       disabled: isSaving || !hasName,
     });
     return items;
-  }, [handleSubmit, onSubmit, onFormError, isSaving, hasName, handleTestPolicy, hasQuery, campaign.isRunning]);
+  }, [
+    handleSubmit,
+    onSubmit,
+    onFormError,
+    isSaving,
+    hasName,
+    handleTestPolicy,
+    hasQuery,
+    campaign.isRunning,
+    selectedFleetHostIds,
+  ]);
 
   if (isLoadingPolicy && isExistingPolicy) {
     return <CardLoader items={4} />;

@@ -15,16 +15,37 @@ import type { AiQuickAction } from '../types/ai-settings';
 import type { QuickActionsFormValues } from '../types/quick-action.types';
 import { AiSettingsQuickActions, type QuickActionsAgentConfig } from './ai-settings-quick-actions';
 
+/** Wording + preview-header source for the "use default" checkbox. */
+export interface QuickActionsDefaultCopy {
+  /** Checkbox title. */
+  title: string;
+  /** Checkbox description. */
+  description: string;
+  /** Confirm-dialog body shown when re-enabling defaults over customs. */
+  confirmDescription: string;
+  /** Dimmed preview header: true → "OpenFrame …", false → "Organization …". */
+  previewIsOpenFrame: boolean;
+}
+
 interface AiSettingsQuickActionsEditorProps<T extends QuickActionsFormValues & FieldValues> {
   control: Control<T>;
   title?: string;
   agentConfig: QuickActionsAgentConfig;
   /**
-   * The OpenFrame defaults, fetched by the host from the Product Hub (the
-   * tenant BE stores only customs). They render as the dimmed read-only
-   * preview while the checkbox is on and seed the editor rows on uncheck.
+   * The default quick actions the host offers: OpenFrame's Product-Hub set on
+   * the tenant-wide screens, the tenant-inherited set on the customer screen
+   * (where "default" means "inherit the tenant config", not OpenFrame's set).
+   * Rendered as the dimmed read-only preview while the checkbox is on, and used
+   * to seed the editor rows on uncheck.
    */
   defaultActions: AiQuickAction[];
+  /**
+   * Overrides the "use default" wording + preview header. Omitted on the
+   * tenant-wide screens (their default is literally OpenFrame's curated set);
+   * the customer screen passes its own copy because there "default" inherits
+   * the tenant's configured actions, which may be customs.
+   */
+  defaultActionsCopy?: QuickActionsDefaultCopy;
   className?: string;
 }
 
@@ -42,6 +63,7 @@ export function AiSettingsQuickActionsEditor<T extends QuickActionsFormValues & 
   title = 'Assistant Quick Actions',
   agentConfig,
   defaultActions,
+  defaultActionsCopy,
   className,
 }: AiSettingsQuickActionsEditorProps<T>) {
   // The generic constraint guarantees the form has compatible quick-action
@@ -51,6 +73,14 @@ export function AiSettingsQuickActionsEditor<T extends QuickActionsFormValues & 
   const isDefault = useWatch({ control: quickActionsControl, name: 'quickActionsIsDefault' });
 
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // Default wording = OpenFrame's Product-Hub set (the tenant-wide screens).
+  const copy: QuickActionsDefaultCopy = defaultActionsCopy ?? {
+    title: 'Use OpenFrame default actions',
+    description: 'Recommended set of quick actions curated and approved by OpenFrame.',
+    confirmDescription: `This replaces your customized quick actions with the standard ${agentConfig.agentLabel} set. Any actions you added or edited will be removed.`,
+    previewIsOpenFrame: true,
+  };
 
   const handleToggle = (checked: boolean, onChange: (value: boolean) => void) => {
     if (!checked) {
@@ -79,8 +109,8 @@ export function AiSettingsQuickActionsEditor<T extends QuickActionsFormValues & 
               id={`use-default-quick-actions-${agentConfig.agentSlug}`}
               checked={field.value}
               onCheckedChange={checked => handleToggle(checked, field.onChange)}
-              title="Use OpenFrame default actions"
-              description="Recommended set of quick actions curated and approved by OpenFrame."
+              title={copy.title}
+              description={copy.description}
               // The lib block ships 14px Label + p-4; the mock (checkbox-block)
               // uses the same type ramp as the view banner: 18/24 title, 14/20
               // caption, 12px padding, centered 24px checkbox.
@@ -95,7 +125,7 @@ export function AiSettingsQuickActionsEditor<T extends QuickActionsFormValues & 
               open={confirmOpen}
               onOpenChange={setConfirmOpen}
               title="Use Default Actions"
-              description={`This replaces your customized quick actions with the standard ${agentConfig.agentLabel} set. Any actions you added or edited will be removed.`}
+              description={copy.confirmDescription}
               confirmLabel="Use Default"
               variant="destructive"
               onConfirm={() => {
@@ -114,7 +144,7 @@ export function AiSettingsQuickActionsEditor<T extends QuickActionsFormValues & 
         defaultActions.length > 0 && (
           <AiSettingsQuickActions
             actions={defaultActions}
-            isDefault
+            isDefault={copy.previewIsOpenFrame}
             agentConfig={agentConfig}
             className="opacity-50 pointer-events-none"
           />

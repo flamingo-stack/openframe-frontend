@@ -1,6 +1,6 @@
 'use client';
 
-import { Skeleton, TITLE_BLOCK_MIN_HEIGHT, TicketStatusTag } from '@flamingo-stack/openframe-frontend-core';
+import { Skeleton, TicketStatusTag } from '@flamingo-stack/openframe-frontend-core';
 import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
 import type { ReactNode } from 'react';
 
@@ -63,13 +63,12 @@ function InfoCardSkeleton({
 }) {
   return (
     <div className={INFO_CARD_CLASS}>
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex flex-1 flex-col">
         {/* Title — real static text (text-h5 uppercases it) or a real status tag. */}
         {titleSlot ?? <p className="text-h5 text-ods-text-secondary">{title}</p>}
-        {/* Value (+ optional percentage) — the query-dependent part. Value typography
-            mirrors the real card (`text-h3 md:text-h2`) so the line box matches at every breakpoint. */}
+        {/* Value (+ optional percentage) — the query-dependent part. */}
         <div className="flex items-center gap-[var(--spacing-system-xs)]">
-          <p className="text-h3 text-ods-text-primary md:text-h2">
+          <p className="text-h2 text-ods-text-primary">
             <InlineSkeleton className="h-4 w-8 md:h-6" />
           </p>
           {showPercentage && (
@@ -119,24 +118,13 @@ function OverviewHeaderSkeleton({ title, unit, className }: { title: string; uni
   return (
     <div
       className={cn(
-        // Mirrors the FROZEN core `TitleBlock` root (plain variant) EXACTLY so the
-        // header doesn't jump when the real `TitleBlock` replaces this on data load.
-        // Kept in sync with `title-block.tsx` — md+ is a single wrapping row
-        // (`md:flex-wrap md:content-end`, ClickUp 86ahd6uy5), NOT breakpoint stacking.
         'flex items-end justify-between gap-[var(--spacing-system-m)]',
-        'md:flex-wrap md:content-end',
+        'md:flex-col md:items-start md:justify-start lg:flex-row lg:items-end lg:justify-between',
         'pt-[var(--spacing-system-l)] mb-[var(--spacing-system-l)]',
         className,
       )}
     >
-      {/* Inner title column — matches TitleBlock's: base flex-1, md+ sizes to
-          content (`md:flex-none md:max-w-full`), with the shared min-height floor. */}
-      <div
-        className={cn(
-          'flex min-w-0 flex-1 flex-col justify-center gap-[var(--spacing-system-xs)] md:max-w-full md:flex-none',
-          TITLE_BLOCK_MIN_HEIGHT,
-        )}
-      >
+      <div className="flex min-h-11 min-w-0 flex-1 flex-col justify-center gap-[var(--spacing-system-xs)] md:min-h-12">
         <div className="flex w-full min-w-0 items-center gap-[var(--spacing-system-m)]">
           <div className="flex min-w-0 flex-1 flex-col justify-center">
             <h1 className="truncate text-h2 text-ods-text-primary">{title}</h1>
@@ -179,7 +167,14 @@ export function TicketsOverviewSkeleton() {
       />
       <div className="grid grid-cols-1 gap-[var(--spacing-system-mf)] md:grid-cols-2 lg:grid-cols-4">
         <InfoCardSkeleton titleSlot={<TicketStatusTag status="AI_ASSISTANCE" />} />
-        <InfoCardSkeleton titleSlot={<TicketStatusTag status="TECH_REQUIRED" />} />
+        <InfoCardSkeleton
+          titleSlot={
+            <TicketStatusTag
+              status="TECH_REQUIRED"
+              className="bg-ods-warning text-ods-text-on-accent hover:bg-ods-warning"
+            />
+          }
+        />
         <InfoCardSkeleton titleSlot={<TicketStatusTag status="RESOLVED" />} />
         <InfoCardSkeleton
           titleSlot={

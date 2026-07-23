@@ -24,6 +24,15 @@ export interface AiQuickAction {
   id: string;
   name: string;
   instructions: string;
+  /**
+   * Optional glyph, present only on Product Hub defaults (the hub agent config
+   * carries `iconName`/`iconUrl`/`iconProps`). Tenant customs from the BE have
+   * none yet. Rendered on the CHAT chip only - the settings editor omits it,
+   * since edit mode can't persist icons back to the BE (SVG-icons follow-up).
+   */
+  iconName?: string | null;
+  iconUrl?: string | null;
+  iconProps?: Record<string, unknown> | null;
 }
 
 export interface AiQuickActionInput {

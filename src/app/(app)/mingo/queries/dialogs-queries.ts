@@ -9,6 +9,21 @@ export const GET_MINGO_DIALOGS_QUERY = `
      status
      createdAt
      statusUpdatedAt
+     owner {
+      type
+      ... on AdminDialogOwner {
+       userId
+       user {
+        id
+        firstName
+        lastName
+        image {
+         imageUrl
+         hash
+        }
+       }
+      }
+     }
     }
    }
    pageInfo {

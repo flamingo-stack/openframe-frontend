@@ -1,7 +1,7 @@
 'use client';
 
 import { LoadError, NoData, Skeleton } from '@flamingo-stack/openframe-frontend-core';
-import { ShieldCheckIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
+import { InfoCircleIcon, ShieldCheckIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import { EmptyState } from '@/app/components/shared/empty-state';
 import { GuardrailsPolicyGroups } from './guardrails-policy-groups';
 import { GuardrailsPresetCard } from './guardrails-preset-card';
@@ -51,6 +51,16 @@ export function GuardrailsPanel({ editor, isEditMode }: GuardrailsPanelProps) {
 
   return (
     <div className="flex flex-col gap-[var(--spacing-system-l)]">
+      <div className="bg-ods-card border border-ods-border rounded-md flex items-center gap-[var(--spacing-system-s)] p-[var(--spacing-system-s)]">
+        <InfoCircleIcon className="size-6 text-ods-text-secondary shrink-0" />
+        <div className="flex flex-col min-w-0">
+          <p className="text-h4 text-ods-text-primary">Default settings for all customers</p>
+          <p className="text-h6 text-ods-text-secondary">
+            Individual customers can be customized separately in their settings.
+          </p>
+        </div>
+      </div>
+
       {isEditMode ? (
         <GuardrailsTemplatePicker
           options={editor.templateOptions}

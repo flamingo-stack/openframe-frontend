@@ -106,8 +106,30 @@ html[data-native-shell] body::before {
 
 /* The header keeps sticking at the viewport top but grows by the inset so
    its own ods-card background fills the status-bar area — seamless with the
-   band and no double offset. (h-12 = 3rem at phone widths.) */
+   band and no double offset. (h-12 = 3rem at phone widths.) The horizontal
+   insets keep its contents clear of the notch/rounded corners in landscape. */
 html[data-native-shell] header.sticky {
   padding-top: var(--native-safe-top, env(safe-area-inset-top));
+  padding-left: var(--native-safe-left, env(safe-area-inset-left));
+  padding-right: var(--native-safe-right, env(safe-area-inset-right));
   height: calc(3rem + var(--native-safe-top, env(safe-area-inset-top)));
+}
+
+/* Scroll container (core AppLayout <main>): clear the notch/rounded-corner
+   insets on the sides so scrolled content never sits under them in landscape.
+   Uses the logical `scroll-padding`-free `padding-inline` so it composes with —
+   rather than clobbers — the app's vertical `pb-*` Tailwind classes on <main>. */
+html[data-native-shell] main.overflow-y-auto {
+  padding-inline: var(--native-safe-left, env(safe-area-inset-left))
+    var(--native-safe-right, env(safe-area-inset-right));
+}
+
+/* Mobile page-action bar (core MobileBottomActions: fixed, bottom-0, hidden at
+   md+) — the fixed bottom element that overlaps the home indicator. Lift its
+   contents above the indicator and clear the side insets so its buttons stay
+   fully tappable in both orientations. */
+html[data-native-shell] .fixed.bottom-0.left-0.right-0.z-50 {
+  padding-bottom: var(--native-safe-bottom, env(safe-area-inset-bottom));
+  padding-left: var(--native-safe-left, env(safe-area-inset-left));
+  padding-right: var(--native-safe-right, env(safe-area-inset-right));
 }

@@ -11,6 +11,9 @@
  */
 export const MOBILE_APP_SCHEME = 'com.openframe.app';
 
+/** Biometry the device supports; `'none'` when biometric auth is unavailable. */
+export type BiometryType = 'faceId' | 'touchId' | 'fingerprint' | 'face' | 'none';
+
 export interface NativeAuthPlugin {
   /**
    * Runs the OAuth login in a shell-owned browser context and resolves with
@@ -27,9 +30,26 @@ export interface NativeAuthPlugin {
   }): Promise<{ callbackUrl: string }>;
   /** Performs the dev-ticket exchange over native HTTP (no CORS) and returns tokens from response headers. */
   exchangeTicket(options: { url: string }): Promise<{ accessToken?: string; refreshToken?: string }>;
+  /**
+   * Reads the stored tokens. When biometric login is enabled the shell gates
+   * this behind a biometric prompt, so it may reject with `BIOMETRIC_CANCELED`
+   * (user dismissed the prompt) or `BIOMETRIC_INVALIDATED` (enrollment changed —
+   * the token is no longer decryptable). See native-biometrics.ts for handling.
+   */
   getTokens(): Promise<{ accessToken?: string; refreshToken?: string }>;
   setTokens(options: { accessToken?: string; refreshToken?: string }): Promise<void>;
   clearTokens(): Promise<void>;
+  /**
+   * Biometric login (native-only, added by the shell's biometric effort). All
+   * four may be absent on shells that predate it — access through
+   * native-biometrics.ts, which guards for their presence.
+   */
+  isBiometricAvailable?(): Promise<{ available: boolean; biometryType: BiometryType }>;
+  isBiometricLoginEnabled?(): Promise<{ enabled: boolean }>;
+  /** Rejects: BIOMETRIC_UNAVAILABLE | NO_TOKENS | BIOMETRIC_CANCELED. */
+  enableBiometricLogin?(): Promise<void>;
+  /** Rejects: BIOMETRIC_CANCELED. */
+  disableBiometricLogin?(): Promise<void>;
   /**
    * Shell-owned refresh (single-flight in the shell). Optional — shells that
    * implement it become the ONLY refresher: refresh tokens rotate, so the
@@ -51,17 +71,51 @@ export interface NativeAuthPlugin {
 
 export type PushPermissionState = 'prompt' | 'prompt-with-rationale' | 'granted' | 'denied';
 
-/** Subset of @capacitor/push-notifications used by this app (plugin ships with the shell, not npm). */
-export interface PushNotificationsPlugin {
+/** Subset of @capacitor-firebase/messaging used by this app (plugin ships with the shell, not npm). */
+export interface FirebaseMessagingPlugin {
   checkPermissions(): Promise<{ receive: PushPermissionState }>;
   requestPermissions(): Promise<{ receive: PushPermissionState }>;
-  register(): Promise<void>;
-  addListener(eventName: 'registration', listenerFunc: (token: { value: string }) => void): Promise<unknown>;
-  addListener(eventName: 'registrationError', listenerFunc: (error: unknown) => void): Promise<unknown>;
+  /** Registers with APNs/FCM and resolves the FCM registration token (both platforms). */
+  getToken(): Promise<{ token: string }>;
+  deleteToken(): Promise<void>;
+  /** Fires when FCM first issues or later rotates the registration token. */
+  addListener(eventName: 'tokenReceived', listenerFunc: (event: { token: string }) => void): Promise<unknown>;
   addListener(
-    eventName: 'pushNotificationActionPerformed',
-    listenerFunc: (action: { notification: { data?: Record<string, unknown> } }) => void,
+    eventName: 'notificationActionPerformed',
+    listenerFunc: (event: { notification: { data?: Record<string, unknown> } }) => void,
   ): Promise<unknown>;
+}
+
+/** Subset of @capacitor/splash-screen (plugin ships with the shell, not npm). */
+export interface SplashScreenPlugin {
+  hide(options?: { fadeOutDuration?: number }): Promise<void>;
+  show(options?: { autoHide?: boolean }): Promise<void>;
+}
+
+/**
+ * Subset of @capacitor/status-bar. Enum naming is counterintuitive: `'DARK'` =
+ * light text/icons (for a dark status-bar background), `'LIGHT'` = dark text.
+ */
+export interface StatusBarPlugin {
+  setStyle(options: { style: 'DARK' | 'LIGHT' | 'DEFAULT' }): Promise<void>;
+  setOverlaysWebView(options: { overlay: boolean }): Promise<void>;
+}
+
+/**
+ * Subset of @capacitor/app. `backButton` is Android-only (hardware/gesture back);
+ * iOS has no hardware back and uses the WKWebView edge-swipe instead.
+ *
+ * addListener's return is typed as a union on purpose: the natively-injected
+ * bridge proxy hands back the handle synchronously, not the Promise the npm
+ * plugin types advertise. Normalize with Promise.resolve() before chaining —
+ * calling .catch/.then on it directly crashes at boot on a sync bridge.
+ */
+export interface AppPlugin {
+  addListener(
+    eventName: 'backButton',
+    listenerFunc: (event: { canGoBack?: boolean }) => void,
+  ): Promise<{ remove: () => void }> | { remove: () => void };
+  exitApp(): Promise<void>;
 }
 
 function capacitorGlobal(): any {
@@ -83,9 +137,24 @@ export function nativeAuthPlugin(): NativeAuthPlugin | null {
   return isNativeShell() ? (capacitorGlobal()?.Plugins?.NativeAuth ?? null) : null;
 }
 
-/** Null until @capacitor/push-notifications is installed in the shell — callers no-op. */
-export function pushNotificationsPlugin(): PushNotificationsPlugin | null {
-  return isNativeShell() ? (capacitorGlobal()?.Plugins?.PushNotifications ?? null) : null;
+/** Null on web and until @capacitor-firebase/messaging is present in the shell — callers no-op. */
+export function firebaseMessagingPlugin(): FirebaseMessagingPlugin | null {
+  return isNativeShell() ? (capacitorGlobal()?.Plugins?.FirebaseMessaging ?? null) : null;
+}
+
+/** Null on web / until @capacitor/splash-screen is present in the shell — callers no-op. */
+export function splashScreenPlugin(): SplashScreenPlugin | null {
+  return isNativeShell() ? (capacitorGlobal()?.Plugins?.SplashScreen ?? null) : null;
+}
+
+/** Null on web / until @capacitor/status-bar is present in the shell — callers no-op. */
+export function statusBarPlugin(): StatusBarPlugin | null {
+  return isNativeShell() ? (capacitorGlobal()?.Plugins?.StatusBar ?? null) : null;
+}
+
+/** Null on web / until @capacitor/app is present in the shell — callers no-op. */
+export function appPlugin(): AppPlugin | null {
+  return isNativeShell() ? (capacitorGlobal()?.Plugins?.App ?? null) : null;
 }
 
 const TENANT_HOST_STORAGE_KEY = 'native:tenant-host-url';
@@ -143,7 +212,9 @@ export function onNativeNotificationClick(callback: (payload: unknown) => void):
 
 /**
  * Publish the native safe-area insets as CSS variables consumed by the
- * shell-scoped rules in globals.css (`--native-safe-top/-bottom`).
+ * shell-scoped rules in globals.css
+ * (`--native-safe-top/-bottom/-left/-right`). All four are set so landscape and
+ * notch/home-indicator edges are honored, not just the portrait status bar.
  */
 export async function applyNativeSafeAreas(): Promise<void> {
   try {
@@ -152,7 +223,49 @@ export async function applyNativeSafeAreas(): Promise<void> {
     const rootStyle = document.documentElement.style;
     rootStyle.setProperty('--native-safe-top', `${insets.top}px`);
     rootStyle.setProperty('--native-safe-bottom', `${insets.bottom}px`);
+    rootStyle.setProperty('--native-safe-left', `${insets.left}px`);
+    rootStyle.setProperty('--native-safe-right', `${insets.right}px`);
   } catch (error) {
     console.warn('[Native Shell] safe-area inset lookup failed:', error);
   }
+}
+
+/**
+ * Hide the launch splash once the shell is interactive. The splash is configured
+ * launchAutoHide:false, so nothing hides it until this runs — call it after token
+ * hydration settles so it also covers a cold-start biometric unlock prompt.
+ * No-op on web / shells without the plugin.
+ */
+export async function hideSplashScreen(): Promise<void> {
+  try {
+    await splashScreenPlugin()?.hide({ fadeOutDuration: 200 });
+  } catch (error) {
+    console.warn('[Native Shell] splash hide failed:', error);
+  }
+}
+
+/**
+ * Configure the status bar for the dark app chrome: overlay the WebView (so the
+ * viewport-fit=cover content + the opaque --native-safe-top band draw under it)
+ * with light content legible on that band. No-op on web / shells without the plugin.
+ */
+export async function initNativeStatusBar(): Promise<void> {
+  const statusBar = statusBarPlugin();
+  if (!statusBar) return;
+  try {
+    await statusBar.setOverlaysWebView({ overlay: true });
+    await statusBar.setStyle({ style: 'DARK' });
+  } catch (error) {
+    console.warn('[Native Shell] status bar setup failed:', error);
+  }
+}
+
+/**
+ * Native launch chrome, run once on shell startup: set the status bar to overlay
+ * with light content, THEN publish the safe-area insets (on Android the top inset
+ * only becomes the status-bar height once the bar overlays the WebView).
+ */
+export async function initNativeChrome(): Promise<void> {
+  await initNativeStatusBar();
+  await applyNativeSafeAreas();
 }

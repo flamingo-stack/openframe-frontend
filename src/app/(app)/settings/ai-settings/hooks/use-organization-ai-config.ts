@@ -29,6 +29,7 @@ const ORGANIZATION_CLIENT_AI_CONFIG_FIELDS = `
     name
     instructions
   }
+  quickActionsIsDefault
   updatedAt
 `;
 
@@ -83,8 +84,10 @@ export interface OrganizationClientAiConfig {
   providerModel: string | null;
   answerStyle: AnswerStyle | null;
   customPrompt: string | null;
-  /** Effective quick actions; null means nothing configured anywhere (bundled fallback). */
+  /** Effective quick actions: the org's own list when customized, else the tenant's current one; null means nothing configured anywhere (bundled fallback). */
   quickActions: AiQuickAction[] | null;
+  /** True while the org follows the tenant's quick actions live (no own list stored). */
+  quickActionsIsDefault: boolean;
   updatedAt: string | null;
 }
 
@@ -167,10 +170,11 @@ export function useResetOrganizationClientAiConfig(organizationId: string) {
 }
 
 /**
- * Replaces the org's quick actions with a copy of the tenant default's ones,
- * keeping the rest of the override intact — the backend ignores
- * `quickActionsIsDefault` on org updates, so re-checking "use defaults" must
- * go through this mutation. Feedback is owned by the caller.
+ * Clears the org's own quick actions so it follows the tenant's live again
+ * (`quickActionsIsDefault` becomes true), keeping the rest of the override
+ * intact — the backend ignores `quickActionsIsDefault` on org updates, so
+ * re-checking "use defaults" must go through this mutation. Feedback is owned
+ * by the caller.
  */
 export function useResetOrganizationClientAiQuickActions(organizationId: string) {
   const queryClient = useQueryClient();

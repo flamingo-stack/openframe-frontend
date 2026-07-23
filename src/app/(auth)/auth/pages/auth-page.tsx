@@ -19,7 +19,10 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (isAuthenticated && !isAuthOnlyMode()) {
-      router.push(routes.dashboard);
+      // replace, not push: an authenticated user landing on /auth (e.g. via back)
+      // is redirected without leaving /auth in the back stack — no login flash,
+      // no back-loop. Pairs with the replace at login success in use-auth.ts.
+      router.replace(routes.dashboard);
     }
   }, [isAuthenticated, router]);
 
@@ -51,7 +54,7 @@ export default function AuthPage() {
     <TabSelector
       value="signup"
       onValueChange={value => {
-        if (value === 'login') router.push('/auth/login');
+        if (value === 'login') router.replace(routes.auth.login);
       }}
       variant="primary"
       items={[

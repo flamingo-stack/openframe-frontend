@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { isNativeShell } from '@/lib/native-shell';
 import { runtimeEnv } from '@/lib/runtime-config';
+import { getBiometricLockState, initTokenStore } from '@/lib/token-store';
 import { useAuthStore } from '../stores/auth-store';
 
 export const authSessionQueryKey = ['auth', 'session'] as const;
@@ -48,6 +49,17 @@ export function useAuthSession() {
       // /auth for tenant discovery instead of an endless shell skeleton.
       if (isNativeShell() && !runtimeEnv.tenantHostUrl()) {
         return null;
+      }
+      if (isNativeShell()) {
+        // Cold start: wait for the Keychain read (biometric-gated when enabled)
+        // so the first /me carries the bearer instead of 401ing into a refresh.
+        await initTokenStore();
+        // Prompt canceled — the unlock gate owns recovery. Throw (transient) so
+        // React Query keeps previous data and the store isn't logged out while
+        // the tokens still sit unread in the Keychain.
+        if (getBiometricLockState() === 'locked') {
+          throw new Error('Biometric unlock pending');
+        }
       }
       const response = await apiClient.me<MeResponse>();
       if (response.ok && response.data?.authenticated) {

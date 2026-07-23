@@ -217,6 +217,14 @@ export function OpenframeChatRuntimeProvider({ children }: { children: ReactNode
         // consumed by the "Meet Mingo" onboarding step to show the `agent-mingo`
         // agent's quick actions.
         aiAgentConfigUrl: (slug: string) => content(`/api/ai-agents/${encodeURIComponent(slug)}`),
+        // RAG doc-search + relative-link resolver, read automatically by the
+        // lib's doc-search surfaces (Help Center onboarding-guides catalog,
+        // `<DocsHubPage>`). Without these the lib's fall-back chain lands on
+        // bare `/api/docs/*` against OUR origin — a route this app doesn't
+        // serve. An explicit `searchEndpoint` prop (knowledge-base page)
+        // still wins over these.
+        docsSearchUrl: content('/api/docs/search'),
+        docsResolveLinkUrl: content('/api/docs/resolve-link'),
         // Fetch-mode entity cards (blog, roadmap, case study, release,
         // podcast/webinar/event, …) expand their `[card://<type>:<id>]`
         // markers by GETting the type's list endpoint. The lib owns the

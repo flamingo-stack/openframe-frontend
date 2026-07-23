@@ -52,6 +52,7 @@ export const TAB_IDS = {
   scripts: ['list', 'schedules'],
   scheduleDetails: ['schedule-scripts', 'schedule-devices', 'schedule-history'],
   scriptsV2Details: ['details', 'executions'],
+  scriptsV2ScheduleDetails: ['scripts', 'devices'],
   monitoring: ['policies', 'queries'],
   settings: ['ai-settings', 'architecture', 'company-and-users', 'api-keys', 'sso-configuration', 'profile'],
   aiSettings: ['mingo', 'customer', 'guardrails'],
@@ -65,6 +66,7 @@ export type DeviceDetailTab = (typeof TAB_IDS.deviceDetails)[number];
 export type ScriptsTab = (typeof TAB_IDS.scripts)[number];
 export type ScheduleDetailTab = (typeof TAB_IDS.scheduleDetails)[number];
 export type ScriptsV2DetailTab = (typeof TAB_IDS.scriptsV2Details)[number];
+export type ScriptsV2ScheduleDetailTab = (typeof TAB_IDS.scriptsV2ScheduleDetails)[number];
 export type MonitoringTab = (typeof TAB_IDS.monitoring)[number];
 export type SettingsTab = (typeof TAB_IDS.settings)[number];
 export type AiSettingsTab = (typeof TAB_IDS.aiSettings)[number];
@@ -155,6 +157,15 @@ export const routes = {
     list: '/scripts-v2',
     new: '/scripts-v2/new',
     archived: '/scripts-v2/archived',
+    schedules: {
+      list: '/scripts-v2/schedules',
+      archived: '/scripts-v2/schedules/archived',
+      new: '/scripts-v2/schedules/new',
+      details: (id: string | number, o?: { tab?: ScriptsV2ScheduleDetailTab }) =>
+        withQuery('/scripts-v2/schedules/details', { id, tab: o?.tab }),
+      edit: (id: string | number) => withQuery('/scripts-v2/schedules/edit', { id }),
+      devices: (id: string | number) => withQuery('/scripts-v2/schedules/devices', { id }),
+    },
     details: (id: string | number, o?: { tab?: ScriptsV2DetailTab }) =>
       withQuery('/scripts-v2/details', { id, tab: o?.tab }),
     run: (id: string | number) => withQuery('/scripts-v2/details/run', { id }),

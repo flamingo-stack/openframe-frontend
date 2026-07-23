@@ -52,9 +52,14 @@ async function executeRefresh(tenantId?: string): Promise<boolean> {
 
   if (bearerMode) {
     const refreshToken = await getRefreshToken();
-    if (refreshToken) {
-      headers['Refresh-Token'] = refreshToken;
+    if (!refreshToken) {
+      // No credential — the POST can only 401, and that 401 would clear stored
+      // tokens below. Fatal during the biometric cold-start lock: the tokens
+      // exist in the Keychain but were never read, so a racing credential-less
+      // refresh would wipe them out from under the unlock gate.
+      return false;
     }
+    headers['Refresh-Token'] = refreshToken;
   }
 
   try {

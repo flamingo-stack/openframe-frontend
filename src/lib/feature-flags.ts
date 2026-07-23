@@ -19,8 +19,10 @@ export const FEATURE_FLAG_NAMES = [
   'customer-guardrails',
   'time-tracker',
   'scripts-v2',
+  'script-schedules',
   'cancel-subscription',
   'new-onboarding',
+  'test-clock',
 ] as const;
 
 /**
@@ -109,6 +111,19 @@ export const featureFlags = {
       return getFlagValue('scripts-v2', () => false);
     },
   },
+  /**
+   * Scripts Schedules module (`/scripts-v2/schedules/*`) — the scheduled-run
+   * list, detail, create/edit, and device-assignment pages. Nested under the
+   * `scripts-v2` flag: schedules require the v2 Scripts area, and this flag
+   * gates the schedules sub-module independently on top of it. Off → the
+   * schedules routes redirect to the Scripts list and the "Scripts Schedules"
+   * tab is hidden. Defaults off when unset.
+   */
+  scriptSchedules: {
+    enabled(): boolean {
+      return getFlagValue('script-schedules', () => false);
+    },
+  },
   cancelSubscription: {
     enabled(): boolean {
       return getFlagValue('cancel-subscription', () => false);
@@ -122,6 +137,17 @@ export const featureFlags = {
   newOnboarding: {
     enabled(): boolean {
       return getFlagValue('new-onboarding', () => runtimeEnv.newOnboardingFlag());
+    },
+  },
+  /**
+   * Dev/stage-only Stripe test-clock panel on Settings → Billing. Server-driven via
+   * `feFeatureFlags` (`test-clock`), which the BE keeps in sync with the same
+   * `openframe.billing.test-clock.enabled` switch that shapes the schema — so FE
+   * visibility can't drift from field availability. Defaults off when unset.
+   */
+  testClock: {
+    enabled(): boolean {
+      return getFlagValue('test-clock', () => false);
     },
   },
 } as const;

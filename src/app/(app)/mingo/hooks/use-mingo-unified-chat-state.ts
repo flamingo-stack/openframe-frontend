@@ -33,7 +33,7 @@ import type {
   UnifiedChatState,
   UnifiedSendMessageOptions,
 } from '@flamingo-stack/openframe-frontend-core/components/chat';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { useAiModelStatus } from '@/app/hooks/use-ai-model';
 import { EVENT_SUBTYPE, trackDashboardActivity } from '@/lib/analytics';
 import { featureFlags } from '@/lib/feature-flags';
@@ -103,13 +103,27 @@ export function useMingoUnifiedChatState(): MingoUnifiedChat {
   // query key, so the backend filters the list.
   const [searchQuery, setSearchQuery] = useState('');
 
+  // "My Chats / All Chats" rail selector — MY by default. Server-side filter:
+  // rides the `useMingoDialogs` query key as `DialogFilterInput.scope`.
+  const [dialogScope, setDialogScope] = useState<'my' | 'all'>('my');
+  // The scope the QUERY runs with, deferred by one render. `dialogScope` itself
+  // stays urgent, so the rail's selector repaints the moment it's clicked;
+  // swapping the infinite query (new key → mount + request + skeleton across the
+  // whole list) is heavy enough that batching it into the same commit visibly
+  // held the highlight on the OLD tab for a frame — most noticeable on the first
+  // switch, when nothing is cached for the target scope yet. React renders the
+  // deferred value in a background pass, so the tab no longer waits on it.
+  const deferredDialogScope = useDeferredValue(dialogScope);
+
   const {
     dialogs,
     isLoading: isLoadingDialogs,
+    isError: isDialogsError,
+    isFetchingNextPage: isFetchingNextDialogPage,
     hasNextPage: hasMoreDialogs,
     fetchNextPage: fetchNextDialogPage,
     refetch: refetchDialogs,
-  } = useMingoDialogs({ search: searchQuery || undefined });
+  } = useMingoDialogs({ search: searchQuery || undefined, scope: deferredDialogScope });
 
   const { renameDialog, archiveDialog, unarchiveDialog, fetchArchivedDialogs } = useMingoDialogActions();
 
@@ -361,8 +375,14 @@ export function useMingoUnifiedChatState(): MingoUnifiedChat {
   }, [setActiveDialogId]);
 
   const loadMoreDialogs = useCallback(async () => {
+    // No next-page fetches while the list query is in an error state: the
+    // rail's infinite-scroll re-arms after EVERY attempt (that's what keeps a
+    // shorter-than-viewport list auto-filling), so an unconditional fetch
+    // here would hammer a failing backend in a tight retry loop. The 60s poll
+    // or `reloadDialogs` clears the error and re-enables loading.
+    if (isDialogsError) return;
     await fetchNextDialogPage();
-  }, [fetchNextDialogPage]);
+  }, [isDialogsError, fetchNextDialogPage]);
 
   const loadMoreMessages = useCallback(async () => {
     await fetchNextMessagePage();
@@ -417,12 +437,20 @@ export function useMingoUnifiedChatState(): MingoUnifiedChat {
       deleteDialog: noopDialogAction,
       renameDialog,
       archiveDialog,
-      isDialogsLoading: isLoadingDialogs,
+      // OR-ed with next-page fetches: react-query's `isLoading` covers only the
+      // INITIAL load, so without `isFetchingNextPage` the lib's history list
+      // never sees "loading more" (its `isLoadingMore` guard and the
+      // infinite-scroll re-arm both key off it). With rows present the lib
+      // derives `isLoadingMore`; with zero rows (empty "My Chats" scope while
+      // auto-filling) it shows the skeleton instead of a premature empty state.
+      isDialogsLoading: isLoadingDialogs || isFetchingNextDialogPage,
       dialogsError: false,
       reloadDialogs,
       isMessagesLoading: isLoadingMessages || isLoadingDialog,
       hasMoreDialogs: hasMoreDialogs ?? false,
       loadMoreDialogs,
+      dialogScope,
+      setDialogScope,
       hasMoreMessages: hasMoreMessages ?? false,
       loadMoreMessages,
       approveRequest,
@@ -450,11 +478,13 @@ export function useMingoUnifiedChatState(): MingoUnifiedChat {
       renameDialog,
       archiveDialog,
       isLoadingDialogs,
+      isFetchingNextDialogPage,
       reloadDialogs,
       isLoadingMessages,
       isLoadingDialog,
       hasMoreDialogs,
       loadMoreDialogs,
+      dialogScope,
       hasMoreMessages,
       loadMoreMessages,
       approveRequest,

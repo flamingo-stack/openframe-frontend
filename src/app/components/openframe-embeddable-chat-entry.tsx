@@ -40,14 +40,19 @@ import type {
   ChatContextPickerConfig,
   MingoQuickAction,
 } from '@flamingo-stack/openframe-frontend-core/components/chat';
-import { EmbeddableChat } from '@flamingo-stack/openframe-frontend-core/components/chat';
+import {
+  EmbeddableChat,
+  getAgentAccent,
+  renderQuickActionIcon,
+} from '@flamingo-stack/openframe-frontend-core/components/chat';
 import { useEffect, useMemo } from 'react';
 import { featureFlags } from '@/lib/feature-flags';
+import { getFullImageUrl } from '@/lib/image-url';
 import { MINGO_CONTEXT_ENTITY_TYPES } from '../(app)/mingo/context/context-sources';
 import { CONTEXT_ITEMS_MAX } from '../(app)/mingo/context/context-types';
 import { renderMingoContextItem, renderMingoMention } from '../(app)/mingo/context/mention-chips/render-mention';
-import { MingoPageContextTag } from '../(app)/mingo/context/page-context-tag';
 import { renderMingoContextItems } from '../(app)/mingo/context/render-context-items';
+import { useMingoContextMemory } from '../(app)/mingo/context/use-context-memory';
 import { useMingoQuickActions } from '../(app)/mingo/hooks/use-mingo-quick-actions';
 import { DialogSubscription } from '../(app)/mingo/hooks/use-mingo-realtime-subscription';
 import { useMingoUnifiedChatState } from '../(app)/mingo/hooks/use-mingo-unified-chat-state';
@@ -75,6 +80,8 @@ export function OpenframeEmbeddableChatEntry({ open, onOpenChange }: OpenframeEm
     const full = [authUser.firstName, authUser.lastName].filter(Boolean).join(' ').trim();
     return full || authUser.email?.trim() || undefined;
   }, [authUser]);
+  // Header-avatar counterpart of the display name (New Chat compose view).
+  const userAvatarUrl = getFullImageUrl(authUser?.image?.imageUrl, authUser?.image?.hash);
 
   // Queued launcher prompt (`sendToMingo(prompt)` — e.g. the onboarding "Meet
   // Mingo" quick-action chips): drain straight into a fresh Mingo dialog. The
@@ -111,6 +118,11 @@ export function OpenframeEmbeddableChatEntry({ open, onOpenChange }: OpenframeEm
   // undefined makes the lib's composer inert (no `+`, no `@`, no chips).
   const contextEnabled = featureFlags.mingoSidebarContext.enabled();
 
+  // Context-memory strip above the composer: the navigation history Mingo
+  // carries on every message (current page + previously viewed entities), each
+  // droppable from the `⋯` dropdown.
+  const contextMemory = useMingoContextMemory();
+
   // Admin-configured Mingo quick actions (AI Settings → "Mingo AI Chat" tab)
   // become starter chips in the empty state. Clicking one opens a new dialog
   // seeded with the action's instructions — same path the launcher prompt uses.
@@ -121,6 +133,16 @@ export function OpenframeEmbeddableChatEntry({ open, onOpenChange }: OpenframeEm
         id: action.id,
         label: action.name,
         variant: 'outline',
+        // Product Hub defaults carry a glyph (iconName/iconUrl/iconProps);
+        // render it into the chip node. Tenant customs have none → undefined →
+        // no icon. `mingo` accent tints registry glyphs unless the hub icon
+        // sets its own color. The settings editor deliberately omits this.
+        icon: renderQuickActionIcon({
+          name: action.iconName ?? undefined,
+          url: action.iconUrl ?? undefined,
+          props: action.iconProps ?? undefined,
+          accent: getAgentAccent('mingo'),
+        }),
         // Hover/focus previews the full instruction (what's actually sent) as
         // ghost text in the composer; the chip `label` is just the short name.
         prompt: action.instructions,
@@ -164,6 +186,7 @@ export function OpenframeEmbeddableChatEntry({ open, onOpenChange }: OpenframeEm
         // Fallback for the lib's server identity when the tenant identity route
         // returns no name — sourced from the host auth store.
         userDisplayName={userDisplayName}
+        userAvatarUrl={userAvatarUrl}
         // Mingo mode is host-owned via `mingoState`, so we do NOT pass
         // `modes.mingo` — that keeps the lib's built-in NATS adapter idle.
         // `modes.guide` (re)enables Guide mode on the lib's unified SSE
@@ -207,11 +230,12 @@ export function OpenframeEmbeddableChatEntry({ open, onOpenChange }: OpenframeEm
         // self-fetching chips as inline mentions — so manually attached context
         // resolves its live name + link instead of the lib's label-only pill.
         renderContextItem={contextEnabled ? renderMingoContextItem : undefined}
-        // Mingo-mode "current page context" banner (Figma 192:51006): names the
-        // entity detail page the user is on now (read from the navigation-context
-        // store). The lib renders it under the header in Mingo mode only; the tag
-        // self-hides when there's no open view.
-        mingoContextBanner={<MingoPageContextTag />}
+        // Context memory (Figma 271:38656): the strip at the top of the composer
+        // card naming what Mingo remembers from this session's navigation — the
+        // open entity page plus the recently viewed ones — with a `⋯` dropdown
+        // to review and forget individual entries. Replaces the old under-the-
+        // header page-context banner. The strip self-hides when memory is empty.
+        contextMemory={contextEnabled ? contextMemory : undefined}
       />
     </>
   );

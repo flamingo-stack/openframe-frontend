@@ -29,6 +29,22 @@ export const USER_ONBOARDING_STEPS: readonly UserOnboardingStep[] = [
   UserOnboardingStep.MEET_MINGO,
 ];
 
+/**
+ * DOM id + URL hash fragment for a step's accordion block on /onboarding
+ * (`CUSTOMERS_SETUP` → `step-customers-setup`, deep-linked as
+ * `/onboarding#step-customers-setup`). Namespaced with `step-` the way the
+ * hub namespaces its anchors (`faq-…`, `delivery-…`) so generic step names
+ * (`TICKETS` → `tickets`) can't collide with other DOM ids on the page.
+ */
+export function onboardingStepAnchorId(step: string): string {
+  return `step-${step.toLowerCase().replace(/_/g, '-')}`;
+}
+
+/** Reverse of {@link onboardingStepAnchorId}, validated against `steps`; unknown fragment → null. */
+export function onboardingStepFromAnchorId<T extends string>(steps: readonly T[], anchorId: string): T | null {
+  return steps.find(step => onboardingStepAnchorId(step) === anchorId) ?? null;
+}
+
 /** Count how many of `steps` appear in `completedSteps` (order-independent). */
 export function countCompleted<T extends string>(steps: readonly T[], completedSteps: readonly T[]): number {
   const done = new Set(completedSteps);

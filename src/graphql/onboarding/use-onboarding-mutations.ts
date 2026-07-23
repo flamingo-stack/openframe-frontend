@@ -130,8 +130,11 @@ export function useOnboardingMutations() {
     [environment, setUser, toast],
   );
 
+  // `onDone` fires only on success; `onFailed` on error (after the error toast) so an
+  // auto-completing caller can drop its completion guard and offer a retry instead of
+  // being stranded with the mutation never re-fired.
   const completeTenant = useCallback(
-    (successMessage = 'Initial Setup complete') => {
+    (onDone?: () => void, onFailed?: () => void) => {
       begin();
       commitMutation<CompleteTenantType>(environment, {
         mutation: completeTenantOnboardingMutation,
@@ -139,9 +142,13 @@ export function useOnboardingMutations() {
         onCompleted: res => {
           finish();
           setTenant(toTenant(res.completeTenantOnboarding));
-          toast({ title: successMessage, variant: 'success' });
+          toast({ title: 'Initial Setup complete', variant: 'success' });
+          onDone?.();
         },
-        onError: onError('Failed to complete setup'),
+        onError: err => {
+          onError('Failed to complete setup')(err);
+          onFailed?.();
+        },
       });
     },
     [environment, begin, finish, setTenant, toast, onError],
@@ -168,8 +175,11 @@ export function useOnboardingMutations() {
     [environment, begin, finish, setUser, onError],
   );
 
+  // `onFailed` mirrors `completeTenant`: the auto-completing tour uses it to fall back
+  // to a retry affordance rather than leaving the user stuck on a finished-but-not-
+  // completed page after a failed request.
   const completeUser = useCallback(
-    (onDone?: () => void) => {
+    (onDone?: () => void, onFailed?: () => void) => {
       begin();
       commitMutation<CompleteUserType>(environment, {
         mutation: completeUserOnboardingMutation,
@@ -180,7 +190,10 @@ export function useOnboardingMutations() {
           toast({ title: 'Onboarding complete', variant: 'success' });
           onDone?.();
         },
-        onError: onError('Failed to finish onboarding'),
+        onError: err => {
+          onError('Failed to finish onboarding')(err);
+          onFailed?.();
+        },
       });
     },
     [environment, begin, finish, setUser, toast, onError],

@@ -75,7 +75,8 @@ function parseSockJsFrame(raw: string): {
 }
 
 export interface UseLiveCampaignReturn {
-  startCampaign: (sql: string, hostIds: number[]) => Promise<void>;
+  /** Resolves true once the campaign is created and streaming starts; false on validation/setup failure. */
+  startCampaign: (sql: string, hostIds: number[]) => Promise<boolean>;
   stopCampaign: () => void;
   isRunning: boolean;
   startedAt: Date | null;
@@ -317,12 +318,12 @@ export function useLiveCampaign(): UseLiveCampaignReturn {
     async (sql: string, hostIds: number[]) => {
       if (!sql.trim()) {
         toast({ title: 'Query is required', description: 'Enter a query before testing', variant: 'destructive' });
-        return;
+        return false;
       }
 
       if (!fleetApiToken) {
         toast({ title: 'Fleet API token not available', description: 'Please try again', variant: 'destructive' });
-        return;
+        return false;
       }
 
       // Reset state
@@ -433,6 +434,8 @@ export function useLiveCampaign(): UseLiveCampaignReturn {
             stopCampaign();
           }
         };
+
+        return true;
       } catch (error) {
         cleanup();
         if (isMountedRef.current) {
@@ -441,6 +444,7 @@ export function useLiveCampaign(): UseLiveCampaignReturn {
           const message = error instanceof Error ? error.message : 'Failed to start campaign';
           toast({ title: 'Test Failed', description: message, variant: 'destructive' });
         }
+        return false;
       }
     },
     [cleanup, fleetApiToken, handleCampaignMessage, stopCampaign, toast],

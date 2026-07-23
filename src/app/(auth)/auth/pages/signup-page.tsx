@@ -40,7 +40,9 @@ export default function SignupPage() {
 
   useEffect(() => {
     if (isAuthenticated && !isAuthOnlyMode()) {
-      router.push(routes.dashboard);
+      // replace, not push: keep the signup screen out of the back stack so
+      // native/browser back can't return to it after a successful signup.
+      router.replace(routes.dashboard);
     }
   }, [isAuthenticated, router]);
 
@@ -93,7 +95,7 @@ export default function SignupPage() {
     <TabSelector
       value="signup"
       onValueChange={value => {
-        if (value === 'login') router.push('/auth/login');
+        if (value === 'login') router.replace(routes.auth.login);
       }}
       variant="primary"
       items={[

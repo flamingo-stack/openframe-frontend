@@ -225,11 +225,13 @@ export function useAuth() {
             tenantDomain: tenantInfo.tenantDomain !== 'localhost' ? tenantInfo.tenantDomain : undefined,
           });
           if (tenantHostChanged) {
-            window.location.assign('/dashboard');
+            // replace, not assign: keep /auth out of the history stack so
+            // native/browser back can't return to the login screen post-login.
+            window.location.replace(routes.dashboard);
             return;
           }
           triggerAuthRecheck();
-          router.push(routes.dashboard);
+          router.replace(routes.dashboard);
           setIsLoading(false);
           return;
         }
@@ -307,8 +309,9 @@ export function useAuth() {
       authApiClient.logout(effectiveTenantId);
     } else {
       // After an explicit logout the user goes straight to the Login tab.
+      // replace, not assign: keep the just-signed-out page out of history.
       const sharedHostUrl = runtimeEnv.sharedHostUrl();
-      window.location.href = `${sharedHostUrl}/auth/login`;
+      window.location.replace(`${sharedHostUrl}${routes.auth.login}`);
     }
   }, [clearTokens, setEmail, setTenantInfo, setHasDiscoveredTenants, setAvailableProviders, tenantInfo, queryClient]);
 

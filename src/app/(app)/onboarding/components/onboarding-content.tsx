@@ -2,16 +2,23 @@
 
 import { CheckCircleIcon, FastForwardIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import { PageLayout } from '@flamingo-stack/openframe-frontend-core/components/ui';
+import { navigateSamePageHash } from '@flamingo-stack/openframe-frontend-core/utils';
 import { useRouter } from 'next/navigation';
-import { type ComponentType, useEffect, useState } from 'react';
+import { type ComponentType, useCallback, useEffect, useState } from 'react';
 import { ConfirmDialog } from '@/app/components/shared/confirm-dialog';
 import { UserOnboardingStep } from '@/generated/schema-enums';
 import { useOnboardingMutations } from '@/graphql/onboarding/use-onboarding-mutations';
 import { EVENT_SUBTYPE, trackDashboardActivity } from '@/lib/analytics';
 import { routes } from '@/lib/routes';
 import { useOnboardingStore } from '@/stores/onboarding-store';
-import { useOnboardingAutoAdvance } from '../hooks/use-onboarding-auto-advance';
-import { countCompleted, isStepDone, USER_ONBOARDING_STEPS } from '../onboarding-steps';
+import { ANCHOR_TOP_OFFSET_PX, useOnboardingAutoAdvance } from '../hooks/use-onboarding-auto-advance';
+import {
+  countCompleted,
+  isStepDone,
+  onboardingStepAnchorId,
+  onboardingStepFromAnchorId,
+  USER_ONBOARDING_STEPS,
+} from '../onboarding-steps';
 import { USER_ONBOARDING_GROUPS } from '../user-onboarding-groups';
 import { CustomerSetupStep } from './customer-setup-step';
 import { DeviceSetupStep } from './device-setup-step';
@@ -55,7 +62,7 @@ const STEP_BODY: Record<UserOnboardingStep, ComponentType<StepBodyProps>> = {
 
 /**
  * User "Get Started" onboarding. Step statuses, the header counter and the
- * Skip/Finish actions are driven by `userOnboardingProgress` (via the onboarding
+ * Skip action are driven by `userOnboardingProgress` (via the onboarding
  * store); each step's "Mark as Complete" commits `completeUserOnboardingStep`.
  *
  * Mount gate only: shows the skeleton until progress is loaded (and redirects if the
@@ -97,19 +104,83 @@ function LoadedOnboardingContent() {
   const { completeUserStep, completeUserStepInBackground, completeUser, skipUser, isMutating } =
     useOnboardingMutations();
 
-  const leaveOnboarding = () => router.push(routes.dashboard);
+  const leaveOnboarding = useCallback(() => router.push(routes.dashboard), [router]);
 
   const completedSteps = user?.completedSteps ?? [];
+
+  // The URL hash mirrors the open accordion block (`/onboarding#step-tickets`) —
+  // the hub's same-page anchor model. Each row's DOM id is its anchor
+  // (`onboardingStepAnchorId`); the fragment parses back to a step here, unknown
+  // fragments → null. Lazy initializer: this component only mounts client-side
+  // (behind the `isLoaded` gate), so reading `location.hash` during the first
+  // render is safe and gives the deep-linked step to the auto-advance hook from
+  // the start — an effect would run after the hook's mount anchor.
+  const [hashStep, setHashStep] = useState<UserOnboardingStep | null>(() =>
+    typeof window === 'undefined'
+      ? null
+      : onboardingStepFromAnchorId(USER_ONBOARDING_STEPS, window.location.hash.slice(1)),
+  );
+  // Back/forward + the synthetic `hashchange` that `navigateSamePageHash` fires
+  // for our own writes — both funnel into the same parsed-state refresh.
+  useEffect(() => {
+    const refresh = () => setHashStep(onboardingStepFromAnchorId(USER_ONBOARDING_STEPS, window.location.hash.slice(1)));
+    window.addEventListener('hashchange', refresh);
+    return () => window.removeEventListener('hashchange', refresh);
+  }, []);
+
+  // Open/close → hash write. Opening goes through the canonical
+  // `navigateSamePageHash` (replaceState — a step toggle is not a history step —
+  // + synthetic `hashchange` + anchoring-proof tween aimed at the same offset the
+  // hook scrolls to). Closing clears the fragment; the helper deliberately
+  // refuses hash-less targets, so replicate its replaceState + synthetic-event
+  // pair (`replaceState` fires no native `hashchange` per the HTML spec).
+  const syncHashToStep = useCallback((step: UserOnboardingStep | null) => {
+    if (step) {
+      navigateSamePageHash(`#${onboardingStepAnchorId(step)}`, {
+        headerOffset: ANCHOR_TOP_OFFSET_PX,
+        history: 'replace',
+      });
+    } else {
+      const oldUrl = window.location.href;
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      // biome-ignore lint/style/useNamingConvention: oldURL/newURL are the DOM HashChangeEventInit field names
+      window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL: oldUrl, newURL: window.location.href }));
+    }
+  }, []);
 
   // Guided flow: the first incomplete step opens automatically (anchored on mount —
   // the next step may be a group or two below the fold) and, as steps complete, the
   // flow advances: finished step folds, the next one opens and scrolls into view.
   const { expandedOf, onExpandedChangeOf, refOf } = useOnboardingAutoAdvance(USER_ONBOARDING_STEPS, completedSteps, {
     scrollOnMount: true,
+    urlStep: hashStep,
+    onOpenStepChange: syncHashToStep,
   });
   const total = USER_ONBOARDING_STEPS.length;
   const done = countCompleted(USER_ONBOARDING_STEPS, completedSteps);
   const allDone = done >= total;
+
+  // No manual finisher on the happy path: the instant every step is done, auto-complete
+  // the tour (unless it was already completed — e.g. a deep link back here) and return to
+  // the dashboard. A small state machine both guards against a re-fire while the mutation
+  // round-trips (`allDone` stays true across the intermediate renders) AND recovers from
+  // failure: on error it drops to `failed`, stopping the auto-fire and surfacing a retry
+  // action, so a network error can't strand the user on a finished-but-not-completed tour.
+  const [completion, setCompletion] = useState<'idle' | 'completing' | 'failed'>('idle');
+  const runCompletion = useCallback(() => {
+    // Already completed (deep link back here) — nothing to commit, just leave.
+    if (user?.completed) {
+      leaveOnboarding();
+      return;
+    }
+    setCompletion('completing');
+    completeUser(leaveOnboarding, () => setCompletion('failed'));
+  }, [user?.completed, completeUser, leaveOnboarding]);
+  useEffect(() => {
+    if (allDone && completion === 'idle') {
+      runCompletion();
+    }
+  }, [allDone, completion, runCompletion]);
 
   const statusOf = (step: UserOnboardingStep): OnboardingStepStatus =>
     isStepDone(step, completedSteps) ? 'completed' : 'active';
@@ -122,11 +193,13 @@ function LoadedOnboardingContent() {
   // Fire-and-forget completion for "open"/navigate primary actions — no loading anywhere.
   const completeBackgroundOf = (step: UserOnboardingStep) => () => completeUserStepInBackground(step);
 
-  // A single header action, per design: once every step is done it becomes the accent
-  // "Complete Onboarding" finisher; until then it's just "Skip Onboarding" (no Finish
-  // alongside it — one button only).
+  // Header action. Normally "Skip Onboarding", available until every step is done; once
+  // all steps complete the page auto-completes and leaves for the dashboard (see the
+  // effect above), so no action shows then. If that auto-completion FAILS we fall back
+  // to an accent "Complete Onboarding" retry — the only manual finisher, on the error
+  // path only — so a network error can't strand the user with no way forward.
   const actions =
-    allDone && !user?.completed
+    completion === 'failed'
       ? [
           {
             label: 'Complete Onboarding',
@@ -134,18 +207,20 @@ function LoadedOnboardingContent() {
             icon: <CheckCircleIcon className="size-5" />,
             disabled: isMutating,
             loading: isMutating,
-            onClick: () => completeUser(leaveOnboarding),
+            onClick: runCompletion,
           },
         ]
-      : [
-          {
-            label: 'Skip Onboarding',
-            variant: 'outline' as const,
-            icon: <FastForwardIcon className="size-5" />,
-            disabled: isMutating,
-            onClick: () => setSkipConfirmOpen(true),
-          },
-        ];
+      : allDone
+        ? []
+        : [
+            {
+              label: 'Skip Onboarding',
+              variant: 'outline' as const,
+              icon: <FastForwardIcon className="size-5" />,
+              disabled: isMutating,
+              onClick: () => setSkipConfirmOpen(true),
+            },
+          ];
 
   return (
     <PageLayout
@@ -164,6 +239,7 @@ function LoadedOnboardingContent() {
               <OnboardingAccordionItem
                 key={item.step}
                 ref={refOf(item.step)}
+                id={onboardingStepAnchorId(item.step)}
                 icon={item.icon}
                 status={statusOf(item.step)}
                 title={item.title}

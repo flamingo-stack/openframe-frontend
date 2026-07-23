@@ -4,6 +4,7 @@ import { type DialogItem, useOptionalNotifications } from '@flamingo-stack/openf
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { getFullImageUrl } from '@/lib/image-url';
 import { GET_MINGO_DIALOGS_QUERY } from '../queries/dialogs-queries';
 import type { DialogNode, DialogsResponse, UseMingoDialogsOptions } from '../types';
 
@@ -18,16 +19,26 @@ const HIGHLIGHT_UNREAD_FROM_NOTIFICATIONS: boolean = false;
 const ACTIVE_DIALOG_STATUSES = ['ACTIVE', 'ACTION_REQUIRED', 'ON_HOLD', 'RESOLVED'] as const;
 
 function transformToDialogItem(dialog: DialogNode, unreadCount: number = 0): DialogItem {
+  // Admin owner → trailing avatar in the chat-history rows (Figma 113:63224).
+  // Client-owned dialogs (machine) carry no admin user — no avatar.
+  const ownerUser = dialog.owner?.user;
+  const ownerName = [ownerUser?.firstName, ownerUser?.lastName].filter(Boolean).join(' ');
   return {
     id: dialog.id,
     title: dialog.title || 'Untitled Dialog',
     timestamp: new Date(dialog.createdAt),
     unreadMessagesCount: unreadCount,
+    owner: dialog.owner?.userId
+      ? {
+          name: ownerName || 'Admin',
+          avatarUrl: getFullImageUrl(ownerUser?.image?.imageUrl, ownerUser?.image?.hash) ?? null,
+        }
+      : undefined,
   };
 }
 
 export function useMingoDialogs(options: UseMingoDialogsOptions = {}) {
-  const { enabled = true, search, limit = 20 } = options;
+  const { enabled = true, search, limit = 20, scope = 'all' } = options;
   const notifications = useOptionalNotifications();
 
   // Per-dialog unread badge = count of unread notifications (mingo message / approval request)
@@ -45,7 +56,9 @@ export function useMingoDialogs(options: UseMingoDialogsOptions = {}) {
   }, [notifications?.notifications]);
 
   const query = useInfiniteQuery({
-    queryKey: ['mingo-dialogs', { search, limit }],
+    // `scope` is part of the key: MY/ALL are different server-side datasets
+    // with their own cursors, so they must not share cached pages.
+    queryKey: ['mingo-dialogs', { search, limit, scope }],
     queryFn: async ({
       pageParam,
     }): Promise<{ dialogs: DialogNode[]; pageInfo: { hasNextPage: boolean; endCursor?: string } }> => {
@@ -53,6 +66,10 @@ export function useMingoDialogs(options: UseMingoDialogsOptions = {}) {
         filter: {
           agentTypes: ['ADMIN'],
           statuses: ACTIVE_DIALOG_STATUSES,
+          // Server-side ownership filter (ChatScope enum): MY = only the
+          // signed-in admin's dialogs. Keeps cursor pages dense — no
+          // client-side re-filtering needed.
+          scope: scope === 'my' ? 'MY' : 'ALL',
         },
         pagination: {
           limit,

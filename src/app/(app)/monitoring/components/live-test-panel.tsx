@@ -31,8 +31,18 @@ function formatDuration(ms: number): string {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function CollapsibleSection({ color, title, children }: { color: string; title: string; children: React.ReactNode }) {
-  const [isOpen, setIsOpen] = useState(false);
+function CollapsibleSection({
+  color,
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  color: string;
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const Icon = isOpen ? ChevronDown : ChevronRight;
 
   return (
@@ -67,7 +77,8 @@ export function LiveTestPanel({
   onStop,
   onClose,
 }: LiveTestPanelProps) {
-  const label = mode === 'query' ? 'QUERY' : 'POLICY';
+  const isPolicy = mode === 'policy';
+  const label = isPolicy ? 'POLICY' : 'QUERY';
   const isFinished = campaignStatus === 'finished';
   const totalOnlineHosts = totals?.online ?? 0;
   const totalResponded = hostsResponded + hostsFailed;
@@ -164,11 +175,18 @@ export function LiveTestPanel({
           </CollapsibleSection>
         )}
 
-        {/* Empty results warning */}
+        {/* Empty results warning. For a policy, "no data" IS the failing outcome
+            (no rows returned = Fail), so the section is labeled accordingly and
+            starts expanded — it's the run's main result, not a side warning. */}
         {isFinished && emptyResults.length > 0 && (
           <CollapsibleSection
             color="var(--color-warning)"
-            title={`${emptyResults.length} host${emptyResults.length !== 1 ? 's' : ''} returned no data`}
+            title={
+              isPolicy
+                ? `${emptyResults.length} ${emptyResults.length !== 1 ? 'devices' : 'device'} failed this policy (no data returned)`
+                : `${emptyResults.length} host${emptyResults.length !== 1 ? 's' : ''} returned no data`
+            }
+            defaultOpen={isPolicy}
           >
             {emptyResults.slice(0, 10).map((item, i) => (
               <p key={i} className="text-h6 text-ods-text-secondary">
@@ -188,7 +206,13 @@ export function LiveTestPanel({
             data={results}
             loading={isRunning && results.length === 0}
             skeletonRows={4}
-            emptyMessage={isRunning ? 'Waiting for results...' : 'No results returned'}
+            emptyMessage={
+              isRunning
+                ? 'Waiting for results...'
+                : isPolicy && emptyResults.length > 0
+                  ? 'All responded devices failed this policy — the query returned no rows.'
+                  : 'No results returned'
+            }
             columnOrder={['host_display_name']}
             exportFilename={`test-${mode}-results`}
             showExport={false}

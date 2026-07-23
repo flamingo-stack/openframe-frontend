@@ -66,7 +66,7 @@ function CustomerAiConfigurationReadOnly({ organizationId }: CustomerCustomAiAss
     enabled: featureFlags.customerAiAssistantSettings.enabled(),
   });
 
-  if (isViewLoading || isConfigLoading) {
+  if (isViewLoading || isConfigLoading || hubDefaults.loading) {
     return (
       <div className="flex flex-col gap-[var(--spacing-system-l)]">
         <Skeleton className="h-16 w-full rounded-md" />
@@ -88,13 +88,15 @@ function CustomerAiConfigurationReadOnly({ organizationId }: CustomerCustomAiAss
   // Fully inheriting = no appearance override AND the AI logic inherits.
   const inheritsDefault = !orgView && (orgConfig?.inheritDefault ?? true);
   const effectiveView = orgView ?? defaultView ?? getDefaultClientView(organizationId);
-  // Show what the customer effectively gets: their (or the inherited tenant's)
-  // custom list, else the OpenFrame hub defaults.
+  // orgConfig.quickActions is the live effective list: the customer's own set
+  // when customized, else the tenant's current one; null → the built-in MPH set.
   const quickActions = orgConfig?.quickActions ?? hubDefaults.actions;
-  // "Using your custom actions" is only accurate when THIS customer owns an
-  // override — while inheriting, the actions belong to the default/tenant set,
-  // so the banner must stay consistent with the "using default" banner above.
-  const quickActionsIsDefault = inheritsDefault || !orgConfig?.quickActions;
+  const usesGlobalDefault = orgConfig?.quickActionsIsDefault ?? true;
+  // Only when the effective list is OpenFrame's built-in set (inheriting AND
+  // the tenant kept it) does the shared "OpenFrame …" header + "curated by
+  // OpenFrame" banner apply.
+  const isOpenFrameSet = usesGlobalDefault && !orgConfig?.quickActions;
+
   // AiSettingsOverview consumes the tenant-level AgentAiConfig shape; project
   // the effective org values onto it (nullable fields fall back like the
   // global screen's defaults).
@@ -104,16 +106,25 @@ function CustomerAiConfigurationReadOnly({ organizationId }: CustomerCustomAiAss
     providerModel: orgConfig?.providerModel ?? '',
     answerStyle: orgConfig?.answerStyle ?? null,
     customPrompt: orgConfig?.customPrompt ?? null,
-    quickActionsIsDefault,
+    quickActionsIsDefault: isOpenFrameSet,
     quickActions,
   };
+
+  // Banner: OpenFrame set keeps the shared "curated by OpenFrame" copy; a list
+  // matching the (customized) tenant default reads as inherited; anything else
+  // is this customer's own set.
+  const quickActionsBanner = isOpenFrameSet
+    ? undefined
+    : usesGlobalDefault
+      ? { value: 'Using default quick actions', label: 'Inherited from your global AI-Assistant configuration.' }
+      : { value: 'Using custom actions', label: 'These quick actions were configured for this customer.' };
 
   return (
     <div className="flex flex-col gap-[var(--spacing-system-l)]">
       {inheritsDefault && (
         <div className="bg-ods-card border border-ods-border rounded-md flex flex-col md:flex-row md:items-center gap-[var(--spacing-system-s)] p-[var(--spacing-system-s)]">
           <div className="flex items-center gap-[var(--spacing-system-s)] flex-1 min-w-0">
-            <InfoCircleIcon className="size-6 text-ods-text-primary shrink-0" />
+            <InfoCircleIcon className="size-6 text-ods-text-secondary shrink-0" />
             <div className="flex flex-col min-w-0">
               <p className="text-h4 text-ods-text-primary">Using default AI-Assistant configuration</p>
               <p className="text-h6 text-ods-text-secondary">
@@ -137,6 +148,7 @@ function CustomerAiConfigurationReadOnly({ organizationId }: CustomerCustomAiAss
         view={effectiveView}
         providerModelLabel={getProviderModelLabel(modelsByProvider, aiConfig.llmProvider, aiConfig.providerModel)}
         quickActions={quickActions}
+        quickActionsBanner={quickActionsBanner}
       />
     </div>
   );

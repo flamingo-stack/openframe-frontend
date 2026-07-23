@@ -6,7 +6,7 @@ import { STORAGE_KEYS } from '@/app/(app)/tickets/constants';
 import { useAuthStore } from '@/app/(auth)/auth/stores/auth-store';
 import { apiClient } from '@/lib/api-client';
 import { runtimeEnv } from '@/lib/runtime-config';
-import { getAccessTokenSync, isBearerAuthMode } from '@/lib/token-store';
+import { getAccessTokenSync, isBearerAuthMode, subscribeToTokenChange } from '@/lib/token-store';
 
 function getApiBaseUrl(): string | null {
   const envBase = runtimeEnv.tenantHostUrl();
@@ -39,13 +39,21 @@ function useNatsAppConfigState(): NatsAppConfig {
 
   useEffect(() => {
     if (!isDevTicketEnabled) return;
+    // Web: token rotations land in localStorage and surface as `storage` events.
+    // Native: tokens live only in the token-store memory cache + Keychain, so the
+    // `storage` event never fires — subscribe to the store's change emitter so the
+    // cached bearer stays fresh (next connect/reconnect uses the new value).
     const handler = (e: StorageEvent) => {
       if (e.key === STORAGE_KEYS.ACCESS_TOKEN) {
         setToken(getAccessToken());
       }
     };
     window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
+    const unsubscribe = subscribeToTokenChange(() => setToken(getAccessToken()));
+    return () => {
+      window.removeEventListener('storage', handler);
+      unsubscribe();
+    };
   }, [isDevTicketEnabled]);
 
   useEffect(() => {

@@ -19,7 +19,17 @@ export function useHubDefaultQuickActions(agentSlug: string, options: { enabled?
   const { config, loading, loaded } = useEmptyStateConfig(hubAgentConfigUrl(agentSlug), options);
 
   const actions = useMemo<AiQuickAction[]>(
-    () => config.quickActions.map(action => ({ id: action.id, name: action.label, instructions: action.prompt })),
+    () =>
+      config.quickActions.map(action => ({
+        id: action.id,
+        name: action.label,
+        instructions: action.prompt,
+        // Preserve the hub glyph so the CHAT chip can render it. The settings
+        // editor ignores these fields (it can't persist icons yet).
+        iconName: action.iconName,
+        iconUrl: action.iconUrl,
+        iconProps: action.iconProps,
+      })),
     [config.quickActions],
   );
 

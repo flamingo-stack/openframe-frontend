@@ -38,6 +38,11 @@ interface MingoContextState {
    *  the caller set so a stale unmount-cleanup can't clobber a newer open view
    *  that a just-mounted page already set (navigation ordering race). */
   clearOpenView: (ref?: { type: string; id: string }) => void;
+  /** Forget ONE entity — the open view and/or its recent-views entry. Backs the
+   *  composer's context-memory dropdown (row ×). Unlike `clearOpenView`, a
+   *  removed open view is NOT rolled into `recentViews`: the user asked for it
+   *  to be dropped from the context, not demoted. */
+  removeView: (ref: { type: string; id: string }) => void;
   /** Wipe recent views (dev-window debug action). */
   clearRecentViews: () => void;
 }
@@ -77,6 +82,19 @@ export const useMingoContextStore = create<MingoContextState>()(
           // different open view, our stale cleanup must not null it out.
           if (ref && refKey(openView) !== refKey(ref)) return;
           set({ openView: null, recentViews: rollIntoRecents(recentViews, openView) }, false, 'clearOpenView');
+        },
+
+        removeView: ref => {
+          const { openView, recentViews } = get();
+          const key = refKey(ref);
+          set(
+            {
+              openView: openView && refKey(openView) === key ? null : openView,
+              recentViews: recentViews.filter(r => refKey(r) !== key),
+            },
+            false,
+            'removeView',
+          );
         },
 
         clearRecentViews: () => set({ recentViews: [] }, false, 'clearRecentViews'),

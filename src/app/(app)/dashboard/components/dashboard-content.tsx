@@ -3,7 +3,7 @@
 import { PageLayout } from '@flamingo-stack/openframe-frontend-core';
 import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
 import { Suspense } from 'react';
-import { InitialSetupCard } from '@/app/(app)/onboarding/components/initial-setup-card';
+import { InitialSetupCard, InitialSetupSkeleton } from '@/app/(app)/onboarding/components/initial-setup-card';
 import { isSaasTenantMode } from '@/lib/app-mode';
 import { featureFlags } from '@/lib/feature-flags';
 import { useOnboardingStore } from '@/stores/onboarding-store';
@@ -49,12 +49,18 @@ export default function DashboardContent() {
       {/* Local Suspense so the setup card's suspending queries (e.g. DeviceSetupStep's
           `useDeviceOrganizations`, a `useSuspenseQuery`) are caught here instead of
           bubbling to the route-level `loading.tsx` and re-flashing the whole dashboard
-          skeleton. Fallback is `null` (no skeleton): the Initial Setup block is an
-          optional, one-time surface and permanently hidden once complete, so reserving
-          a tall skeleton for it just adds a block that collapses on load — the card
-          simply appears when its data settles (or stays absent when setup is done). */}
+          skeleton. Fallback is the card skeleton (not `null`) so the suspend doesn't
+          flash an empty gap between the card's own count-loading skeleton and its
+          content — the same skeleton carries through while onboarding progress
+          (the tenant step-detection round-trips) loads. */}
       {newOnboardingEnabled && (
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <div className={ONBOARDING_WRAPPER_CLASS}>
+              <InitialSetupSkeleton />
+            </div>
+          }
+        >
           <div className={ONBOARDING_WRAPPER_CLASS}>
             <InitialSetupCard />
           </div>

@@ -24,12 +24,14 @@ import { useLogoutConfirmStore } from '@/app/(auth)/auth/stores/logout-confirm-s
 import { LogoutConfirmModal } from '@/app/components/shared/logout-confirm-modal';
 import { featureFlags } from '@/lib/feature-flags';
 import { getFullImageUrl } from '@/lib/image-url';
+import { useNativeBackDismissible } from '@/lib/native-back';
 import { isNativeShell } from '@/lib/native-shell';
 import { routes } from '@/lib/routes';
 import { useOnboardingStore } from '@/stores/onboarding-store';
 import { isAuthOnlyMode, isOssTenantMode, isSaasTenantMode } from '../../lib/app-mode';
 import { getNavigationItems } from '../../lib/navigation-config';
 import { AppShellSkeleton } from './app-shell-skeleton';
+import { BiometricEnrollPrompt } from './biometric-enroll-prompt';
 import { ChatDrawerErrorBoundary } from './chat-drawer-error-boundary';
 import { InitialSetupBar } from './initial-setup-bar';
 import { NativePushInitializer } from './native-push-initializer';
@@ -92,10 +94,18 @@ function AppShell({ children, mainClassName }: { children: React.ReactNode; main
   );
 
   const openLogoutConfirm = useLogoutConfirmStore(state => state.open);
+  const logoutOpen = useLogoutConfirmStore(state => state.isOpen);
+  const closeLogout = useLogoutConfirmStore(state => state.close);
 
   const handleLogout = useCallback(() => {
     openLogoutConfirm();
   }, [openLogoutConfirm]);
+
+  // Android hardware/gesture back dismisses an open overlay before navigating
+  // the SPA history (native-back.ts). iOS uses the WKWebView edge-swipe.
+  const closeChat = useCallback(() => setChatOpen(false), [setChatOpen]);
+  useNativeBackDismissible(chatOpen, closeChat);
+  useNativeBackDismissible(logoutOpen, closeLogout);
 
   const handleProfile = useCallback(() => {
     router.push(userId ? employeeDetailHref(userId) : '/settings');
@@ -386,6 +396,7 @@ function AppLayoutInner({ children, mainClassName }: { children: React.ReactNode
   return (
     <>
       <NativePushInitializer />
+      <BiometricEnrollPrompt />
       <SubscriptionGuard fallback={<AppShellSkeleton />}>
         <AppShell mainClassName={mainClassName}>{children}</AppShell>
       </SubscriptionGuard>

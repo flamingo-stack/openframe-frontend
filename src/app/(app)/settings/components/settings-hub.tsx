@@ -23,6 +23,7 @@ import { featureFlags } from '@/lib/feature-flags';
 import { handleApiError } from '@/lib/handle-api-error';
 import { routes } from '@/lib/routes';
 import { AccountSettingsCard } from './account-settings-card';
+import { BiometricLoginCard } from './biometric-login-card';
 import { EditProfileModal } from './edit-profile-modal';
 import { EmailVerificationBanner } from './email-verification-banner';
 import { EmailVerificationModal } from './email-verification-modal';
@@ -154,6 +155,9 @@ export function SettingsHub() {
         />
 
         {user?.emailVerified === false && <EmailVerificationBanner onResend={() => setIsVerificationModalOpen(true)} />}
+
+        {/* Native-shell-only; renders null on web/desktop and when biometrics are unavailable. */}
+        <BiometricLoginCard />
       </div>
 
       {/* Navigation Cards Grid */}

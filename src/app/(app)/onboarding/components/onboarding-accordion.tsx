@@ -6,6 +6,20 @@ import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
 import React from 'react';
 
 /**
+ * Inline (phrasing-valid `<span>`) skeleton bar for the loading title/description.
+ * Lives INSIDE the real `<p>` so that element's line box sets the height — the loading
+ * row is pixel-identical to the loaded one, only the text is a bar instead of real text.
+ */
+function InlineTextSkeleton({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn('inline-block max-w-full animate-pulse rounded-md bg-ods-border align-middle', className)}
+    />
+  );
+}
+
+/**
  * Visual status of an onboarding step.
  * - `active`    — interactive step, can be expanded/collapsed (uses its own icon)
  * - `completed` — finished step, shows a green check + "Complete" tag, still expandable
@@ -34,11 +48,16 @@ export interface OnboardingAccordionItemProps {
   /** Ref to the row's root element — the scroll anchor for the auto-advance flow. */
   ref?: React.Ref<HTMLDivElement>;
   /**
-   * Loading state: the step's static content (icon, title, description) is known,
-   * but its completion status is not yet loaded. Renders the row exactly as an
-   * `active` step but with the trailing status control (Complete tag + chevron)
-   * replaced by a skeleton, and the body not mounted. Lets the page skeleton reuse
-   * this row verbatim instead of re-implementing it. @default false
+   * DOM id for the row's root element — the URL-hash anchor target
+   * (`/onboarding#step-…`, see `onboardingStepAnchorId`). Optional: surfaces
+   * without hash deep-linking (the dashboard card) omit it.
+   */
+  id?: string;
+  /**
+   * Loading state: renders the row frame exactly as an `active` step, but the title,
+   * description and trailing status control are all skeleton bars (only the leading
+   * icon stays real), and the body is not mounted. Kept pixel-identical in height to
+   * the loaded row so the page skeleton reuses it verbatim without a jump. @default false
    */
   loading?: boolean;
   /** Expanded body. Not implemented yet — the step body is wired up later. */
@@ -65,6 +84,7 @@ export function OnboardingAccordionItem({
   loading = false,
   children,
   ref,
+  id,
 }: OnboardingAccordionItemProps) {
   const isDisabled = !loading && status === 'disabled';
   const isCompleted = !loading && status === 'completed';
@@ -81,10 +101,11 @@ export function OnboardingAccordionItem({
   return (
     <div
       ref={ref}
+      id={id}
       className={cn(
-        // scroll-mt clears the sticky app header (h-12/md:h-14, z-[50]) plus breathing
-        // room when the auto-advance flow anchors this row via scrollIntoView.
-        'w-full scroll-mt-20 border-b border-ods-border transition-colors duration-200 ease-out motion-reduce:transition-none',
+        // Top offset for the auto-advance anchor lives in the hook (`scrollElementIntoView`
+        // headerOffset), not in a scroll-mt here — the helper ignores scroll-margin-top.
+        'w-full border-b border-ods-border transition-colors duration-200 ease-out motion-reduce:transition-none',
         expanded && !loading ? 'bg-ods-bg' : 'bg-ods-card',
       )}
     >
@@ -104,10 +125,15 @@ export function OnboardingAccordionItem({
           {isCompleted ? <CheckCircleIcon /> : icon}
         </div>
 
-        {/* Title + description */}
+        {/* Title + description — skeleton bars while loading (kept inside the real
+            `<p>` line boxes so the row height is identical to the loaded one). */}
         <div className="flex min-w-0 flex-1 flex-col justify-center">
-          <p className={cn('text-h3', isDisabled ? 'text-ods-border' : 'text-ods-text-primary')}>{title}</p>
-          <p className={cn('text-h6', isDisabled ? 'text-ods-border' : 'text-ods-text-secondary')}>{description}</p>
+          <p className={cn('text-h3', isDisabled ? 'text-ods-border' : 'text-ods-text-primary')}>
+            {loading ? <InlineTextSkeleton className="h-4 w-40 md:h-5" /> : title}
+          </p>
+          <p className={cn('text-h6', isDisabled ? 'text-ods-border' : 'text-ods-text-secondary')}>
+            {loading ? <InlineTextSkeleton className="h-3 w-64 max-w-full" /> : description}
+          </p>
         </div>
 
         {/* Trailing: skeleton (loading) / requirement hint (disabled) / complete tag + chevron / chevron.
@@ -149,6 +175,10 @@ export function OnboardingAccordionItem({
           never mounts a step's (suspending) data hooks. */}
       {!isDisabled && !loading && (
         <div
+          // The auto-advance click anchor measures this wrapper (its height is the
+          // row's visible body) to pre-subtract a collapsing row above the clicked
+          // one — see STEP_BODY_SELECTOR in `useOnboardingAutoAdvance`.
+          data-onboarding-step-body
           className={cn(
             'grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none',
             expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',

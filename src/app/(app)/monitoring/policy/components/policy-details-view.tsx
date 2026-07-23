@@ -11,7 +11,7 @@ import {
   StackedRowsPanel,
   Tag,
 } from '@flamingo-stack/openframe-frontend-core';
-import { PenEditIcon, TrashIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
+import { PenEditIcon, PlayIcon, TrashIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useSafeBack } from '@/app/hooks/use-safe-back';
@@ -20,6 +20,8 @@ import { CONTEXT_ENTITY_KIND } from '../../../mingo/context/context-types';
 import { useTrackOpenView } from '../../../mingo/context/use-track-open-view';
 import { ScriptEditor } from '../../../scripts/components/script/script-editor';
 import { ConfirmDeleteMonitoringModal } from '../../components/confirm-delete-monitoring-modal';
+import { LiveTestPanel } from '../../components/live-test-panel';
+import { useLiveCampaign } from '../../hooks/use-live-campaign';
 import { usePolicies } from '../../hooks/use-policies';
 import type { Policy } from '../../types/policies.types';
 import { getPolicyStatus, POLICY_STATUS_CONFIG } from '../../utils/compute-policy-summary';
@@ -43,6 +45,9 @@ export function PolicyDetailsView({ policyId }: PolicyDetailsViewProps) {
   const { policyDetails, isLoading, error } = usePolicyDetails(isValidId ? numericId : null);
   const { deletePolicy, isDeleting } = usePolicies();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const campaign = useLiveCampaign();
+  const [showTestPanel, setShowTestPanel] = useState(false);
 
   // Register this policy as the Mingo "open view" (passive context) so the agent
   // gets the user's working context on the next message; cleared → recent views.
@@ -74,12 +79,52 @@ export function PolicyDetailsView({ policyId }: PolicyDetailsViewProps) {
     return <NotFoundError message="Policy not found" />;
   }
 
+  // Run the policy query as a regular live test query (same mechanism as the
+  // Queries screen) against the policy's assigned hosts. Without assigned
+  // devices the action is disabled, so the hook's all-hosts fallback is
+  // intentionally unreachable from here.
+  const hasAssignedDevices = (policyDetails?.hosts_include_any?.length ?? 0) > 0;
+
+  const handleRunNow = async () => {
+    const started = await campaign.startCampaign(
+      policyDetails.query || '',
+      policyDetails.hosts_include_any?.map(h => h.id) ?? [],
+    );
+    // Only surface the panel for an accepted campaign; failures already toast.
+    if (started) {
+      setShowTestPanel(true);
+    }
+  };
+
+  const handleCloseTestPanel = () => {
+    campaign.stopCampaign();
+    setShowTestPanel(false);
+  };
+
+  // First applicable disable reason doubles as the button tooltip, so every
+  // disabled state explains itself.
+  const runNowDisabledReason = !policyDetails.query?.trim()
+    ? 'This policy has no query to run'
+    : campaign.isRunning
+      ? 'A run is already in progress'
+      : !hasAssignedDevices
+        ? 'Assign at least one device to this policy to run it'
+        : undefined;
+
   const actions: PageActionButton[] = [
     {
       label: 'Edit',
       icon: <PenEditIcon size={24} className="text-ods-text-secondary" />,
       variant: 'outline',
       onClick: handleEditPolicy,
+    },
+    {
+      label: 'Run Now',
+      icon: <PlayIcon size={24} />,
+      variant: 'accent',
+      onClick: handleRunNow,
+      disabled: Boolean(runNowDisabledReason),
+      tooltip: runNowDisabledReason,
     },
   ];
 
@@ -145,6 +190,27 @@ export function PolicyDetailsView({ policyId }: PolicyDetailsViewProps) {
       actionsVariant="menu-primary"
       className="px-[var(--spacing-system-l)] pb-[var(--spacing-system-l)]"
     >
+      {/* Policy Testing */}
+      {showTestPanel && (
+        <div className="mb-[var(--spacing-system-lf)]">
+          <LiveTestPanel
+            mode="policy"
+            isRunning={campaign.isRunning}
+            startedAt={campaign.startedAt}
+            results={campaign.results}
+            errors={campaign.errors}
+            emptyResults={campaign.emptyResults}
+            totals={campaign.totals}
+            hostsResponded={campaign.hostsResponded}
+            hostsFailed={campaign.hostsFailed}
+            campaignStatus={campaign.campaignStatus}
+            onTestAgain={handleRunNow}
+            onStop={campaign.stopCampaign}
+            onClose={handleCloseTestPanel}
+          />
+        </div>
+      )}
+
       {/* Policy Info */}
       <StackedRowsPanel rows={policyInfoRows} />
 
@@ -162,7 +228,11 @@ export function PolicyDetailsView({ policyId }: PolicyDetailsViewProps) {
       <div className="mt-6">
         <h1 className="text-h2 text-ods-text-primary pt-6">Devices</h1>
         <div className="pt-4">
-          <PolicyDevicesTable policyId={numericId} assignedHostIds={policyDetails.hosts_include_any} />
+          <PolicyDevicesTable
+            policyId={numericId}
+            assignedHostIds={policyDetails.hosts_include_any}
+            policyQuery={policyDetails.query}
+          />
         </div>
       </div>
       <ConfirmDeleteMonitoringModal

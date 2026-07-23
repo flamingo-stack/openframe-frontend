@@ -2,7 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { applyNativeSafeAreas, isNativeShell, onNativeNotificationClick } from '@/lib/native-shell';
+import { initNativeBack } from '@/lib/native-back';
+import { hideSplashScreen, initNativeChrome, isNativeShell, onNativeNotificationClick } from '@/lib/native-shell';
 import { initTokenStore } from '@/lib/token-store';
 import { resolveNatsNotificationRoute } from './notifications/notification-navigation';
 
@@ -25,10 +26,15 @@ export function NativeShellInitializer() {
 
   useEffect(() => {
     if (!isNativeShell()) return;
-    void initTokenStore();
     // Activates the shell-only safe-area CSS in globals.css.
     document.documentElement.dataset.nativeShell = 'true';
-    void applyNativeSafeAreas();
+    // Status bar (overlay + light content) then safe-area insets.
+    void initNativeChrome();
+    // Android hardware/gesture back → overlay dismiss → SPA history → exit.
+    initNativeBack();
+    // Hide the launch splash once hydration settles — so it also covers a
+    // cold-start biometric unlock prompt (getTokens awaits it).
+    void initTokenStore().finally(() => void hideSplashScreen());
 
     if (!clickListenerRegistered) {
       clickListenerRegistered = true;

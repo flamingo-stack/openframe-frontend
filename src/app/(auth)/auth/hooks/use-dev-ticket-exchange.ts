@@ -39,7 +39,9 @@ export function useDevTicketExchange() {
             variant: 'success',
           });
 
-          router.push(routes.dashboard);
+          // replace, not push: don't leave the dev-ticket landing/auth screen in
+          // the back stack after a successful login.
+          router.replace(routes.dashboard);
         }
 
         return {

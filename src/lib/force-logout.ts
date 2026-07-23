@@ -1,5 +1,5 @@
 import { getDefaultRedirectPath, isSaasTenantMode } from './app-mode';
-import { clearTokens, hasTokensSync } from './token-store';
+import { clearTokens, getBiometricLockState, hasTokensSync } from './token-store';
 
 export interface ForceLogoutOptions {
   reason?: string;
@@ -11,6 +11,14 @@ export async function forceLogout(options: ForceLogoutOptions = {}): Promise<voi
   const { shouldRedirect = true, redirectPath } = options;
 
   if (typeof window === 'undefined') {
+    return;
+  }
+
+  // Biometric cold-start lock: the tokens exist in the Keychain but were never
+  // read (prompt canceled), so any auth failure that led here is based on
+  // unread tokens. Bail — the unlock gate owns recovery; wiping the Keychain
+  // here would make its Retry unrecoverable.
+  if (getBiometricLockState() === 'locked') {
     return;
   }
 
@@ -49,9 +57,11 @@ export async function forceLogout(options: ForceLogoutOptions = {}): Promise<voi
     }
     try {
       const targetPath = redirectPath || getDefaultRedirectPath(false);
-      window.location.href = targetPath;
+      // replace, not assign: don't leave the now-signed-out page in history, so
+      // back after a later re-login can't return to a stale logged-out screen.
+      window.location.replace(targetPath);
     } catch (_error) {
-      window.location.href = '/auth';
+      window.location.replace('/auth');
     }
   }
 }

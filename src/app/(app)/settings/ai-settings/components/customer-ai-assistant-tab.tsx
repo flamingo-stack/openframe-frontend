@@ -9,7 +9,7 @@ import {
 } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { Controller } from 'react-hook-form';
 import { featureFlags } from '@/lib/feature-flags';
-import { useCustomerAiAssistantForm } from '../hooks/use-customer-ai-assistant-form';
+import { type CommitAvatar, useCustomerAiAssistantForm } from '../hooks/use-customer-ai-assistant-form';
 import { useHubDefaultQuickActions } from '../hooks/use-hub-default-quick-actions';
 import { getProviderModelLabel, useSupportedModels } from '../hooks/use-supported-models';
 import type { AgentAiConfig, ClientView } from '../types/ai-settings';
@@ -26,7 +26,7 @@ interface CustomerAiAssistantTabProps {
   aiConfig: AgentAiConfig;
   view: ClientView;
   isEditMode: boolean;
-  onSubmit: (payload: CustomerAiAssistantSubmit) => void;
+  onSubmit: (payload: CustomerAiAssistantSubmit, commitAvatar: CommitAvatar) => void;
 }
 
 export function CustomerAiAssistantTab({ aiConfig, view, isEditMode, onSubmit }: CustomerAiAssistantTabProps) {

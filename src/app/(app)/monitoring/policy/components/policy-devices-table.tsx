@@ -256,7 +256,10 @@ export function PolicyDevicesTable({ policyId, assignedHostIds, policyQuery }: P
       const tag = snapshot ? RUN_OUTCOME_TAG[snapshot.outcome] : null;
 
       return (
-        <div data-no-row-click className="flex flex-col gap-[var(--spacing-system-s)] py-[var(--spacing-system-s)]">
+        <div
+          data-no-row-click
+          className="flex flex-col gap-[var(--spacing-system-s)] px-[var(--spacing-system-mf)] py-[var(--spacing-system-s)]"
+        >
           <div className="flex flex-wrap items-center gap-[var(--spacing-system-m)]">
             <Button
               variant="outline"

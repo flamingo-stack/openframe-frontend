@@ -576,9 +576,10 @@ function LogsTableContent({
   const hasQuery = Boolean(debouncedSearch) || hasActiveFilters || Boolean(dateRange);
   const noRows = !isPending && transformedLogs.length === 0;
 
-  // Standalone (unscoped) Logs page: the rich onboarding EmptyState replaces the
-  // whole table when there is genuinely no data (no scope, no query).
-  const showEmptyState = !deviceId && !organizationLocked && !hasQuery && noRows;
+  // Standalone Logs page and the device Overview tab share the same rich onboarding
+  // EmptyState when there is genuinely no data (no query). An empty result under an
+  // active query keeps the table chrome below.
+  const showEmptyState = !organizationLocked && !hasQuery && noRows;
 
   // Embedded (device/customer-scoped) tabs: mirror the other detail-page tabs —
   // when the table is empty, hide the column header and render the unified

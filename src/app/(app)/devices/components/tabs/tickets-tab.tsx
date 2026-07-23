@@ -16,6 +16,7 @@ import {
   getTicketTableColumns,
   ticketRowHref,
 } from '../../../tickets/components/ticket-table-columns';
+import { TicketsEmptyState } from '../../../tickets/components/tickets-empty-state';
 import { useTicketsQuery } from '../../../tickets/hooks/use-tickets-query';
 import type { ClientDialogOwner, Dialog } from '../../../tickets/types/dialog.types';
 import type { Device } from '../../types/device.types';
@@ -125,6 +126,15 @@ export function TicketsTab({ device }: TicketsTabProps) {
   const hasSearch = debouncedSearch.trim().length > 0;
   const isEmpty = deviceTickets.length === 0;
   const showChrome = isLoading || !isEmpty || hasSearch;
+
+  // Genuinely no tickets (no data before any search manipulation) → the default
+  // EmptyState replaces the whole table, with the same content as the Tickets page.
+  // A search with zero matches keeps the table chrome and its compact empty state below.
+  if (!isLoading && isEmpty && !hasSearch) {
+    return (
+      <TicketsEmptyState />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-[var(--spacing-system-l)]" style={containerStyle}>

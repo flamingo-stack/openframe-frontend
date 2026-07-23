@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  BellCheckIcon,
-  FolderShieldIcon,
-  Hierarchy02Icon,
-  PlusCircleIcon,
-  RadarIcon,
-  SearchIcon,
-} from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
+import { PlusCircleIcon, SearchIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import {
   DashboardInfoCard,
   DataTable,
@@ -20,17 +13,12 @@ import { useApiParams } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
-import {
-  EmptyState,
-  onboardingGuideButton,
-  PoliciesTable,
-  type PolicyTableRow,
-  type PolicyTableStatus,
-} from '@/app/components/shared';
+import { PoliciesTable, type PolicyTableRow, type PolicyTableStatus } from '@/app/components/shared';
 import { useSearchParam } from '@/app/hooks/use-search-param';
 import { useStickyToolbar } from '@/app/hooks/use-sticky-toolbar';
 import { routes } from '@/lib/routes';
 import { ConfirmDeleteMonitoringModal } from '../../components/confirm-delete-monitoring-modal';
+import { PoliciesEmptyState } from '../policies-empty-state';
 import { usePolicies } from '../../hooks/use-policies';
 import type { Policy } from '../../types/policies.types';
 import { computePolicySummary, getPolicyStatus, POLICY_STATUS_CONFIG } from '../../utils/compute-policy-summary';
@@ -216,17 +204,7 @@ export function Policies() {
       </div>
 
       {showEmptyState ? (
-        <EmptyState
-          icon={<FolderShieldIcon />}
-          title="No policies yet"
-          description="Rules that automatically enforce settings, configurations, and security standards across devices will be displayed here."
-          actions={[
-            { icon: <Hierarchy02Icon />, label: 'Apply settings to many devices at once' },
-            { icon: <RadarIcon />, label: 'Target devices by Customer, OS, or tag' },
-            { icon: <BellCheckIcon />, label: 'Get alerts when devices fall out of compliance' },
-          ]}
-          {...onboardingGuideButton('policies', 'Learn more about Policies')}
-        />
+        <PoliciesEmptyState />
       ) : (
         <div className="flex flex-col gap-[var(--spacing-system-l)]" style={containerStyle}>
           {/* Sticky Search Bar */}

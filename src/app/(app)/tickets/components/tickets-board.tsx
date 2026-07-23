@@ -7,17 +7,11 @@ import {
   type BoardColumnDef,
   type BoardTicket,
 } from '@flamingo-stack/openframe-frontend-core/components/features';
-import {
-  ArcheryTargetIcon,
-  Filter02Icon,
-  TagIcon,
-  UserPlusIcon,
-} from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
+import { Filter02Icon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import { Button, PageError, PageLayout } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { useDebounce, useToast } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { type InfiniteData, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
-import { EmptyState, onboardingGuideButton } from '@/app/components/shared';
 import { appendImageHash } from '@/lib/image-url';
 import { routes } from '@/lib/routes';
 import { useApprovalRequests } from '../hooks/use-approval-requests';
@@ -34,6 +28,7 @@ import { BoardAssigneePicker } from './board-assignee-picker';
 import { BoardColumnSubscriber, type BoardColumnUpdate } from './board-column-subscriber';
 import { OrganizationFilter } from './organization-filter';
 import { TicketTagFilter } from './ticket-label-filter';
+import { TicketsEmptyState } from './tickets-empty-state';
 import { TicketsFilterModal } from './tickets-filter-modal';
 
 // TODO(unread-from-entity): re-enable per-ticket unread highlighting once the backend exposes
@@ -302,39 +297,43 @@ export function TicketsBoard({
         className="h-full px-[var(--spacing-system-l)] pb-[var(--spacing-system-l)]"
         contentClassName="flex flex-col min-h-0"
       >
-        <div className="flex flex-col gap-[var(--spacing-system-l)]">
-          <div className="flex flex-col gap-[var(--spacing-system-xxs)]">
-            <TicketTagFilter
-              search={search}
-              onSearchChange={onSearchChange}
-              labelIds={labelIds ?? []}
-              onLabelIdsChange={ids => onLabelIdsChange?.(ids)}
-              filterButton={
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="md:hidden"
-                  onClick={() => setMobileFiltersOpen(true)}
-                  aria-label="Open filters"
-                  leftIcon={<Filter02Icon />}
-                />
-              }
-            />
+        {/* Default rich empty state (no data, no query): search + filters are hidden per the
+            Figma data-placeholder-onboarding pattern — only the title bar chrome stays. */}
+        {!showEmptyState && (
+          <div className="flex flex-col gap-[var(--spacing-system-l)]">
+            <div className="flex flex-col gap-[var(--spacing-system-xxs)]">
+              <TicketTagFilter
+                search={search}
+                onSearchChange={onSearchChange}
+                labelIds={labelIds ?? []}
+                onLabelIdsChange={ids => onLabelIdsChange?.(ids)}
+                filterButton={
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="md:hidden"
+                    onClick={() => setMobileFiltersOpen(true)}
+                    aria-label="Open filters"
+                    leftIcon={<Filter02Icon />}
+                  />
+                }
+              />
+            </div>
+            {/* Mobile keeps these filters in the modal next to the search input. */}
+            <div className="hidden md:grid grid-cols-4 gap-[var(--spacing-system-l)]">
+              <OrganizationFilter
+                value={organizationIds ?? []}
+                onChange={ids => onOrganizationIdsChange?.(ids)}
+                className="col-span-1"
+              />
+              <AssigneeFilter
+                value={assigneeIds ?? []}
+                onChange={ids => onAssigneeIdsChange?.(ids)}
+                className="col-span-1"
+              />
+            </div>
           </div>
-          {/* Mobile keeps these filters in the modal next to the search input. */}
-          <div className="hidden md:grid grid-cols-4 gap-[var(--spacing-system-l)]">
-            <OrganizationFilter
-              value={organizationIds ?? []}
-              onChange={ids => onOrganizationIdsChange?.(ids)}
-              className="col-span-1"
-            />
-            <AssigneeFilter
-              value={assigneeIds ?? []}
-              onChange={ids => onAssigneeIdsChange?.(ids)}
-              className="col-span-1"
-            />
-          </div>
-        </div>
+        )}
 
         <TicketsFilterModal
           isOpen={mobileFiltersOpen}
@@ -345,17 +344,7 @@ export function TicketsBoard({
         />
 
         {showEmptyState ? (
-          <EmptyState
-            icon={<TagIcon />}
-            title="Ticket history empty"
-            description="Tickets will appear here when available"
-            actions={[
-              { icon: <ArcheryTargetIcon />, label: 'Track issues from report to resolution' },
-              { icon: <Filter02Icon />, label: 'Filter by client, status, priority, or assignee' },
-              { icon: <UserPlusIcon />, label: 'Assign, prioritize, and reply in one place' },
-            ]}
-            {...onboardingGuideButton('tickets', 'Learn more about Tickets')}
-          />
+          <TicketsEmptyState />
         ) : (
           <div aria-busy={isLoading || movingIds.size > 0} className="flex-1 min-h-0 -mx-[var(--spacing-system-l)]">
             <Board

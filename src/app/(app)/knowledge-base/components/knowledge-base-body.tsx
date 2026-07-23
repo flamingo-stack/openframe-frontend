@@ -443,35 +443,40 @@ function KnowledgeBaseBodyShell({
       menuActions={menuActions}
     >
       <div style={containerStyle} className="flex flex-col">
-        <div
-          ref={toolbarRef}
-          className="sticky top-0 z-20 flex flex-col gap-[var(--spacing-system-xxs)] bg-ods-bg -mx-[var(--spacing-system-l)] px-[var(--spacing-system-l)] pt-[var(--spacing-system-l)] pb-[var(--spacing-system-l)] -mt-[var(--spacing-system-l)]"
-        >
-          <div className="flex items-center gap-[var(--spacing-system-m)]">
-            <div className="min-w-0 flex-1">
-              <TagSearchInput<string>
-                tags={tagSearchOptions}
-                searchValue={search}
-                onSearchChange={setSearch}
-                onTagRemove={removeTag}
-                onClearAll={clearAll}
-                placeholder="Search for Articles"
-                addMorePlaceholder="Search for Articles"
-              />
+        {/* Genuinely empty knowledge base (no items, no search/tags — `isContentEmpty` is only
+            reported for that case) → the onboarding empty state stands alone; search and tag
+            filters are hidden per the empty-state convention. */}
+        {!(!isSubtreeMode && isContentEmpty) && (
+          <div
+            ref={toolbarRef}
+            className="sticky top-0 z-20 flex flex-col gap-[var(--spacing-system-xxs)] bg-ods-bg -mx-[var(--spacing-system-l)] px-[var(--spacing-system-l)] pt-[var(--spacing-system-l)] pb-[var(--spacing-system-l)] -mt-[var(--spacing-system-l)]"
+          >
+            <div className="flex items-center gap-[var(--spacing-system-m)]">
+              <div className="min-w-0 flex-1">
+                <TagSearchInput<string>
+                  tags={tagSearchOptions}
+                  searchValue={search}
+                  onSearchChange={setSearch}
+                  onTagRemove={removeTag}
+                  onClearAll={clearAll}
+                  placeholder="Search for Articles"
+                  addMorePlaceholder="Search for Articles"
+                />
+              </div>
+              {!isMdUp && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsTagsModalOpen(true)}
+                  aria-label="Filter by tags"
+                  leftIcon={<Filter02Icon />}
+                />
+              )}
             </div>
-            {!isMdUp && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setIsTagsModalOpen(true)}
-                aria-label="Filter by tags"
-                leftIcon={<Filter02Icon />}
-              />
-            )}
-          </div>
 
-          {isMdUp && <KnowledgeBaseTagsRow parentId={parentId} selectedIds={tagIds} onAdd={addTag} />}
-        </div>
+            {isMdUp && <KnowledgeBaseTagsRow parentId={parentId} selectedIds={tagIds} onAdd={addTag} />}
+          </div>
+        )}
 
         <Suspense fallback={<KnowledgeBaseTableSkeleton />}>
           {isSubtreeMode ? (

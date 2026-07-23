@@ -1,7 +1,7 @@
 'use client';
 
 import { useOptionalNotifications } from '@flamingo-stack/openframe-frontend-core';
-import { Filter02Icon, TagIcon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
+import { Filter02Icon } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
 import {
   Button,
   type ColumnFiltersState,
@@ -13,13 +13,13 @@ import {
 } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { useDebounce } from '@flamingo-stack/openframe-frontend-core/hooks';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
-import { EmptyState } from '@/app/components/shared';
 import { useStickyToolbar } from '@/app/hooks/use-sticky-toolbar';
 import { emphasizeNewTicketAction, useTicketsActions } from '../hooks/use-tickets-actions';
 import { useTicketsQuery } from '../hooks/use-tickets-query';
 import { useTicketStatusesQuery } from '../statuses/hooks/use-ticket-statuses-query';
 import type { Dialog } from '../types/dialog.types';
 import { TicketTagFilter } from './ticket-label-filter';
+import { TicketsEmptyState } from './tickets-empty-state';
 import { getTicketTableColumns, type StatusFilterOption, TicketTableBody } from './ticket-table-columns';
 
 // TODO(unread-from-entity): re-enable per-ticket unread highlighting once the backend exposes
@@ -172,29 +172,33 @@ export function TicketsTable({
         contentClassName="flex flex-col"
       >
         <div style={containerStyle}>
-          <div
-            ref={toolbarRef}
-            className="sticky top-0 z-20 flex flex-col gap-[var(--spacing-system-xxs)] bg-ods-bg -mx-[var(--spacing-system-l)] px-[var(--spacing-system-l)] pt-[var(--spacing-system-l)] pb-[var(--spacing-system-l)] -mt-[var(--spacing-system-l)]"
-          >
-            <TicketTagFilter
-              search={search}
-              onSearchChange={onSearchChange}
-              labelIds={labelIds}
-              onLabelIdsChange={onLabelIdsChange}
-              filterButton={
-                hasMobileFilter ? (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="md:hidden"
-                    onClick={() => setMobileFilterOpen(true)}
-                    aria-label="Open filters"
-                    leftIcon={<Filter02Icon />}
-                  />
-                ) : undefined
-              }
-            />
-          </div>
+          {/* Default rich empty state (no data, no query): search + filters are hidden per the
+              Figma data-placeholder-onboarding pattern — only the title bar chrome stays. */}
+          {!showEmptyState && (
+            <div
+              ref={toolbarRef}
+              className="sticky top-0 z-20 flex flex-col gap-[var(--spacing-system-xxs)] bg-ods-bg -mx-[var(--spacing-system-l)] px-[var(--spacing-system-l)] pt-[var(--spacing-system-l)] pb-[var(--spacing-system-l)] -mt-[var(--spacing-system-l)]"
+            >
+              <TicketTagFilter
+                search={search}
+                onSearchChange={onSearchChange}
+                labelIds={labelIds}
+                onLabelIdsChange={onLabelIdsChange}
+                filterButton={
+                  hasMobileFilter ? (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="md:hidden"
+                      onClick={() => setMobileFilterOpen(true)}
+                      aria-label="Open filters"
+                      leftIcon={<Filter02Icon />}
+                    />
+                  ) : undefined
+                }
+              />
+            </div>
+          )}
 
           {hasMobileFilter && (
             <FilterModal
@@ -207,11 +211,7 @@ export function TicketsTable({
           )}
 
           {showEmptyState ? (
-            <EmptyState
-              icon={<TagIcon />}
-              title="Ticket history empty"
-              description="Tickets will appear here when available"
-            />
+            <TicketsEmptyState />
           ) : (
             <TicketTableBody
               tickets={tickets}

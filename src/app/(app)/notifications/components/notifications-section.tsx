@@ -61,18 +61,23 @@ export function NotificationsSection({
       className="px-[var(--spacing-system-l)] pb-[var(--spacing-system-l)]"
     >
       <div className="flex flex-col" style={containerStyle}>
-        <div
-          ref={toolbarRef}
-          className="sticky top-0 z-20 flex items-center bg-ods-bg -mx-[var(--spacing-system-l)] p-[var(--spacing-system-l)] -mt-[var(--spacing-system-l)]"
-        >
-          <Input
-            placeholder="Search for Notification"
-            value={searchValue}
-            onChange={e => onSearchChange(e.target.value)}
-            className="flex-1"
-            startAdornment={<SearchIcon />}
-          />
-        </div>
+        {/* Genuinely no notifications (no active search) → the rich empty state stands alone;
+            the search input is hidden per the empty-state convention. A search that matched
+            nothing keeps the input so the query can be adjusted. */}
+        {!(isEmpty && !searchValue.trim()) && (
+          <div
+            ref={toolbarRef}
+            className="sticky top-0 z-20 flex items-center bg-ods-bg -mx-[var(--spacing-system-l)] p-[var(--spacing-system-l)] -mt-[var(--spacing-system-l)]"
+          >
+            <Input
+              placeholder="Search for Notification"
+              value={searchValue}
+              onChange={e => onSearchChange(e.target.value)}
+              className="flex-1"
+              startAdornment={<SearchIcon />}
+            />
+          </div>
+        )}
 
         <Suspense fallback={<SectionTableSkeleton rowVariant={rowVariant} stickyHeaderOffset={stickyHeaderOffset} />}>
           {queryRef ? (

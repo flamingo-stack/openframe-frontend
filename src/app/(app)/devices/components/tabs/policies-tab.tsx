@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { PoliciesTable, type PolicyTableRow } from '@/app/components/shared';
 import { useStickyToolbar } from '@/app/hooks/use-sticky-toolbar';
 import { routes } from '@/lib/routes';
+import { PoliciesEmptyState } from '../../../monitoring/components/policies-empty-state';
 import type { Device, DevicePolicy } from '../../types/device.types';
 import { TabEmptyState } from './tab-empty-state';
 
@@ -66,6 +67,14 @@ export function PoliciesTab({ device }: PoliciesTabProps) {
         description="Compliance policies for this device will appear here."
       />
     );
+  }
+
+  // Genuinely no policies (no data before any search/filter manipulation) → the rich
+  // onboarding EmptyState replaces the whole table, shared verbatim with the
+  // Monitoring page's Policies tab. A search with zero matches keeps the table
+  // chrome and its compact empty state below.
+  if (policies.length === 0) {
+    return <PoliciesEmptyState />;
   }
 
   // Hide the search on a truly empty table (no rows, no active search) so the tab shows only

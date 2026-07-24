@@ -4,7 +4,7 @@ import { CheckCircleIcon, FastForwardIcon } from '@flamingo-stack/openframe-fron
 import { PageLayout } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { navigateSamePageHash } from '@flamingo-stack/openframe-frontend-core/utils';
 import { useRouter } from 'next/navigation';
-import { type ComponentType, useCallback, useEffect, useState } from 'react';
+import { type ComponentType, useCallback, useEffect, useRef, useState } from 'react';
 import { ConfirmDialog } from '@/app/components/shared/confirm-dialog';
 import { UserOnboardingStep } from '@/generated/schema-enums';
 import { useOnboardingMutations } from '@/graphql/onboarding/use-onboarding-mutations';
@@ -27,6 +27,7 @@ import { LoggingStep } from './logging-step';
 import { MingoStep } from './mingo-step';
 import { MonitoringStep } from './monitoring-step';
 import { OnboardingAccordionGroup, OnboardingAccordionItem, type OnboardingStepStatus } from './onboarding-accordion';
+import { OnboardingCompleteBanner } from './onboarding-complete-banner';
 import { OnboardingSkeleton } from './onboarding-skeleton';
 import { ScriptingStep } from './scripting-step';
 import { TicketsStep } from './tickets-step';
@@ -61,32 +62,50 @@ const STEP_BODY: Record<UserOnboardingStep, ComponentType<StepBodyProps>> = {
 };
 
 /**
- * User "Get Started" onboarding. Step statuses, the header counter and the
- * Skip action are driven by `userOnboardingProgress` (via the onboarding
- * store); each step's "Mark as Complete" commits `completeUserOnboardingStep`.
+ * User "Get Started" onboarding. Step statuses, the header counter and the Skip action
+ * are driven by `userOnboardingProgress` (via the onboarding store); each step's "Mark as
+ * Complete" commits `completeUserOnboardingStep`. There is no manual finisher: once every
+ * step is done the header flips to "All steps complete", an "All Steps Done!" banner
+ * appears, and the tour auto-commits in the background so any exit finalizes it.
  *
  * Mount gate only: shows the skeleton until progress is loaded (and redirects if the
- * tenant Initial Setup isn't done), then mounts {@link LoadedOnboardingContent} — so
- * the loaded content's hooks (notably the auto-advance flow, which picks its initial
- * expanded step on mount) always start from real progress, never from the empty
- * pre-load state.
+ * tenant Initial Setup isn't done, or the tour is already finished), then mounts
+ * {@link LoadedOnboardingContent} — so the loaded content's hooks (notably the
+ * auto-advance flow, which picks its initial expanded step on mount) always start from
+ * real progress, never from the empty pre-load state.
  */
 export function OnboardingContent() {
   const router = useRouter();
   const tenant = useOnboardingStore(state => state.tenant);
+  const user = useOnboardingStore(state => state.user);
   const isLoaded = useOnboardingStore(state => state.isLoaded);
 
-  // The personal Get Started tour is only available after the tenant Initial Setup
-  // is complete. If the user lands here (deep link, stale tab) beforehand, send them
-  // back to the dashboard where the Initial Setup card lives.
   const initialSetupComplete = tenant?.completed ?? false;
+
+  // Lock out re-entry once the tour is finished — a completed user has no access to
+  // /onboarding. We capture completion as it was ON ARRIVAL (first loaded render), not
+  // live: a user who finishes the tour in THIS session must still see the "All Steps
+  // Done!" view, which itself commits `user.completed` in the background — so only a
+  // LATER visit (deep link, back button, reload, menu) with the tour already complete is
+  // redirected away. Writing the ref during the first loaded render is a deliberate
+  // one-shot capture that only gates this component.
+  const completedOnArrivalRef = useRef<boolean | null>(null);
+  if (isLoaded && completedOnArrivalRef.current === null) {
+    completedOnArrivalRef.current = user?.completed ?? false;
+  }
+  const lockedOut = completedOnArrivalRef.current === true;
+
+  // The personal Get Started tour is only reachable after the tenant Initial Setup is
+  // complete and before the user has finished it. If the user lands here otherwise (deep
+  // link / stale tab before setup; a revisit after completing), send them back to the
+  // dashboard where the Initial Setup card lives.
   useEffect(() => {
-    if (isLoaded && !initialSetupComplete) {
+    if (isLoaded && (!initialSetupComplete || lockedOut)) {
       router.replace(routes.dashboard);
     }
-  }, [isLoaded, initialSetupComplete, router]);
+  }, [isLoaded, initialSetupComplete, lockedOut, router]);
 
-  if (!isLoaded || !initialSetupComplete) {
+  if (!isLoaded || !initialSetupComplete || lockedOut) {
     return <OnboardingSkeleton />;
   }
 
@@ -101,10 +120,10 @@ function LoadedOnboardingContent() {
   const [completingStep, setCompletingStep] = useState<UserOnboardingStep | null>(null);
 
   const user = useOnboardingStore(state => state.user);
-  const { completeUserStep, completeUserStepInBackground, completeUser, skipUser, isMutating } =
+  const { completeUserStep, completeUserStepInBackground, completeUserInBackground, skipUser, isMutating } =
     useOnboardingMutations();
 
-  const leaveOnboarding = useCallback(() => router.push(routes.dashboard), [router]);
+  const leaveOnboarding = () => router.push(routes.dashboard);
 
   const completedSteps = user?.completedSteps ?? [];
 
@@ -160,27 +179,18 @@ function LoadedOnboardingContent() {
   const done = countCompleted(USER_ONBOARDING_STEPS, completedSteps);
   const allDone = done >= total;
 
-  // No manual finisher on the happy path: the instant every step is done, auto-complete
-  // the tour (unless it was already completed — e.g. a deep link back here) and return to
-  // the dashboard. A small state machine both guards against a re-fire while the mutation
-  // round-trips (`allDone` stays true across the intermediate renders) AND recovers from
-  // failure: on error it drops to `failed`, stopping the auto-fire and surfacing a retry
-  // action, so a network error can't strand the user on a finished-but-not-completed tour.
-  const [completion, setCompletion] = useState<'idle' | 'completing' | 'failed'>('idle');
-  const runCompletion = useCallback(() => {
-    // Already completed (deep link back here) — nothing to commit, just leave.
-    if (user?.completed) {
-      leaveOnboarding();
-      return;
-    }
-    setCompletion('completing');
-    completeUser(leaveOnboarding, () => setCompletion('failed'));
-  }, [user?.completed, completeUser, leaveOnboarding]);
+  // The instant every step is done, commit the tour in the background exactly once. No
+  // manual click required: committing here is what makes ANY action on the completed view
+  // finalize it — a reload re-commits (idempotent) and navigating away or clicking "Go to
+  // Dashboard" both leave with the tour already done, so it clears from the menu. The ref
+  // guards against a re-fire across the re-renders that follow (allDone stays true).
+  const committedRef = useRef(false);
   useEffect(() => {
-    if (allDone && completion === 'idle') {
-      runCompletion();
+    if (allDone && !committedRef.current) {
+      committedRef.current = true;
+      completeUserInBackground();
     }
-  }, [allDone, completion, runCompletion]);
+  }, [allDone, completeUserInBackground]);
 
   const statusOf = (step: UserOnboardingStep): OnboardingStepStatus =>
     isStepDone(step, completedSteps) ? 'completed' : 'active';
@@ -193,44 +203,42 @@ function LoadedOnboardingContent() {
   // Fire-and-forget completion for "open"/navigate primary actions — no loading anywhere.
   const completeBackgroundOf = (step: UserOnboardingStep) => () => completeUserStepInBackground(step);
 
-  // Header action. Normally "Skip Onboarding", available until every step is done; once
-  // all steps complete the page auto-completes and leaves for the dashboard (see the
-  // effect above), so no action shows then. If that auto-completion FAILS we fall back
-  // to an accent "Complete Onboarding" retry — the only manual finisher, on the error
-  // path only — so a network error can't strand the user with no way forward.
-  const actions =
-    completion === 'failed'
-      ? [
-          {
-            label: 'Complete Onboarding',
-            variant: 'accent' as const,
-            icon: <CheckCircleIcon className="size-5" />,
-            disabled: isMutating,
-            loading: isMutating,
-            onClick: runCompletion,
-          },
-        ]
-      : allDone
-        ? []
-        : [
-            {
-              label: 'Skip Onboarding',
-              variant: 'outline' as const,
-              icon: <FastForwardIcon className="size-5" />,
-              disabled: isMutating,
-              onClick: () => setSkipConfirmOpen(true),
-            },
-          ];
+  // Header action: "Skip Onboarding", available until every step is done. Once all steps
+  // complete there is no header action — the "All Steps Done!" banner (rendered as the
+  // first content block below) takes over with a "Go to Dashboard" CTA, and the tour has
+  // already auto-committed (see the effect above).
+  const actions = allDone
+    ? []
+    : [
+        {
+          label: 'Skip Onboarding',
+          variant: 'outline' as const,
+          icon: <FastForwardIcon className="size-5" />,
+          disabled: isMutating,
+          onClick: () => setSkipConfirmOpen(true),
+        },
+      ];
 
   return (
     <PageLayout
       title="Get Started"
-      subtitle={`${total} steps to complete · ${done}/${total} done`}
+      subtitle={allDone ? 'All steps complete' : `${total} steps to complete · ${done}/${total} done`}
       actions={actions}
       actionsVariant="icon-buttons"
       className="px-[var(--spacing-system-l)] pb-[var(--spacing-system-l)]"
       contentClassName="flex flex-col gap-[var(--spacing-system-l)]"
     >
+      {allDone && (
+        <OnboardingCompleteBanner
+          emoji="🎉"
+          title="All Steps Done!"
+          description="This section will clear from your menu. Reset it from Settings anytime to go through the steps again."
+          actionLabel="Go to Dashboard"
+          actionIcon={<CheckCircleIcon className="size-5" />}
+          onAction={leaveOnboarding}
+        />
+      )}
+
       {USER_ONBOARDING_GROUPS.map(group => (
         <OnboardingAccordionGroup key={group.label} label={group.label}>
           {group.items.map(item => {

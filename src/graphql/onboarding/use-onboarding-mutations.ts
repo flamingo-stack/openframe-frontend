@@ -130,29 +130,21 @@ export function useOnboardingMutations() {
     [environment, setUser, toast],
   );
 
-  // `onDone` fires only on success; `onFailed` on error (after the error toast) so an
-  // auto-completing caller can drop its completion guard and offer a retry instead of
-  // being stranded with the mutation never re-fired.
-  const completeTenant = useCallback(
-    (onDone?: () => void, onFailed?: () => void) => {
-      begin();
-      commitMutation<CompleteTenantType>(environment, {
-        mutation: completeTenantOnboardingMutation,
-        variables: {},
-        onCompleted: res => {
-          finish();
-          setTenant(toTenant(res.completeTenantOnboarding));
-          toast({ title: 'Initial Setup complete', variant: 'success' });
-          onDone?.();
-        },
-        onError: err => {
-          onError('Failed to complete setup')(err);
-          onFailed?.();
-        },
-      });
-    },
-    [environment, begin, finish, setTenant, toast, onError],
-  );
+  // Fire-and-forget whole-onboarding completion. The completed "victory" view (the
+  // Initial Setup card / Get Started page, once every step is done) commits itself in
+  // the background the moment it shows — no spinner, no success toast, because the big
+  // "Setup Complete" banner IS the feedback. This is what makes any subsequent action
+  // (reload, navigate away, the yellow CTA) find the onboarding already complete so the
+  // surface clears from the menu. Mirrors completeTenantStepInBackground; errors toast.
+  const completeTenantInBackground = useCallback(() => {
+    commitMutation<CompleteTenantType>(environment, {
+      mutation: completeTenantOnboardingMutation,
+      variables: {},
+      onCompleted: res => setTenant(toTenant(res.completeTenantOnboarding)),
+      onError: err =>
+        toast({ title: 'Error', description: err.message || 'Failed to complete setup', variant: 'destructive' }),
+    });
+  }, [environment, setTenant, toast]);
 
   // Silent per-step completion — see completeTenantStep. Only errors toast.
   const completeUserStep = useCallback(
@@ -175,29 +167,16 @@ export function useOnboardingMutations() {
     [environment, begin, finish, setUser, onError],
   );
 
-  // `onFailed` mirrors `completeTenant`: the auto-completing tour uses it to fall back
-  // to a retry affordance rather than leaving the user stuck on a finished-but-not-
-  // completed page after a failed request.
-  const completeUser = useCallback(
-    (onDone?: () => void, onFailed?: () => void) => {
-      begin();
-      commitMutation<CompleteUserType>(environment, {
-        mutation: completeUserOnboardingMutation,
-        variables: {},
-        onCompleted: res => {
-          finish();
-          setUser(toUser(res.completeUserOnboarding));
-          toast({ title: 'Onboarding complete', variant: 'success' });
-          onDone?.();
-        },
-        onError: err => {
-          onError('Failed to finish onboarding')(err);
-          onFailed?.();
-        },
-      });
-    },
-    [environment, begin, finish, setUser, toast, onError],
-  );
+  // See completeTenantInBackground — same fire-and-forget model for the Get Started tour.
+  const completeUserInBackground = useCallback(() => {
+    commitMutation<CompleteUserType>(environment, {
+      mutation: completeUserOnboardingMutation,
+      variables: {},
+      onCompleted: res => setUser(toUser(res.completeUserOnboarding)),
+      onError: err =>
+        toast({ title: 'Error', description: err.message || 'Failed to finish onboarding', variant: 'destructive' }),
+    });
+  }, [environment, setUser, toast]);
 
   const skipUser = useCallback(
     (onDone?: () => void) => {
@@ -241,10 +220,10 @@ export function useOnboardingMutations() {
   return {
     completeTenantStep,
     completeTenantStepInBackground,
-    completeTenant,
+    completeTenantInBackground,
     completeUserStep,
     completeUserStepInBackground,
-    completeUser,
+    completeUserInBackground,
     skipUser,
     resetUser,
     isMutating: pending > 0,

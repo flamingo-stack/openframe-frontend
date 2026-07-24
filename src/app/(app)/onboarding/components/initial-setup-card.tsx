@@ -2,14 +2,13 @@
 
 import {
   BuildingsIcon,
-  CheckCircleIcon,
   IdCardIcon,
   MonitorIcon,
   UsersGroupIcon,
 } from '@flamingo-stack/openframe-frontend-core/components/icons-v2';
-import { Button, Skeleton } from '@flamingo-stack/openframe-frontend-core/components/ui';
+import { Skeleton } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { useRouter } from 'next/navigation';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { TenantOnboardingStep } from '@/generated/schema-enums';
 import { useOnboardingMutations } from '@/graphql/onboarding/use-onboarding-mutations';
 import { routes } from '@/lib/routes';
@@ -22,6 +21,7 @@ import { CustomerSetupStep } from './customer-setup-step';
 import { DeviceSetupStep } from './device-setup-step';
 import { MspSetupStep } from './msp-setup-step';
 import { OnboardingAccordionItem, type OnboardingStepStatus } from './onboarding-accordion';
+import { OnboardingCompleteBanner } from './onboarding-complete-banner';
 
 interface StepMeta {
   step: TenantOnboardingStep;
@@ -76,11 +76,27 @@ export function InitialSetupCard() {
   const isLoaded = useOnboardingStore(state => state.isLoaded);
   const tenant = useOnboardingStore(state => state.tenant);
 
-  // Render only when progress is loaded AND we actually have a tenant record that
-  // isn't complete. Guarding on `!tenant` matters: `refreshOnboardingProgress` marks
-  // the store loaded even on a failed/empty fetch (tenant stays null), and the content
-  // fires its data queries the instant it mounts — we must not mount it on null.
-  if (!isLoaded || !tenant || tenant.completed) {
+  // Latch: the completed "victory" view commits Initial Setup in the background the
+  // instant it shows (see {@link InitialSetupCardContent}). That flips `tenant.completed`,
+  // which would otherwise hide this card mid-view. Once we've shown it in this mount we
+  // keep it up so the user actually sees the completed state and its "Take the Product
+  // Tour" CTA. A real exit (reload, navigating away and back) remounts against
+  // `completed: true` and the card is correctly gone. Writing the ref during render is a
+  // deliberate idempotent false→true latch — it only ever gates THIS component.
+  const shownRef = useRef(false);
+  if (isLoaded && tenant && !tenant.completed) {
+    shownRef.current = true;
+  }
+
+  // Render only when progress is loaded AND we actually have a tenant record. Guarding on
+  // `!tenant` matters: `refreshOnboardingProgress` marks the store loaded even on a
+  // failed/empty fetch (tenant stays null), and the content fires its data queries the
+  // instant it mounts — we must not mount it on null. Hide once complete UNLESS we're
+  // latched into showing the just-completed view.
+  if (!isLoaded || !tenant) {
+    return null;
+  }
+  if (tenant.completed && !shownRef.current) {
     return null;
   }
 
@@ -91,14 +107,15 @@ export function InitialSetupCard() {
  * The card body. Suspends (via {@link useTenantOnboardingAutoDetect}) until every step
  * count has loaded, then renders once in its fully-settled state — step statuses and the
  * "X/Y done" counter driven by `tenantOnboardingProgress` unioned with the live data.
- * There is no manual finisher: once every step is done the card auto-completes Initial
- * Setup and sends the user on to the `/onboarding` tour (see effect below). Sits on the
- * darker page background (`bg-ods-bg`, not `bg-ods-card`) so it doesn't read as a card.
+ * There is no manual finisher: once every step is done the header flips to "All steps
+ * complete", a "Setup Complete" banner appears, and Initial Setup auto-commits in the
+ * background (see the effect below) so any exit finalizes it. Sits on the darker page
+ * background (`bg-ods-bg`, not `bg-ods-card`) so it doesn't read as a card.
  */
 function InitialSetupCardContent() {
   const router = useRouter();
   const tenant = useOnboardingStore(state => state.tenant);
-  const { completeTenantStep, completeTenantStepInBackground, completeTenant, isMutating } = useOnboardingMutations();
+  const { completeTenantStep, completeTenantStepInBackground, completeTenantInBackground } = useOnboardingMutations();
 
   // Auto-close steps whose underlying data already exists (MSP profile filled,
   // customer/device/teammate added) — see the hook for criteria. Suspends until the
@@ -133,27 +150,19 @@ function InitialSetupCardContent() {
   const done = countCompleted(TENANT_ONBOARDING_STEPS, completedSteps);
   const allDone = done >= total;
 
-  // No manual finisher on the happy path: the instant every step is satisfied,
-  // auto-complete Initial Setup (which unmounts this card via the parent's
-  // `tenant.completed` gate) and move the user on to the `/onboarding` tour. A small
-  // state machine both guards against a double-fire while the mutation round-trips
-  // (`allDone` stays true across the intermediate renders) AND recovers from failure:
-  // on error it drops to `failed`, which stops the auto-fire and surfaces a retry
-  // button below, so a network error can't strand the user on a finished-but-not-
-  // completed card with no way forward.
-  const [completion, setCompletion] = useState<'idle' | 'completing' | 'failed'>('idle');
-  const runCompletion = useCallback(() => {
-    setCompletion('completing');
-    completeTenant(
-      () => router.push(routes.onboarding),
-      () => setCompletion('failed'),
-    );
-  }, [completeTenant, router]);
+  // The instant every step is done, commit Initial Setup in the background exactly once.
+  // No manual click required: committing here is what makes ANY action on the completed
+  // view finalize it — a page reload or a navigation away both remount against
+  // `tenant.completed === true` (so the card is gone), and "Take the Product Tour" just
+  // navigates. The ref guards against a re-fire across the re-renders that follow (the
+  // parent latches this card mounted while `completed` flips — see {@link InitialSetupCard}).
+  const committedRef = useRef(false);
   useEffect(() => {
-    if (allDone && completion === 'idle') {
-      runCompletion();
+    if (allDone && !committedRef.current) {
+      committedRef.current = true;
+      completeTenantInBackground();
     }
-  }, [allDone, completion, runCompletion]);
+  }, [allDone, completeTenantInBackground]);
 
   const statusOf = (step: TenantOnboardingStep): OnboardingStepStatus =>
     isStepDone(step, completedSteps) ? 'completed' : 'active';
@@ -185,28 +194,11 @@ function InitialSetupCardContent() {
 
   return (
     <section className="flex w-full flex-col gap-[var(--spacing-system-m)] rounded-md border border-ods-border bg-ods-bg p-[var(--spacing-system-l)]">
-      <div className="flex flex-col gap-[var(--spacing-system-s)] md:flex-row md:items-center">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <h2 className="text-h2 text-ods-text-primary">Initial Setup</h2>
-          <p className="text-h6 text-ods-text-secondary">
-            {total} steps to complete · {done}/{total} done
-          </p>
-        </div>
-        {/* Error-recovery only: the happy path auto-completes and unmounts, so this
-            never shows then. It appears solely when auto-completion failed, giving the
-            user an explicit way to retry. */}
-        {completion === 'failed' && (
-          <Button
-            variant="accent"
-            leftIcon={<CheckCircleIcon className="size-5" />}
-            onClick={runCompletion}
-            disabled={isMutating}
-            loading={isMutating}
-            className="w-full md:w-auto"
-          >
-            Complete Setup
-          </Button>
-        )}
+      <div className="flex min-w-0 flex-col">
+        <h2 className="text-h2 text-ods-text-primary">Initial Setup</h2>
+        <p className="text-h6 text-ods-text-secondary">
+          {allDone ? 'All steps complete' : `${total} steps to complete · ${done}/${total} done`}
+        </p>
       </div>
 
       <div className="flex w-full flex-col overflow-hidden rounded-md border border-ods-border [&>*:last-child]:border-b-0">
@@ -225,6 +217,17 @@ function InitialSetupCardContent() {
           </OnboardingAccordionItem>
         ))}
       </div>
+
+      {allDone && (
+        <OnboardingCompleteBanner
+          className="bg-ods-bg"
+          emoji="🎉"
+          title="Setup Complete"
+          description="Full onboarding is available from the menu if you need to revisit a step or set up something new."
+          actionLabel="Take the Product Tour"
+          onAction={() => router.push(routes.onboarding)}
+        />
+      )}
     </section>
   );
 }

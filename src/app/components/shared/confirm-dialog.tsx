@@ -8,7 +8,7 @@ import {
   ModalV2Title,
 } from '@flamingo-stack/openframe-frontend-core/components/ui';
 import { cn } from '@flamingo-stack/openframe-frontend-core/utils';
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 
 /**
  * ConfirmDialog — shared confirmation dialog for destructive and reversible
@@ -44,15 +44,17 @@ interface ConfirmDialogProps {
 }
 
 /**
- * Maps the dialog's intent to a core `Button` variant. `warning` has no
- * first-class Button variant, so it rides on `accent` with a token override.
+ * Maps the dialog's intent to a core `Button` variant. The button-variant type is derived
+ * straight from `Button` (`ComponentProps<typeof Button>['variant']`) so it stays in sync
+ * as the core lib adds or renames variants — no hardcoded union to drift. `className` is an
+ * optional token override for intents without a first-class Button variant.
  */
 const CONFIRM_VARIANT: Record<
   NonNullable<ConfirmDialogProps['variant']>,
-  { variant: 'accent' | 'destructive'; className?: string }
+  { variant: NonNullable<ComponentProps<typeof Button>['variant']>; className?: string }
 > = {
   destructive: { variant: 'destructive' },
-  warning: { variant: 'accent', className: 'bg-ods-warning text-ods-bg hover:bg-ods-warning/90' },
+  warning: { variant: 'warning' },
   default: { variant: 'accent' },
 };
 

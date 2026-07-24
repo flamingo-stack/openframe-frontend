@@ -11,6 +11,7 @@ import { useOnboardingMutations } from '@/graphql/onboarding/use-onboarding-muta
 import { featureFlags } from '@/lib/feature-flags';
 import { getFullImageUrl } from '@/lib/image-url';
 import { isNativeShell } from '@/lib/native-shell';
+import { useOnboardingStore } from '@/stores/onboarding-store';
 import { NotificationSettingsModal } from './notification-settings-modal';
 
 interface ProfileCardProps {
@@ -22,9 +23,15 @@ export function ProfileCard({ onEditProfile, onVerifyEmail }: ProfileCardProps) 
   const user = useAuthStore(state => state.user);
   const isLoadingProfile = useAuthStore(state => state.isLoadingProfile);
 
-  // "Reset Onboarding" replays the personal Get Started tour — only offered when the
-  // `new-onboarding` feature is on, same gate as the rest of the onboarding chrome.
+  // "Reset Onboarding" replays the personal Get Started tour. Offered only when the
+  // `new-onboarding` feature is on AND there is a finished tour to replay — i.e. progress
+  // has loaded and the user has completed or skipped it. While the tour is still in
+  // progress it's already in the menu, so there's nothing to reset.
   const newOnboardingEnabled = featureFlags.newOnboarding.enabled();
+  const onboardingProgress = useOnboardingStore(state => state.user);
+  const onboardingLoaded = useOnboardingStore(state => state.isLoaded);
+  const canResetOnboarding =
+    newOnboardingEnabled && onboardingLoaded && !!(onboardingProgress?.completed || onboardingProgress?.skipped);
   const { resetUser, isMutating: isResettingOnboarding } = useOnboardingMutations();
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
@@ -103,7 +110,7 @@ export function ProfileCard({ onEditProfile, onVerifyEmail }: ProfileCardProps) 
                         },
                       ]
                     : []),
-                  ...(newOnboardingEnabled
+                  ...(canResetOnboarding
                     ? [
                         {
                           id: 'reset-onboarding',
@@ -138,7 +145,6 @@ export function ProfileCard({ onEditProfile, onVerifyEmail }: ProfileCardProps) 
         cancelLabel="Cancel"
         variant="warning"
         isPending={isResettingOnboarding}
-        pendingLabel="Resetting..."
         onConfirm={() => resetUser(() => setIsResetConfirmOpen(false))}
       />
     </>
